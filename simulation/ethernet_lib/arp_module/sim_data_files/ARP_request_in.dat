@@ -1,0 +1,41 @@
+% comments:
+% any line started with '%' - flag can be specified as generic in file_reader_hex
+anything less than
+length of a line
+containing data
+
+% interpreter ignores empty lines as well
+
+% "@" is used to indicate counters for transmission start
+% flag can be specified as generic in AV_ST_sender
+% must be decimal numbers in increasing order!
+
+% for ARP_module_tester, the pure ARP request without Ethernet header is required
+
+ARP request
+with error
+@ 2
+0001 0800 0604 0001
+A3C2 C700 1232 C0A8
+0003 0123 4567 89ab
+C0A8 001E 0000 0000 100 1
+
+ARP request
+without error
+@ 20
+0001 0800 0604 0001
+A3C2 C700 1232 C0A8
+0003 0123 4567 89ab
+C0A8 001E 0000 0000 100 0
+
+@ 40
+0001 0800 0604 0001
+A3C2 C700 1232 C0A8
+0603 0123 4567 89ab
+C0A8 001E 0000 0000 100 0
+
+@ 60
+0001 0800 0604 0001
+A3C2 C700 1232 C0A8
+0003 0123 4567 89ab
+C0A8 001E 0000 0000 100 1
