@@ -1,0 +1,87 @@
+% comments:
+% any line started with '%' - flag can be specified as generic in file_reader_hex
+anything less than
+length of a line
+containing data
+is also considered
+as a comment
+
+% interpreter ignores empty lines as well
+
+% "@" is used to indicate counters for transmission start
+% flag can be specified as generic in AV_ST_sender
+% must be decimal numbers in increasing order!
+
+% Reset request addressed to Back_FPGA
+% using:
+% MY_MAC = 00:22:8F:02:41:EE
+% MY_IP = 192.168.0.30
+% MY_UDP_port = 5
+% IPbus big-endian
+
+@ 30
+0022 8F02 41EE 0019
+9912 3956 0800 4500
+001d 093c 4000 8011
+0000 c0a8 0163 c0a8
+001e 1115 0005 0044
+
+0000 20FE DCF0 2FED
+011F 0000 0001 4000
+0005 0000 0000 0000 110 0
+
+% padded IP packet: addressed to FPGA2
+% padding:
+% the packet is padded if its length is less then 64 bytes, including the 4 bytes of F(rame) C(heck) S(um)
+% so basically this means, a packet is padded, if:
+% - it's Ethernet data content (including header) is less than 60 bytes
+% - supposing 6+6+2 bytes Ethernet header, it's IPv4 frame length is less than 46 bytes
+% - supposing 14+20 bytes Eth+IP header, it's UDPv4 frame length is less than 26 bytes
+% will be looped back - if not filtered out due to 'invalid' length indication
+@ 44
+0022 8f02 41ee 0030
+6409 08fa 0800 4500
+002d ed37 0000 ff11
+3ce8 c0a8 000a c0a8
+001e 04d2 0002 0010
+96de 1000 0001 2000
+0002 0000 0000 0000
+0000 0000 0000 FC52 010 0
+
+
+% Reset request addressed to Back_FPGA
+% using:
+% MY_MAC = 00:22:8F:02:41:EE
+% MY_IP = 192.168.0.30
+% MY_UDP_port = 5
+% IPbus little-endian
+
+@ 55
+0022 8F02 41EE 0019
+9912 3956 0800 4500
+001d 093c 4000 8011
+0000 c0a8 0163 c0a8
+001e 1115 0005 0044
+
+0000 F0DC FE20 1F01
+ED2F 0100 0000 1234
+5678 0000 0000 0000 110 0
+
+% just another big-endian request
+% Reset request addressed to Back_FPGA
+% using:
+% MY_MAC = 00:22:8F:02:41:EE
+% MY_IP = 192.168.0.30
+% MY_UDP_port = 5
+% IPbus big-endian
+
+@ 66
+0022 8F02 41EE 0019
+9912 3956 0800 4500
+001d 093c 4000 8011
+0000 c0a8 0163 c0a8
+001e 1115 0005 0044
+
+0000 20FE DCF0 2FED
+011F 0000 0001 1000
+0001 0000 0000 0000 110 0
