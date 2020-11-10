@@ -12,4 +12,5 @@ library = "ethernet_lib"
 files = [
   "port_io_table.vhd",
   "arp_module.vhd",
+  "reset_module.vhd",
 ]
