@@ -1,0 +1,298 @@
+-- EMACS settings: -*- tab-width: 2; indent-tabs-mode: nil -*-
+-- vim: tabstop=2:shiftwidth=2:expandtab
+-- kate: tab-width 2; replace-tabs on; indent-width 2;
+-------------------------------------------------------------------------------
+--! @file
+--! @brief Interface merger for the Avalon streaming interface
+--! @author Steffen Stärz <steffen.staerz@cern.ch>
+-------------------------------------------------------------------------------
+--! @details
+--! Generates one output interface from two input interfaces.
+--!
+--! @todo Derive width of ctrl signals from DATA_WIDTH - depends on how many
+--! symbols per words there are in the data interface.
+-------------------------------------------------------------------------------
+
+--! @cond
+library IEEE;
+  use IEEE.STD_LOGIC_1164.all;
+--! @endcond
+
+--! Interface merger for the Avalon streaming interface
+entity interface_merger is
+  generic (
+    --! Width of the input data interface
+    DATA_WIDTH        : integer range 1 to 128 := 64;
+    --! @brief Enable or disable interface interruption (interface locking)
+    --! @details
+    --! If true, the second (lower priority) interface will be interrupted
+    --! (eof with error) upon start of transmission of the first interface.
+    --! If false, the first interface will be halted until the transmission
+    --! of the first interface has finished.
+    INTERRUPT_ENABLE  : boolean                := false;
+    --! If true, a one clock idle is generated after each frame.
+    GAP_ENABLE        : boolean                := true
+  );
+  port (
+    --! Clock
+    clk              : in    std_logic;
+    --! Reset, sync with #clk
+    rst              : in    std_logic;
+
+    --! @name Avalon-ST from first priority interface
+    --! @{
+
+    --! RX ready
+    avst1_rx_ready  : out   std_logic;
+    --! RX data
+    avst1_rx_data   : in    std_logic_vector(DATA_WIDTH-1 downto 0);
+    --! RX controls
+    avst1_rx_ctrl   : in    std_logic_vector(6 downto 0);
+    --! @}
+
+    --! @name Avalon-ST from second priority interface (possibly interrupted)
+    --! @{
+
+    --! RX ready
+    avst2_rx_ready  : out   std_logic;
+    --! RX data
+    avst2_rx_data   : in    std_logic_vector(DATA_WIDTH-1 downto 0);
+    --! RX controls
+    avst2_rx_ctrl   : in    std_logic_vector(6 downto 0);
+    --! @}
+
+    --! @name Avalon-ST output interface
+    --! @{
+
+    --! TX ready
+    avst_tx_ready    : in    std_logic;
+    --! TX data
+    avst_tx_data     : out   std_logic_vector(DATA_WIDTH-1 downto 0);
+    --! TX controls
+    avst_tx_ctrl     : out   std_logic_vector(6 downto 0);
+    --! @}
+
+    --! @brief Status of the module
+    --! @details Status of the module
+    --! - 2: avst2 is being forwarded
+    --! - 1: avst1 is being forwarded
+    --! - 0: module in idle
+    status_vector    : out   std_logic_vector(2 downto 0)
+  );
+end interface_merger;
+
+--! Implementation of the interface merger
+architecture behavioral of interface_merger is
+
+  --! @brief State definition for the TX FSM
+  --! @details
+  --! State definition for the TX FSM
+  --! - IDLE:      No transmission running.
+  --! - AVST1:     Data from avst1 is being received and transmission is started.
+  --! - AVST2:     Data from avst2 is being received and transmission is started.
+  --! - INTERRUPT: Data from avst2 is interrupted, sending eof and error flags
+  --!              (only used for INTERRUPT_ENABLE is true)
+  --! - IGAP:      Insert idle clock after INTERRUPT.
+  --!              (only used for GAP_ENABLE is true)
+  --! - FGAP:      Insert idle clock after forwarding avst2 (at start with avst1).
+  --!              (only used for GAP_ENABLE is true)
+  type t_tx_state is (IDLE, AVST1, AVST2, INTERRUPT, IGAP, FGAP);
+
+  --! State of the TX FSM
+  signal tx_state : t_tx_state := IDLE;
+
+  --! AVST end of frame
+  signal avst_tx_eof  : std_logic := '0';
+  --! Indicator if avst2 wants to send a packet next
+  signal avst2_next   : std_logic := '0';
+
+begin
+
+  -- receiver specific status vector bits:
+  status_vector(0) <= '1' when tx_state = idle else '0';
+  status_vector(1) <= '1' when tx_state = avst1 else '0';
+  status_vector(2) <= '1' when tx_state = avst2 else '0';
+
+  --! TX FSM to handle merging of interfaces
+  proc_tx_fsm : process (clk) is
+  begin
+    if rising_edge(clk) then
+      if (rst = '1') then
+        tx_state <= IDLE;
+      else
+        if avst_tx_ready = '1' then
+
+          case tx_state is
+
+            when IDLE =>
+              -- first priority: avst1 interface
+              if avst1_rx_ctrl(5) = '1' then
+                tx_state <= AVST1;
+              -- second priority: avst2  interface
+              elsif avst2_rx_ctrl(5) = '1' then
+                tx_state <= AVST2;
+              else
+                tx_state <= IDLE;
+              end if;
+
+            when AVST1 =>
+              -- once chosen the interface, only quit it upon end_of_frame
+              if avst_tx_eof = '1' then
+                -- watch out if second interface started transmission simultaneously with first
+                -- start_of_frame is then still hold at the register
+                if avst2_next = '1' then
+                  -- so chose second interface state then directly
+                  if GAP_ENABLE then
+                    tx_state <= FGAP;
+                  else
+                    tx_state <= AVST2;
+                  end if;
+                else
+                  tx_state <= IDLE;
+                end if;
+              else
+                tx_state <= AVST1;
+              end if;
+
+            when AVST2 =>
+              if interrupt_enable then
+                -- if interrupt_enable is active:
+                -- watch out for first interface and interrupt second if required,
+                -- otherwise watch out for end_of_frame of second interface
+                if avst1_rx_ctrl(5) = '1' and avst_tx_eof = '0' then
+                  tx_state <= INTERRUPT;
+                elsif avst_tx_eof = '1' then
+                  tx_state <= IDLE;
+                else
+                  tx_state <= AVST2;
+                end if;
+              else
+                -- if interrupt_enable is inactive:
+                -- watch out for end_of_frame of second interface only
+                if avst_tx_eof = '1' then
+                  tx_state <= IDLE;
+                else
+                  tx_state <= AVST2;
+                end if;
+              end if;
+
+            when INTERRUPT =>
+              if GAP_ENABLE then
+                tx_state <= IGAP;
+              else
+                tx_state <= AVST1;
+              end if;
+
+            when igap =>
+              tx_state <= AVST1;
+
+            when fgap =>
+              tx_state <= AVST2;
+
+          end case;
+
+        end if;
+      end if;
+    end if;
+  end process;
+
+------------------------------  <-  80 chars  ->  ------------------------------
+-- choose upon state machine which interface to be forwarded, based on the
+-- registered first words of the rx interfaces
+-- also generate the rx_ready signals for the two receiving interfaces
+--------------------------------------------------------------------------------
+  merge_interfaces : block
+    --! Buffer for first word of avst1 interface
+    signal avst1_rx_dnc_reg : std_logic_vector(6+DATA_WIDTH downto 0);
+    --! Buffer for first word of avst2 interface
+    signal avst2_rx_dnc_reg : std_logic_vector(6+DATA_WIDTH downto 0);
+
+    --! Data word to inject when interrupting a transmission (don't care)
+    constant DONTCARE_DATA  : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '-');
+    --! Data word controls to inject when interrupting a transmission (eof with error)
+    constant INTERRUPT_CTRL : std_logic_vector(6 downto 0) := "1011000";
+    --! Data word controls when output interface inactive
+    constant IDLE_CTRL      : std_logic_vector(6 downto 0) := (others => '0');
+
+    --! Internal ready signal for avst1
+    signal avst1_rx_ready_i : std_logic := '0';
+    --! Internal ready signal for avst2
+    signal avst2_rx_ready_i : std_logic := '0';
+  begin
+
+    --! Buffer first word that each interface wants to transmit
+    proc_save_first_words : process (clk) is
+    begin
+      if rising_edge(clk) then
+        if (rst = '1') then
+          avst1_rx_dnc_reg <= (others => '0');
+          avst2_rx_dnc_reg <= (others => '0');
+        else
+          if avst1_rx_ready_i = '1' then
+            avst1_rx_dnc_reg <= avst1_rx_ctrl & avst1_rx_data;
+          else
+            avst1_rx_dnc_reg <= avst1_rx_dnc_reg;
+          end if;
+
+          if avst2_rx_ready_i = '1' then
+            avst2_rx_dnc_reg <= avst2_rx_ctrl & avst2_rx_data;
+          else
+            avst2_rx_dnc_reg <= avst2_rx_dnc_reg;
+          end if;
+        end if;
+      end if;
+    end process;
+
+    avst2_next <= avst2_rx_dnc_reg(5+DATA_WIDTH) or avst2_rx_ctrl(5);
+
+    -- if interrupt is disabled, first interface only ready if selected so by TX FSM
+
+    gen_interrupt_off : if not INTERRUPT_ENABLE generate
+    begin
+      with tx_state select avst1_rx_ready_i <=
+        avst_tx_ready when IDLE | AVST1,
+        '0' when others;
+    end generate;
+
+    -- else
+    -- if interrupt is enabled, first interface is (almost) always ready
+
+    gen_interrupt_on : if INTERRUPT_ENABLE generate
+    begin
+      with tx_state select avst1_rx_ready_i <=
+        '0' when INTERRUPT | IGAP,
+        avst_tx_ready when others;
+    end generate;
+
+    avst1_rx_ready <= avst1_rx_ready_i;
+
+    -- second interface is only ready if selected so by TX FSM
+    with tx_state select avst2_rx_ready_i <=
+      avst_tx_ready when IDLE | AVST2,
+      '0' when others;
+
+    avst2_rx_ready <= avst2_rx_ready_i;
+
+    -- finally create the tx interface from previously set signals
+    gen_avst_tx_interface : block
+      --! Combination of controls and data to be sent out
+      signal avst_tx_dnc : std_logic_vector(6+DATA_WIDTH downto 0);
+    begin
+      -- mux the data and control:
+      with tx_state select avst_tx_dnc <=
+        avst1_rx_dnc_reg when AVST1,
+        avst2_rx_dnc_reg when AVST2,
+        INTERRUPT_CTRL & DONTCARE_DATA when INTERRUPT,
+        IDLE_CTRL & DONTCARE_DATA when others;
+
+      avst_tx_data <= avst_tx_dnc(DATA_WIDTH-1 downto 0);
+      avst_tx_ctrl <= avst_tx_dnc(6+DATA_WIDTH downto DATA_WIDTH);
+
+      -- extract the eof (used in the TX FSM)
+      avst_tx_eof <= avst_tx_dnc(4+DATA_WIDTH);
+
+    end block;
+
+  end block;
+
+end behavioral;
