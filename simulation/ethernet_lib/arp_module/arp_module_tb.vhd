@@ -22,7 +22,7 @@ entity arp_module_tb is
   generic (
     --! File containing the ARP input data
     ARP_DAT_FILENAME  : string := "sim_data_files/ARP_request_in.dat";
-    --! File to write out the response of the ARP_module
+    --! File to write out the response of the arp_module
     ARP_LOG_FILENAME  : string := "sim_data_files/ARP_response_out.dat";
     --! File containing counters on which the rx interface is not ready
     ARP_RX_READY_FILE : string := "sim_data_files/ARP_rx_ready_in.dat";
@@ -192,15 +192,14 @@ begin
         COUNTER_FLAG  => COUNTER_FLAG
       )
       port map (
-      -- clk
         clk       => clk,
         rst       => rst,
         cnt       => counter,
 
-      -- avalon-st from outside world
-        tx_ready    => arp_tx_ready,
-        tx_data     => arp_tx_data,
-        tx_ctrl     => arp_tx_ctrl
+        -- Avalon-ST from outside world
+        tx_ready  => arp_tx_ready,
+        tx_data   => arp_tx_data,
+        tx_ctrl   => arp_tx_ctrl
       );
 
       --! Instantiate counter_matcher to read arp_rx_ready_n from ARP_RX_READY_FILE
@@ -230,7 +229,6 @@ begin
         WORDSPERLINE  => 4
       )
       port map (
-      -- clk
         clk       => clk,
         rst       => rst,
         wren      => wren,
