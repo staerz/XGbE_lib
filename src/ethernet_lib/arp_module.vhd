@@ -188,7 +188,7 @@ begin
 
   end block;
 
-  --  Transmitter part
+  -- Transmitter part
   make_tx_interface : block is
     --! @brief State definition for the TX FSM
     --! @details
