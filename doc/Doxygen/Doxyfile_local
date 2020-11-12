@@ -1,0 +1,45 @@
+#---------------------------------------------------------------------------
+# This is the component-specific doxygen configuration file.
+# The main configuration file is config/Doxyfile and includes this file.
+#---------------------------------------------------------------------------
+# This file describes the settings to be used by the documentation system
+# doxygen (www.doxygen.org) for a project.
+#
+# All text after a double hash (##) is considered a comment and is placed in
+# front of the TAG it is preceding.
+#
+# All text after a single hash (#) is considered a comment and will be ignored.
+# The format is:
+# TAG = value [value, ...]
+# For lists, items can also be appended using:
+# TAG += value [value, ...]
+# Values that contain spaces should be placed between quotes (\" \").
+# Multiple lines can be concatenated by inserting a backslash (\)
+# as the last character of a line.
+#---------------------------------------------------------------------------
+
+# doxygen defines a 'project' - which here corresponds to our component
+# doxygen uses this as the title for the manual
+PROJECT_NAME           = "Data Monitoring (damon)"
+
+# this path is relative to the original Doxyfile including this file
+# that's cumbersome, so we use the env variable (set in the Makefile)
+INPUT = $(COMPONENT_ROOT_PATH)/src/damon_top.vhd
+INPUT += $(COMPONENT_ROOT_PATH)/src/ethernet_lib/interface_merger.vhd
+INPUT += $(COMPONENT_ROOT_PATH)/simulation/ethernet_lib/interface_merger/interface_merger_tb.vhd
+INPUT += $(COMPONENT_ROOT_PATH)/src/ethernet_lib/port_io_table.vhd
+INPUT += $(COMPONENT_ROOT_PATH)/simulation/ethernet_lib/port_io_table/port_io_table_tb.vhd
+INPUT += $(COMPONENT_ROOT_PATH)/src/ethernet_lib/arp_module.vhd
+INPUT += $(COMPONENT_ROOT_PATH)/simulation/ethernet_lib/arp_module/arp_module_tb.vhd
+INPUT += $(COMPONENT_ROOT_PATH)/src/ethernet_lib/reset_module.vhd
+INPUT += $(COMPONENT_ROOT_PATH)/simulation/ethernet_lib/reset_module/reset_module_tb.vhd
+
+# apparently package files need to be added explicitly
+# or it is due to an error with a previously processed file!?
+#INPUT += $(COMPONENT_ROOT_PATH)/src/damon_pkg.vhd
+
+# we exclude any third party source code, i.e. the lpGBT source code
+#EXCLUDE = $(COMPONENT_ROOT_PATH)/src/ethernet_lib/
+
+# exclude Readme files
+EXCLUDE_PATTERNS += *.md
