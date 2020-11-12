@@ -12,6 +12,7 @@ library = "ethernet_lib"
 files = [
   "interface_merger.vhd",
   "port_io_table.vhd",
+  "trailer_module.vhd",
   "arp_module.vhd",
   "reset_module.vhd",
 ]
