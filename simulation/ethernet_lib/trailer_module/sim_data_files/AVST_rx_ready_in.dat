@@ -1,0 +1,8 @@
+% file to indicate counters for transmission start
+% have one integer per line
+% must be in increasing order!
+% decimal numbers
+
+22
+32
+76
