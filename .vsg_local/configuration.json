@@ -63,7 +63,29 @@
         },
       },
     },
-
+#    "src/ethernet_lib/rx_fifo_module.vhd":{
+# VSG 2.0.0 crashes on 'with ... select, so we must exclude it for now'
+#      "rule":{
+#        # temporarily exclude the indentation rules as VSG is wrong here
+#        "entity_005":{
+#          "disable": true
+#        },
+#        "if_004":{
+#          "disable": true
+#        },
+#        "port_025":{
+#          "disable": true
+#        },
+#      },
+#    },
+    "simulation/ethernet_lib/rx_fifo_module/rx_fifo_module_tb.vhd":{
+      "rule":{
+        # temporarily exclude the indentation rules as VSG is wrong here
+        "architecture_008":{
+          "disable": true
+        },
+      },
+    },
 #    "simulation/damon_top/damon_top_tb.vhd",
 # VSG 2.0.0 crashes on 'with ... select, so we must exclude the test benches for now'
 #    "simulation/ethernet_lib/port_io_table/port_io_table_tb.vhd",
