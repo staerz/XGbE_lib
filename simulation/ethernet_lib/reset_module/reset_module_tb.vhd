@@ -7,10 +7,8 @@
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
 -------------------------------------------------------------------------------
 --! @details Generates the environment for the reset_module.vhd.
---! A Reset request is generated during the normal operation of data trans-
---! mission. Hence, the interface merger is also instantiated.
 --!
---! For proper operation of the reset, RST_DAT_FILENAME has to contain the
+--! For proper operation of the reset, RST_RXD_FILE has to contain the
 --! properly formatted reset request, respecting the configuration of MY_MAC,
 --! MY_IP and MY_UDP_port.
 --!
@@ -25,12 +23,12 @@ library IEEE;
 --! Testbench for reset_module.vhd
 entity reset_module_tb is
   generic (
-    --! File containing the reset input data
-    RST_DAT_FILENAME  : string := "sim_data_files/RST_data_in.dat";
-    --! File to write out the response of the reset_module
-    RST_LOG_FILENAME  : string := "sim_data_files/RST_data_out.dat";
-    --! File containing counters on which the rx interface is not ready
-    RST_RX_READY_FILE : string := "sim_data_files/RST_rx_ready_in.dat";
+    --! File containing the RST RX data
+    RST_RXD_FILE      : string := "sim_data_files/RST_data_in.dat";
+    --! File containing counters on which the RX interface is not ready
+    RST_RDY_FILE      : string := "sim_data_files/RST_rx_ready_in.dat";
+    --! File to write out the response of the module
+    RST_TXD_FILE      : string := "sim_data_files/RST_data_out.dat";
     --! File containing counters on which a manual reset is carried out
     MNL_RST_FILE      : string := "sim_data_files/MNL_RST_in.dat";
 
@@ -40,7 +38,7 @@ entity reset_module_tb is
     COUNTER_FLAG      : character := '@';
 
     --! @name Configuration of the module
-    --! This configuration must match the data in the RST_DAT_FILENAME input file
+    --! This configuration must match the data in the RST_RXD_FILE input file
     --! @{
 
     --! MAC address
@@ -65,25 +63,14 @@ library ethernet_lib;
 --! @endcond
 
 --! Implementation of reset_module_tb
-architecture behavioral of reset_module_tb is
+architecture tb of reset_module_tb is
 
   --! Clock
   signal clk              : std_logic;
-  --! reset, sync with #clk
+  --! Reset, sync with #clk
   signal rst              : std_logic;
 
-  --! @name Avalon-ST from reset requester
-  --! @{
-
-  --! RX ready
-  signal rst_rx_ready     : std_logic;
-  --! RX data
-  signal rst_rx_data      : std_logic_vector(63 downto 0);
-  --! RX controls
-  signal rst_rx_ctrl      : std_logic_vector(6 downto 0);
-  --! @}
-
-  --! @name Avalon-ST to reset requester
+  --! @name Avalon-ST (IPbus) to module (read from file)
   --! @{
 
   --! TX ready
@@ -94,11 +81,22 @@ architecture behavioral of reset_module_tb is
   signal rst_tx_ctrl      : std_logic_vector(6 downto 0);
   --! @}
 
-  --! Reset output
-  signal rst_out        : std_logic_vector(reset_width-1 downto 0);
+  --! @name Avalon-ST (IPbus) from module (written to file)
+  --! @{
 
-  --! status of the module
-  signal status_vector  : std_logic_vector(2 downto 0);
+  --! RX ready
+  signal rst_rx_ready     : std_logic;
+  --! RX data
+  signal rst_rx_data      : std_logic_vector(63 downto 0);
+  --! RX controls
+  signal rst_rx_ctrl      : std_logic_vector(6 downto 0);
+  --! @}
+
+  --! Reset output
+  signal rst_out          : std_logic_vector(reset_width-1 downto 0);
+
+  --! Status of the module
+  signal status_vector    : std_logic_vector(2 downto 0);
 
 begin
 
@@ -137,15 +135,14 @@ begin
 
   -- Simulation part
   -- generating stimuli based on counter
-  simulation: block
+  blk_simulation : block
     signal counter    : integer := 0;
-    signal async_rst  : std_logic;
     signal sim_rst    : std_logic;
     signal mnl_rst    : std_logic;
   begin
 
     --! Instantiate simulation_basics to start
-    sim_basics: entity sim.simulation_basics
+    inst_sim_basics : entity sim.simulation_basics
     generic map (
       RESET_DURATION  => 5,
       CLK_OFFSET      => 0 ns,
@@ -158,7 +155,7 @@ begin
     );
 
     --! Instantiate counter_matcher to read mnl_rst from MNL_RST_FILE
-    mnl_rst_gen: entity sim.counter_matcher
+    inst_mnl_rst : entity sim.counter_matcher
     generic map (
       FILENAME      => MNL_RST_FILE,
       COMMENT_FLAG  => COMMENT_FLAG
@@ -170,23 +167,14 @@ begin
       stimulus  => mnl_rst
     );
 
-    async_rst <= sim_rst or mnl_rst;
+    rst <= sim_rst or mnl_rst;
 
-    --! Instantiate delay_chain to generate rst
-    rst_sync_inst: entity misc.delay_chain
-    port map (
-      clk        => clk,
-      rst        => '0',
-      sig_in(0)  => async_rst,
-      sig_out(0) => rst
-    );
-
-    rst_tx_gen_block: block
+    blk_rst_tx : block
     begin
-      --! Instantiate av_st_sender to read rst_tx from RST_DAT_FILENAME
+      --! Instantiate av_st_sender to read rst_tx from RST_RXD_FILE
       rst_rx_gen: entity sim.av_st_sender
       generic map (
-        FILENAME      => RST_DAT_FILENAME,
+        FILENAME      => RST_RXD_FILE,
         COMMENT_FLAG  => COMMENT_FLAG,
         COUNTER_FLAG  => COUNTER_FLAG
       )
@@ -195,7 +183,7 @@ begin
         rst       => rst,
         cnt       => counter,
 
-        -- Avalon-ST from outside world
+        -- Avalon-ST to outside world
         tx_ready  => rst_tx_ready,
         tx_data   => rst_tx_data,
         tx_ctrl   => rst_tx_ctrl
@@ -203,15 +191,15 @@ begin
 
     end block;
 
-    rst_log_gen: block
+    blk_rst_log : block
       signal wren           : std_logic := '0';
       signal rst_rx_ready_n : std_logic := '0';
     begin
 
       --! Instantiate counter_matcher to generate rst_rx_ready_n
-      rx_ready_gen: entity sim.counter_matcher
+      inst_rx_ready : entity sim.counter_matcher
       generic map (
-        FILENAME      => RST_RX_READY_FILE,
+        FILENAME      => RST_RDY_FILE,
         COMMENT_FLAG  => COMMENT_FLAG
       )
       port map (
@@ -227,9 +215,9 @@ begin
       wren <= rst_rx_ctrl(6) and rst_rx_ready;
 
       --! Instantiate file_writer_hex to write rst_rx_data
-      log_rx: entity sim.file_writer_hex
+      inst_rst_log : entity sim.file_writer_hex
       generic map (
-        FILENAME      => RST_LOG_FILENAME,
+        FILENAME      => RST_TXD_FILE,
         COMMENT_FLAG  => COMMENT_FLAG,
         BITSPERWORD   => 16,
         WORDSPERLINE  => 4
@@ -250,4 +238,4 @@ begin
 
   end block;
 
-end behavioral;
+end tb;
