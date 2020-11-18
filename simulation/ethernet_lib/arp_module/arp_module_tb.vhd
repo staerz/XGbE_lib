@@ -7,9 +7,9 @@
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
 -------------------------------------------------------------------------------
 --! @details Generates the environment for the arp_module.vhd.
---! Data packets are read from #ARP_DAT_FILENAME and passed to the arp_module.
+--! Data packets are read from #ARP_RXD_FILE and passed to the arp_module.
 --! #MY_MAC and #MY_IP must be configured in accordance with data in that file.
---! The module's output is logged to #ARP_LOG_FILENAME.
+--! The module's output is logged to #ARP_TXD_FILE.
 -------------------------------------------------------------------------------
 
 --! @cond
@@ -20,12 +20,12 @@ library IEEE;
 --! Testbench for arp_module.vhd
 entity arp_module_tb is
   generic (
-    --! File containing the ARP input data
-    ARP_DAT_FILENAME  : string := "sim_data_files/ARP_request_in.dat";
-    --! File to write out the response of the arp_module
-    ARP_LOG_FILENAME  : string := "sim_data_files/ARP_response_out.dat";
-    --! File containing counters on which the rx interface is not ready
-    ARP_RX_READY_FILE : string := "sim_data_files/ARP_rx_ready_in.dat";
+    --! File containing the ARP RX data
+    ARP_RXD_FILE      : string := "sim_data_files/ARP_request_in.dat";
+    --! File containing counters on which the RX interface is not ready
+    ARP_RDY_FILE      : string := "sim_data_files/ARP_rx_ready_in.dat";
+    --! File to write out the response of the module
+    ARP_TXD_FILE      : string := "sim_data_files/ARP_response_out.dat";
 
     --! Definition how many clock cycles a millisecond is
     ONE_MILLISECOND   : integer := 7;
@@ -63,19 +63,7 @@ architecture tb of arp_module_tb is
   --! reset, sync with #clk
   signal rst              : std_logic;
 
-  --! @name Avalon-ST from ARP requester
-  --! @{
-
-  --! RX ready
-  signal arp_rx_ready     : std_logic;
-  --! RX data
-  signal arp_rx_data      : std_logic_vector(63 downto 0);
-  --! RX controls
-  signal arp_rx_ctrl      : std_logic_vector(6 downto 0);
-
-  --! @}
-
-  --! @name Avalon-ST to ARP requester (with Ethernet header)
+  --! @name Avalon-ST (ARP with Ethernet header) to module (read from file)
   --! @{
 
   --! TX ready
@@ -84,6 +72,18 @@ architecture tb of arp_module_tb is
   signal arp_tx_data      : std_logic_vector(63 downto 0);
   --! TX controls
   signal arp_tx_ctrl      : std_logic_vector(6 downto 0);
+
+  --! @}
+
+  --! @name Avalon-ST (ARP) from module (written to file)
+  --! @{
+
+  --! RX ready
+  signal arp_rx_ready     : std_logic;
+  --! RX data
+  signal arp_rx_data      : std_logic_vector(63 downto 0);
+  --! RX controls
+  signal arp_rx_ctrl      : std_logic_vector(6 downto 0);
 
   --! @}
 
@@ -100,10 +100,10 @@ architecture tb of arp_module_tb is
   signal reco_mac_done    : std_logic;
   --! @}
 
-  --! clock cycle when 1 millisecond is passed
+  --! Clock cycle when 1 millisecond is passed
   signal one_ms_tick      : std_logic;
 
-  --! status of the arp module
+  --! Status of the arp module
   signal status_vector    : std_logic_vector(4 downto 0);
 
 begin
@@ -147,16 +147,14 @@ begin
 
   -- Simulation part
   -- generating stimuli based on counter
-  simulation : block
+  blk_simulation : block
     signal counter        : integer := 0;
-    signal async_rst      : std_logic;
     signal sim_rst        : std_logic;
     signal mnl_rst        : std_logic;
-    signal arp_rx_ready_n : std_logic := '0';
   begin
 
     --! Instantiate simulation_basics to start
-    sim_basics : entity sim.simulation_basics
+    inst_sim_basics : entity sim.simulation_basics
     generic map (
       CLK_OFFSET    => 0 ns,
       CLK_PERIOD    => 6.4 ns
@@ -171,23 +169,15 @@ begin
       '1' when 9 to 12,
       '0' when others;
 
-    async_rst <= sim_rst or mnl_rst;
+    rst <= sim_rst or mnl_rst;
 
-    arp_tx_gen_block : block
-      signal wren       : std_logic := '0';
+    blk_arp_tx : block
     begin
-      rst_arp_sync_inst : entity misc.delay_chain
-      port map (
-        clk         => clk,
-        rst         => '0',
-        sig_in(0)   => async_rst,
-        sig_out(0)  => rst
-      );
 
-      --! Instantiate av_st_sender to read arp_tx from ARP_DAT_FILENAME
-      arp_tx_gen: entity sim.av_st_sender
+      --! Instantiate av_st_sender to read arp_tx from ARP_RXD_FILE
+      inst_arp_tx : entity sim.av_st_sender
       generic map (
-        FILENAME      => ARP_DAT_FILENAME,
+        FILENAME      => ARP_RXD_FILE,
         COMMENT_FLAG  => COMMENT_FLAG,
         COUNTER_FLAG  => COUNTER_FLAG
       )
@@ -196,16 +186,22 @@ begin
         rst       => rst,
         cnt       => counter,
 
-        -- Avalon-ST from outside world
+        -- Avalon-ST to outside world
         tx_ready  => arp_tx_ready,
         tx_data   => arp_tx_data,
         tx_ctrl   => arp_tx_ctrl
       );
+    end block;
 
-      --! Instantiate counter_matcher to read arp_rx_ready_n from ARP_RX_READY_FILE
-      rx_ready_gen: entity sim.counter_matcher
+    blk_arp_log : block
+      signal wren           : std_logic;
+      signal arp_rx_ready_n : std_logic;
+    begin
+
+      --! Instantiate counter_matcher to read arp_rx_ready_n from ARP_RDY_FILE
+      inst_arp_rx_ready : entity sim.counter_matcher
       generic map (
-        FILENAME      => ARP_RX_READY_FILE,
+        FILENAME      => ARP_RDY_FILE,
         COMMENT_FLAG  => COMMENT_FLAG
       )
       port map (
@@ -221,9 +217,9 @@ begin
       wren <= arp_rx_ctrl(6) and arp_rx_ready;
 
       --! Instantiate file_writer_hex to write arp_rx_data
-      log_rx: entity sim.file_writer_hex
+      inst_arp_log : entity sim.file_writer_hex
       generic map (
-        FILENAME      => ARP_LOG_FILENAME,
+        FILENAME      => ARP_TXD_FILE,
         COMMENT_FLAG  => COMMENT_FLAG,
         BITSPERWORD   => 16,
         WORDSPERLINE  => 4
@@ -255,4 +251,5 @@ begin
       '0' when others;
 
   end block;
+
 end tb;
