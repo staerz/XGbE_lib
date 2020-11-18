@@ -17,6 +17,7 @@ library IEEE;
   use IEEE.STD_LOGIC_1164.all;
 --! @endcond
 
+--! IP header module
 entity ip_header_module is
   generic (
     --! @brief End of frame check:
@@ -83,8 +84,8 @@ entity ip_header_module is
 
     --! @brief Status of the module
     --! @details Status of the module
-    --! - 1: Data transmission ongoing
-    --! - 0: No ongoing transmission
+    --! - 1: TX FSM in UDP mode (transmission ongoing)
+    --! - 0: TX FSM in IDLE (transmission may still be fading out)
     status_vector : out   std_logic_vector(1 downto 0)
   );
 end ip_header_module;
@@ -171,7 +172,8 @@ begin
         if ip_tx_ready = '1' then
           tx_count <= tx_count + 1;
           -- make sure that we don't create packets longer that 187 clock cycles (= 1496 bytes)
-          overflow := to_signed(187 - tx_count, 10)(9);
+          -- we make use of the trailing shift register, so 6 earlier anyway ...
+          overflow := to_signed(187 - 6 - tx_count, 10)(9);
 
           case tx_state is
 
@@ -306,6 +308,7 @@ begin
       type t_tx_ctrl_sr is array(1 to SR_DEPTH) of std_logic_vector(4 downto 0);
 
       signal tx_data_sr : t_tx_data_sr := (others => (others => '0'));
+      -- controls for end of frame: eof & error & empty
       signal tx_ctrl_sr : t_tx_ctrl_sr := (others => (others => '0'));
 
       signal tx_valid : std_logic_vector(0 to SR_DEPTH) := (others => '0');
@@ -319,9 +322,11 @@ begin
       begin
         cnt_rst <= '1' when tx_state /= TRAILER else tx_valid(3);
 
+        -- Instantiate non-cyclic counter to generate requested gap
         trailer_counter : entity misc.counting
         generic map (
-          COUNTER_MAX_VALUE => PAUSE_LENGTH
+          COUNTER_MAX_VALUE => PAUSE_LENGTH,
+          CYCLIC            => false
         )
         port map (
           clk         => clk,
@@ -331,18 +336,16 @@ begin
           cycle_done  => tx_next
         );
 
-        proc_eval_tx_next : process (clk) is
-        begin
-          if rising_edge(clk) then
-            if (rst = '1') then
-              tx_done <= '0';
-            elsif tx_next = '1' then
-              tx_done <= '1';
-            elsif tx_state = IDLE then
-              tx_done <= '0';
-            end if;
-          end if;
-        end process;
+        -- make sure that there's only 1 tick of done using hilo_detect
+        inst_tx_done : entity misc.hilo_detect
+        generic map (
+          lohi    => true
+        )
+        port map (
+          clk     => clk,
+          sig_in  => tx_next and ip_tx_ready,
+          sig_out => tx_done
+        );
 
       end block;
 
@@ -359,11 +362,11 @@ begin
           if (rst = '1') then
             tx_data_sr <= (others => (others => '0'));
             tx_ctrl_sr <= (others => (others => '0'));
-          elsif IP_tx_ready = '1' then
+          elsif ip_tx_ready = '1' then
             -- take care of the data first: shift UDP data into register
             -- with proper re-alignment for the insertion of 20 bytes of IP header
-            tx_data_sr(1) <= UDP_rx_data(31 downto 0) & x"0000_0000";
-            tx_data_sr(2) <= tx_data_sr(1)(63 downto 32) & UDP_rx_data(63 downto 32);
+            tx_data_sr(1) <= udp_rx_data(31 downto 0) & x"0000_0000";
+            tx_data_sr(2) <= tx_data_sr(1)(63 downto 32) & udp_rx_data(63 downto 32);
 
             -- default: shift
             tx_data_sr(3 to SR_DEPTH) <= tx_data_sr(2 to SR_DEPTH-1);
@@ -383,9 +386,20 @@ begin
 
             end case;
 
-            -- now take care for the controls: shift UDP controls into register
+            -- now take care for the controls
+            -- default: shift UDP controls into register,
+            -- depending on conditions (abort or eof) that may change
+            tx_ctrl_sr(2 to SR_DEPTH) <= tx_ctrl_sr(1 to SR_DEPTH-1);
+
+            -- default for valid: also just shift, but conditions (later) apply
+            tx_valid(1) <= tx_valid(0);
+            tx_valid(2) <= tx_valid(1);
+
+            -- now, depending on some conditions, that may change
             -- with proper re-calculation of the end position and empty value
-            if udp_rx_eof = '1' then
+            if tx_state = ABORT then
+              tx_ctrl_sr(1) <= "11000";
+            elsif tx_state /= IDLE and udp_rx_eof = '1' then
               -- calculate new ip_rx_empty from udp_rx_empty
               -- the one bit more in empty will also make "overflow" correct in comparison
               empty := unsigned('0' & udp_rx_empty(2 downto 0)) + 4;
@@ -423,17 +437,12 @@ begin
               end if;
             else
               tx_ctrl_sr(1) <= (others => '0');
-              tx_ctrl_sr(2) <= tx_ctrl_sr(1);
-
-              tx_valid(1) <= tx_valid(0);
-              tx_valid(2) <= tx_valid(1);
             end if;
-            -- default: shift
-            tx_ctrl_sr(3 to SR_DEPTH) <= tx_ctrl_sr(2 to SR_DEPTH-1);
 
             -- handling of the valid bit
-            -- mark rise and fall
-            if udp_rx_eof = '1' then
+            -- mark fall by udp eof or abort
+            -- mark rise by started transmission
+            if udp_rx_eof = '1' or tx_state = ABORT then
               tx_valid(0) <= '0';
             elsif tx_count = 2 and tx_state /= trailer then
               tx_valid(0 to 2) <= (others => '1');
@@ -464,27 +473,19 @@ begin
 
       -- set controls for the beginning and duration of the frame in dependence of tx_state:
       -- may have to abort the frame:
-      with tx_state select ip_tx_ctrl(6) <=
-        '0' when IDLE,
-        '1' when ABORT,
-        tx_valid(SR_DEPTH) when others;
+      ip_tx_ctrl(6) <= tx_valid(SR_DEPTH);
 
+      -- set sof
       ip_tx_ctrl(5) <= '1' when tx_count = 3 else '0';
 
-      -- set eof:
-      with tx_state select ip_tx_ctrl(4) <=
-        '0' when IDLE,
-        '1' when ABORT,
-        tx_ctrl_sr(SR_DEPTH)(4) when others;
+      -- set eof
+      ip_tx_ctrl(4) <= tx_ctrl_sr(SR_DEPTH)(4);
 
-      -- set error in abort state:
-      with tx_state select ip_tx_ctrl(3) <=
-        '0' when IDLE,
-        '1' when ABORT,
-        tx_ctrl_sr(SR_DEPTH)(3) when others;
+      -- set error in abort state
+      ip_tx_ctrl(3) <= tx_ctrl_sr(SR_DEPTH)(3);
 
-      -- take empty from sr
-      ip_tx_ctrl(2 downto 0)  <= tx_ctrl_sr(SR_DEPTH)(2 downto 0);
+      -- set empty
+      ip_tx_ctrl(2 downto 0) <= tx_ctrl_sr(SR_DEPTH)(2 downto 0);
 
     end block;
 

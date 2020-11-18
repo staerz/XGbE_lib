@@ -20,18 +20,18 @@ library IEEE;
 entity ip_header_module_tb is
   generic (
     --! File containing the reset input data
-    UDP_DAT_FILENAME   : string := "sim_data_files/UDP_data_in.dat";
-    --! File to write out the response of the ip_header_module
-    IP_LOG_FILENAME    : string := "sim_data_files/IP_data_out.dat";
+    UDP_RXD_FILE      : string := "sim_data_files/UDP_data_in.dat";
     --! File containing counters on which the RX interface is not ready
-    IP_RX_READY_FILE   : string := "sim_data_files/IP_rx_ready_in.dat";
+    IP_RDY_FILE       : string := "sim_data_files/IP_rx_ready_in.dat";
+    --! File to write out the IP response of the module
+    IP_TXD_FILE       : string := "sim_data_files/IP_data_out.dat";
     --! File containing counters on which a manual reset is carried out
-    MNL_RST_FILE       : string := "sim_data_files/MNL_RST_in.dat";
+    MNL_RST_FILE      : string := "sim_data_files/MNL_RST_in.dat";
 
     --! Flag to use to indicate comments
-    COMMENT_FLAG       : character := '%';
+    COMMENT_FLAG      : character := '%';
     --! Flat to use to indicate counters
-    COUNTER_FLAG       : character := '@'
+    COUNTER_FLAG      : character := '@'
   );
 end ip_header_module_tb;
 
@@ -49,7 +49,7 @@ architecture tb of ip_header_module_tb is
   --! Reset, sync with #clk
   signal rst            : std_logic;
 
-  --! @name Avalon-ST to output
+  --! @name Avalon-ST (UDP) to module (read from file)
   --! @{
 
   --! TX ready
@@ -61,7 +61,7 @@ architecture tb of ip_header_module_tb is
 
   --! @}
 
-  --! @name Avalon-ST from input
+  --! @name Avalon-ST (IP) from module (written to file)
   --! @{
 
   --! RX ready
@@ -73,7 +73,7 @@ architecture tb of ip_header_module_tb is
 
   --! @}
 
-  --! @name Interface for recovering IP address from given UDP port
+  --! @name Interface for recovering IP address from given UDP ID
   --! @{
 
   --! Recovery enable
@@ -93,7 +93,7 @@ architecture tb of ip_header_module_tb is
   signal ip_netmask     : std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
   --! @}
 
-  --! status of the module
+  --! Status of the module
   signal status_vector  : std_logic_vector(1 downto 0);
 
 begin
@@ -130,7 +130,7 @@ begin
 
   -- Simulation part
   -- generating stimuli based on counter
-  simulation: block
+  blk_simulation : block
     --! @cond
     signal counter    : integer := 0;
     signal async_rst  : std_logic;
@@ -140,7 +140,7 @@ begin
   begin
 
     --! Instantiate simulation_basics to start
-    sim_basics: entity sim.simulation_basics
+    inst_sim_basics: entity sim.simulation_basics
     generic map (
       RESET_DURATION  => 5,
       CLK_OFFSET      => 0 ns,
@@ -153,7 +153,7 @@ begin
     );
 
     --! Instantiate counter_matcher to read mnl_rst from MNL_RST_FILE
-    mnl_rst_gen: entity sim.counter_matcher
+    inst_mnl_rst : entity sim.counter_matcher
     generic map (
       FILENAME      => MNL_RST_FILE,
       COMMENT_FLAG  => COMMENT_FLAG
@@ -168,7 +168,7 @@ begin
     async_rst <= sim_rst or mnl_rst;
 
     --! Instantiate delay_chain to generate rst
-    rst_sync_inst: entity misc.delay_chain
+    inst_rst_sync : entity misc.delay_chain
     port map (
       clk        => clk,
       rst        => '0',
@@ -180,12 +180,12 @@ begin
     reco_ip_found <= '1';
     reco_ip       <= x"c0_a8_00_45";
 
-    ip_tx_gen_block: block
+    blk_udp_tx : block
     begin
-      --! Instantiate av_st_sender to read rst_tx from UDP_DAT_FILENAME
-      rst_tx_gen: entity sim.av_st_sender
+      --! Instantiate av_st_sender to read udp_tx from UDP_RXD_FILE
+      udp_tx_gen: entity sim.av_st_sender
       generic map (
-        FILENAME      => UDP_DAT_FILENAME,
+        FILENAME      => UDP_RXD_FILE,
         COMMENT_FLAG  => COMMENT_FLAG,
         COUNTER_FLAG  => COUNTER_FLAG
       )
@@ -202,7 +202,7 @@ begin
 
     end block;
 
-    ip_log_gen: block
+    blk_ip_log : block
       --! @cond
       signal wren          : std_logic := '0';
       signal ip_rx_ready_n : std_logic := '0';
@@ -210,9 +210,9 @@ begin
     begin
 
       --! Instantiate counter_matcher to generate ip_rx_ready_n
-      rx_ready_gen: entity sim.counter_matcher
+      inst_rx_ready : entity sim.counter_matcher
       generic map (
-        FILENAME      => IP_RX_READY_FILE,
+        FILENAME      => IP_RDY_FILE,
         COMMENT_FLAG  => COMMENT_FLAG
       )
       port map (
@@ -228,9 +228,9 @@ begin
       wren <= ip_rx_ctrl(6) and ip_rx_ready;
 
       --! Instantiate file_writer_hex to write ip_tx_data
-      log_tx: entity sim.file_writer_hex
+      inst_ip_log : entity sim.file_writer_hex
       generic map (
-        FILENAME      => IP_LOG_FILENAME,
+        FILENAME      => IP_TXD_FILE,
         COMMENT_FLAG  => COMMENT_FLAG,
         BITSPERWORD   => 16,
         WORDSPERLINE  => 4
