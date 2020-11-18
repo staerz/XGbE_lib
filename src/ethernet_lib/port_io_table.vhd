@@ -58,8 +58,8 @@ entity port_io_table is
     --! Recovery success indicator
     reco_found     : out   std_logic;
     --! @}
-    --! @brief Status of the portIO_table
-    --! @details Status of the portIO_table
+    --! @brief Status of the module
+    --! @details Status of the module
     --! - 1: table full
     --! - 0: table empty
     --!

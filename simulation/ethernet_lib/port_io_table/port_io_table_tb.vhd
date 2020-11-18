@@ -65,7 +65,7 @@ architecture tb of port_io_table_tb is
   signal reco_found : std_logic;
   --! @}
 
-  --! Status of the portIO_table
+  --! Status of the module
   signal status_vector    : std_logic_vector(1 downto 0);
 
   --! Counter for simulation
