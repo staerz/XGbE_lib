@@ -8,8 +8,8 @@
 -------------------------------------------------------------------------------
 --! @details Generates the environment for the interface_merger.vhd.
 --! Two AVST streams are pushed through the interface merger, data is read from
---! the respective files AVST1_DAT_FILENAME and AVST2_DAT_FILENAME.
---! The result is written to AVST_LOG_FILENAME.
+--! the respective files AVST1_RXD_FILE and AVST2_RXD_FILE.
+--! The result is written to AVST_TXD_FILE.
 -------------------------------------------------------------------------------
 
 --! @cond
@@ -17,16 +17,17 @@ library ieee;
   use ieee.std_logic_1164.all;
 --! @endcond
 
+--! Testbench for interface_merger.vhd
 entity interface_merger_tb is
   generic (
-    --! File containing the AVST1 input data
-    AVST1_DAT_FILENAME  : string := "sim_data_files/AVST1_data_in.dat";
-    --! File containing the AVST2 input data
-    AVST2_DAT_FILENAME  : string := "sim_data_files/AVST2_data_in.dat";
-    --! File containing counters on which the rx interface is not ready
-    AVST_RX_READY_FILE  : string := "sim_data_files/AVST_rx_ready_in.dat";
-    --! File to write out the response of the interface merger
-    AVST_LOG_FILENAME   : string := "sim_data_files/AVST_data_out.dat";
+    --! File containing the AVST1 RX data
+    AVST1_RXD_FILE      : string := "sim_data_files/AVST1_data_in.dat";
+    --! File containing the AVST2 RX data
+    AVST2_RXD_FILE      : string := "sim_data_files/AVST2_data_in.dat";
+    --! File containing counters on which the RX interface is not ready
+    AVST_RDY_FILE       : string := "sim_data_files/AVST_rx_ready_in.dat";
+    --! File to write out the response of the module
+    AVST_TXD_FILE       : string := "sim_data_files/AVST_data_out.dat";
     -- file containing counters on which a manual reset is carried out
     MNL_RST_FILE        : string := "sim_data_files/MNL_RST_in.dat";
 
@@ -55,7 +56,7 @@ architecture tb of interface_merger_tb is
   --! reset, sync with #clk
   signal rst              : std_logic;
 
-  --! @name Avalon-ST from first priority module
+  --! @name Avalon-ST (first priority interface) to module (read from file)
   --! @{
 
   --! TX ready
@@ -67,7 +68,7 @@ architecture tb of interface_merger_tb is
 
   --! @}
 
-  --! @name Avalon-ST from second priority module (being interrupted)
+  --! @name Avalon-ST (second priority interface) to module (read from file)
   --! @{
 
   --! TX ready
@@ -79,7 +80,7 @@ architecture tb of interface_merger_tb is
 
   --! @}
 
-  --! @name Avalon-ST to outer world
+  --! @name Avalon-ST from module (written to file)
   --! @{
 
   --! RX ready
@@ -91,7 +92,7 @@ architecture tb of interface_merger_tb is
 
   --! @}
 
-  --! status of the module
+  --! Status of the module
   signal status_vector    : std_logic_vector(2 downto 0);
 
 begin
@@ -127,15 +128,14 @@ begin
 
   -- Simulation part
   -- generating stimuli based on counter
-  simulation: block
+  blk_simulation : block
     signal counter    : integer := 0;
-    signal async_rst  : std_logic;
     signal sim_rst    : std_logic;
     signal mnl_rst    : std_logic;
   begin
 
     --! Instantiate simulation_basics to start
-    sim_basics: entity sim.simulation_basics
+    inst_sim_basics : entity sim.simulation_basics
     generic map (
       RESET_DURATION  => 5,
       CLK_OFFSET      => 0 ns,
@@ -160,21 +160,12 @@ begin
       stimulus  => mnl_rst
     );
 
-    async_rst <= sim_rst or mnl_rst;
+    rst <= sim_rst or mnl_rst;
 
-    --! Instantiate delay_chain to generate rst
-    rst_sync_inst: entity misc.delay_chain
-    port map (
-      clk         => clk,
-      rst         => '0',
-      sig_in(0)   => async_rst,
-      sig_out(0)  => rst
-    );
-
-    --! Instantiate av_st_sender to read avst1_tx from AVST1_DAT_FILENAME
-    avst1_tx_gen: entity sim.av_st_sender
+    --! Instantiate av_st_sender to read avst1_tx from AVST1_RXD_FILE
+    inst_avst1_tx : entity sim.av_st_sender
     generic map (
-      FILENAME      => AVST1_DAT_FILENAME,
+      FILENAME      => AVST1_RXD_FILE,
       COMMENT_FLAG  => COMMENT_FLAG,
       COUNTER_FLAG  => COUNTER_FLAG
     )
@@ -188,10 +179,10 @@ begin
       tx_ctrl   => avst1_tx_ctrl
     );
 
-    --! Instantiate av_st_sender to read avst2_tx from AVST2_DAT_FILENAME
-    avst2_tx_gen: entity sim.av_st_sender
+    --! Instantiate av_st_sender to read avst2_tx from AVST2_RXD_FILE
+    inst_avst2_tx : entity sim.av_st_sender
     generic map (
-      FILENAME      => AVST2_DAT_FILENAME,
+      FILENAME      => AVST2_RXD_FILE,
       COMMENT_FLAG  => COMMENT_FLAG,
       COUNTER_FLAG  => COUNTER_FLAG
     )
@@ -206,17 +197,17 @@ begin
     );
 
     -- logging for RX interface
-    avst_log_gen : block
+    blk_avst_log : block
       --! Write enable
       signal wren             : std_logic := '0';
       --! Inverted ready signal
       signal avst_rx_ready_n  : std_logic := '0';
     begin
 
-      --! Instantiate counter_matcher to read avst_rx_ready_n from AVST_RX_READY_FILE
-      rx_ready_gen: entity sim.counter_matcher
+      --! Instantiate counter_matcher to read avst_rx_ready_n from AVST_RDY_FILE
+      inst_avst_rx_ready : entity sim.counter_matcher
       generic map (
-        FILENAME      => AVST_RX_READY_FILE,
+        FILENAME      => AVST_RDY_FILE,
         COMMENT_FLAG  => COMMENT_FLAG
       )
       port map (
@@ -231,9 +222,9 @@ begin
       wren <= avst_rx_ctrl(6) and avst_rx_ready;
 
       --! Instantiate file_writer_hex to write avst_rx_data
-      log_rx: entity sim.file_writer_hex
+      inst_avst_log : entity sim.file_writer_hex
       generic map (
-        FILENAME      => AVST_LOG_FILENAME,
+        FILENAME      => AVST_TXD_FILE,
         COMMENT_FLAG  => COMMENT_FLAG,
         BITSPERWORD   => 16,
         WORDSPERLINE  => 4
