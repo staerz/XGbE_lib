@@ -44,6 +44,7 @@ entity arp_module is
     clk           : in    std_logic;
     --! Reset, sync with #clk
     rst           : in    std_logic;
+
     --! @name Avalon-ST from ARP requester
     --! @{
 
@@ -76,7 +77,7 @@ entity arp_module is
     --! Recovered MAC address
     reco_mac      : out   std_logic_vector(47 downto 0);
     --! Recovery success: 1 = found, 0 = not found (time out)
-    reco_mac_done : out   std_logic := '0';
+    reco_mac_done : out   std_logic;
     --! @}
 
     --! MAC address of the module
