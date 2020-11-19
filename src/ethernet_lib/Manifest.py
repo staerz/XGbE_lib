@@ -14,6 +14,7 @@ files = [
   "port_io_table.vhd",
   "trailer_module.vhd",
   "arp_module.vhd",
+  "icmp_module.vhd",
   "reset_module.vhd",
   "rx_fifo_module.vhd",
 ]
