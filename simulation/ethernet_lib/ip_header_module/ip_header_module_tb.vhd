@@ -99,7 +99,7 @@ architecture tb of ip_header_module_tb is
 begin
 
   --! Instantiate the Unit Under Test (UUT)
-  uut: entity ethernet_lib.ip_header_module
+  uut : entity ethernet_lib.ip_header_module
   port map (
 
     clk             => clk,
@@ -165,16 +165,7 @@ begin
       stimulus  => mnl_rst
     );
 
-    async_rst <= sim_rst or mnl_rst;
-
-    --! Instantiate delay_chain to generate rst
-    inst_rst_sync : entity misc.delay_chain
-    port map (
-      clk        => clk,
-      rst        => '0',
-      sig_in(0)  => async_rst,
-      sig_out(0) => rst
-    );
+    rst <= sim_rst or mnl_rst;
 
     -- fake auxiliary signals
     reco_ip_found <= '1';
@@ -183,7 +174,7 @@ begin
     blk_udp_tx : block
     begin
       --! Instantiate av_st_sender to read udp_tx from UDP_RXD_FILE
-      udp_tx_gen: entity sim.av_st_sender
+      inst_udp_tx : entity sim.av_st_sender
       generic map (
         FILENAME      => UDP_RXD_FILE,
         COMMENT_FLAG  => COMMENT_FLAG,
