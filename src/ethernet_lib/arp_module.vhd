@@ -73,7 +73,7 @@ entity arp_module is
     reco_en       : in    std_logic;
     --! IP address to recover
     reco_ip       : in    std_logic_vector(31 downto 0);
-    --! Recovered MAX address
+    --! Recovered MAC address
     reco_mac      : out   std_logic_vector(47 downto 0);
     --! Recovery success: 1 = found, 0 = not found (time out)
     reco_mac_done : out   std_logic := '0';
@@ -87,8 +87,8 @@ entity arp_module is
     --! Clock cycle when 1 millisecond is passed
     one_ms_tick   : in    std_logic;
 
-    --! @brief Status of the ARP module
-    --! @details Status of the ARP module
+    --! @brief Status of the module
+    --! @details Status of the module
     --! - 4: ARP table full
     --! - 3: ARP table empty
     --! - 2: ARP request is being received
