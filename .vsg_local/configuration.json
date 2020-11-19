@@ -75,6 +75,17 @@
 #        },
 #      },
 #    },
+#    "src/ethernet_lib/ethernet_module.vhd":{
+## VSG 2.0.0 crashes on 'with ... select, so we must exclude it for now'
+#      "rule":{
+#        "entity_005":{
+#          "disable": true
+#        },
+#        "port_025":{
+#          "disable": true
+#        },
+#      },
+#    },
 #    "src/ethernet_lib/ip_module.vhd":{
 ## VSG 2.0.0 crashes on 'with ... select, so we must exclude it for now'
 #      "rule":{
@@ -162,6 +173,14 @@
       },
     },
     "simulation/ethernet_lib/ethernet_header_module/ethernet_header_module_tb.vhd":{
+      "rule":{
+        # temporarily exclude the variable rules as it's an open question
+        "architecture_008":{
+          "disable": true
+        },
+      },
+    },
+    "simulation/ethernet_lib/ethernet_module/ethernet_module_tb.vhd":{
       "rule":{
         # temporarily exclude the variable rules as it's an open question
         "architecture_008":{
