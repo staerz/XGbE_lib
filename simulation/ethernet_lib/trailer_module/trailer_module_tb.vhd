@@ -7,9 +7,10 @@
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
 -------------------------------------------------------------------------------
 --! @details Generates the environment for the trailer_module.vhd.
---! Data packets read from AVST_DAT_FILENAME are pushed through the
+--! Data packets read from AVST_RXD_FILE are pushed through the
 --! trailer module configured with a specific header_length.
---! The output is written to AVST_LOG_FILENAME.
+--! The output is written to AVST_TXD_FILE.
+--! @todo Rename ports from fpga_* to avst_*.
 -------------------------------------------------------------------------------
 
 --! @cond
@@ -20,20 +21,21 @@ library IEEE;
 --! Testbench for trailer_module.vhd
 entity trailer_module_tb is
   generic (
-    --! File containing the AVST input data
-    AVST_DAT_FILENAME   : string    := "sim_data_files/AVST_data_in.dat";
-    --! File containing counters on which the rx interface is not ready
-    FPGA_RX_READY_FILE  : string    := "sim_data_files/AVST_rx_ready_in.dat";
-    --! File to write out the response of the trailer module
-    AVST_LOG_FILENAME   : string    := "sim_data_files/AVST_data_out.dat";
+    --! File containing the AVST RX data
+    AVST_RXD_FILE      : string := "sim_data_files/AVST_data_in.dat";
+    --! File containing counters on which the RX interface is not ready
+    AVST_RDY_FILE      : string := "sim_data_files/AVST_rx_ready_in.dat";
+    --! File to write out the response of the module
+    AVST_TXD_FILE      : string := "sim_data_files/AVST_data_out.dat";
+
     --! Flag to use to indicate comments
-    COMMENT_FLAG        : character := '%';
+    COMMENT_FLAG       : character := '%';
     --! Flat to use to indicate counters
-    COUNTER_FLAG        : character := '@';
+    COUNTER_FLAG       : character := '@';
     --! Number of bytes of the header to be cut off
-    HEADER_LENGTH       : integer   := 3;
+    HEADER_LENGTH      : integer   := 3;
     --! (Maximum) frame size in bytes
-    MAX_FRAME_SIZE      : integer   := 1500
+    MAX_FRAME_SIZE     : integer   := 1500
   );
 end trailer_module_tb;
 
@@ -53,7 +55,7 @@ architecture tb of trailer_module_tb is
   --! reset, sync with #clk
   signal rst              : std_logic;
 
-  --! @name Avalon-ST TX interface
+  --! @name Avalon-ST to module (read from file)
   --! @{
 
   --! TX ready
@@ -67,7 +69,7 @@ architecture tb of trailer_module_tb is
 
   --! @}
 
-  --! @name Avalon-ST RX interface
+  --! @name Avalon-ST from module (written to file)
   --! @{
 
   --! RX ready
@@ -109,12 +111,12 @@ begin
 
   -- Simulation part
   -- generating stimuli based on counter
-  simulation: block
+  blk_simulation : block
     signal counter    : integer := 0;
   begin
 
     --! Instantiate simulation_basics to start
-    sim_basics : entity sim.simulation_basics
+    inst_sim_basics : entity sim.simulation_basics
     port map (
       clk => clk,
       rst => rst,
@@ -122,13 +124,13 @@ begin
     );
 
     -- generating the input data
-    avst_tx_gen_block : block
+    blk_avst_tx : block
       signal fpga_rx_ready_n : std_logic := '0';
     begin
       --! Instantiate av_st_sender to read fpga_tx from AVST1_DAT_FILENAME
-      avst_tx_gen : entity sim.av_st_sender
+      inst_avst_tx : entity sim.av_st_sender
       generic map (
-        FILENAME      => AVST_DAT_FILENAME,
+        FILENAME      => AVST_RXD_FILE,
         COMMENT_FLAG  => COMMENT_FLAG,
         COUNTER_FLAG  => COUNTER_FLAG
       )
@@ -142,10 +144,10 @@ begin
         tx_ctrl   => fpga_tx_ctrl
       );
 
-      --! Instantiate counter_matcher to read fpga_tx_ready_n from FPGA_RX_READY_FILE
-      rx_ready_gen : entity sim.counter_matcher
+      --! Instantiate counter_matcher to read fpga_tx_ready_n from AVST_RDY_FILE
+      inst_rx_ready : entity sim.counter_matcher
       generic map (
-        FILENAME      => FPGA_RX_READY_FILE,
+        FILENAME      => AVST_RDY_FILE,
         COMMENT_FLAG  => COMMENT_FLAG
       )
       port map (
@@ -166,9 +168,9 @@ begin
     begin
       wren <= fpga_rx_ctrl(6) and fpga_rx_ready;
 
-      log_rx : entity sim.file_writer_hex
+      inst_rx_log : entity sim.file_writer_hex
       generic map (
-        FILENAME      => AVST_LOG_FILENAME,
+        FILENAME      => AVST_TXD_FILE,
         COMMENT_FLAG  => COMMENT_FLAG,
         BITSPERWORD   => 16,
         WORDSPERLINE  => 4
