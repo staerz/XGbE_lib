@@ -15,6 +15,7 @@ files = [
   "trailer_module.vhd",
   "arp_module.vhd",
   "icmp_module.vhd",
+  "ip_header_module.vhd",
   "reset_module.vhd",
   "rx_fifo_module.vhd",
 ]
