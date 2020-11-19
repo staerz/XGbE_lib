@@ -418,7 +418,7 @@ begin
 
     rst_rx_ready <= rst_rx_ready_i;
 
-    --! Transfer of recovered IDs to signals for TX FSM
+    --! @brief Transfer of recovered IDs to signals for TX FSM
     --! @todo rst should actually reset all signals here - and default values should be removed
     proc_initiate_reset : process (clk) is
     begin
@@ -520,8 +520,8 @@ begin
       end if;
     end process;
 
-    --! Retrieve relevant data from the reset packet blindly.
-    --! Data will be applied only if it actually was a reset request.
+    --! @brief Retrieve relevant data from the reset packet blindly.
+    --! @details Data will be applied only if it actually was a reset request.
     proc_extract_rx_data_copy : process (clk) is
     begin
       if rising_edge(clk) then
