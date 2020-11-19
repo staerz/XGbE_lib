@@ -135,7 +135,7 @@ architecture tb of ip_module_tb is
 begin
 
   --! Instantiate the Unit Under Test (UUT)
-  uut: entity ethernet_lib.ip_module
+  uut : entity ethernet_lib.ip_module
   generic map (
     EOF_CHECK_EN    => EOF_CHECK_EN,
     UDP_CRC_EN      => UDP_CRC_EN,
@@ -182,7 +182,7 @@ begin
 
   begin
     --! Instantiate simulation_basics to start
-    inst_sim_basics: entity sim.simulation_basics
+    inst_sim_basics : entity sim.simulation_basics
     generic map (
       RESET_DURATION  => 5,
       CLK_OFFSET      => 0 ns,
@@ -195,7 +195,7 @@ begin
     );
 
     --! Instantiate counter_matcher to read mnl_rst from MNL_RST_FILE
-    inst_mnl_rst: entity sim.counter_matcher
+    inst_mnl_rst : entity sim.counter_matcher
     generic map (
       FILENAME      => MNL_RST_FILE,
       COMMENT_FLAG  => COMMENT_FLAG
@@ -351,7 +351,7 @@ begin
       wren <= udp_rx_ctrl(6) and udp_rx_ready;
 
       --! Instantiate file_writer_hex to write ip_tx_data
-      inst_upd_log: entity sim.file_writer_hex
+      inst_upd_log : entity sim.file_writer_hex
       generic map (
         FILENAME      => UDP_TXD_FILE,
         COMMENT_FLAG  => COMMENT_FLAG,
