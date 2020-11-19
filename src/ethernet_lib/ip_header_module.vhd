@@ -386,7 +386,7 @@ begin
 
             end case;
 
-            -- now take care for the controls
+            -- now take care of the controls
             -- default: shift UDP controls into register,
             -- depending on conditions (abort or eof) that may change
             tx_ctrl_sr(2 to SR_DEPTH) <= tx_ctrl_sr(1 to SR_DEPTH-1);
@@ -462,7 +462,6 @@ begin
 
       -- finally compose data output stream from registers and IP_CRC that has been
       -- computed in the meantime
-
       with tx_count select ip_tx_data <=
         -- insert IP_CRC at correct position:
         tx_data_sr(SR_DEPTH)(63 downto 48) & ip_crc_out & tx_data_sr(SR_DEPTH)(31 downto 0) when 4,
@@ -471,21 +470,14 @@ begin
         -- or just attach (UDP) data from the register
         tx_data_sr(SR_DEPTH) when others;
 
-      -- set controls for the beginning and duration of the frame in dependence of tx_state:
-      -- may have to abort the frame:
+      -- set valid
       ip_tx_ctrl(6) <= tx_valid(SR_DEPTH);
 
       -- set sof
       ip_tx_ctrl(5) <= '1' when tx_count = 3 else '0';
 
-      -- set eof
-      ip_tx_ctrl(4) <= tx_ctrl_sr(SR_DEPTH)(4);
-
-      -- set error in abort state
-      ip_tx_ctrl(3) <= tx_ctrl_sr(SR_DEPTH)(3);
-
-      -- set empty
-      ip_tx_ctrl(2 downto 0) <= tx_ctrl_sr(SR_DEPTH)(2 downto 0);
+      -- set eof indicators from shift register
+      ip_tx_ctrl(4 downto 0) <= tx_ctrl_sr(SR_DEPTH)(4 downto 0);
 
     end block;
 
