@@ -19,6 +19,7 @@ files = [
   "ip_header_module.vhd",
   "ip_module.vhd",
   "ethernet_header_module.vhd",
+  "ethernet_module.vhd",
   "reset_module.vhd",
   "rx_fifo_module.vhd",
 ]
