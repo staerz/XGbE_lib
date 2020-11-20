@@ -10,6 +10,7 @@ library = "ethernet_lib"
 
 # List of source files for the module
 files = [
+  "av_st_receiver.vhd",
   "interface_merger.vhd",
   "port_io_table.vhd",
   "trailer_module.vhd",
@@ -17,6 +18,7 @@ files = [
   "icmp_module.vhd",
   "ip_header_module.vhd",
   "ip_module.vhd",
+  "ethernet_header_module.vhd",
   "reset_module.vhd",
   "rx_fifo_module.vhd",
 ]

@@ -20,9 +20,9 @@ library IEEE;
 --! IP module
 entity ip_module is
   generic (
-    --! @brief End of frame check:
+    --! @brief End of frame check
     --! @details If enabled, the module counter checks the UDP length indication and
-    --! raises the error indicator upon eof if not matching
+    --! raises the error indicator upon eof if not matching.
     EOF_CHECK_EN   : std_logic               := '1';
     --! @brief Post-UDP-module UDP CRC calculation
     --! @details If enabled, the UDP check sum will be (re)calculated from the pseudo
@@ -110,14 +110,14 @@ entity ip_module is
     --! - 10: ICMP: icmp_tx_ready
     --! - 9: ICMP: rx_fifo_wr_full
     --! - 8: ICMP: rx_fifo_wr_empty
-    --! - 7: interface merger: avst2 is being forwarded
-    --! - 6: interface merger: avst1 is being forwarded
-    --! - 5: interface merger: module in IDLE
+    --! - 7: Interface merger: ICMP is being forwarded
+    --! - 6: Interface merger: IP is being forwarded
+    --! - 5: Interface merger: module in IDLE
     --! - 4: TX FSM in UDP mode (transmission ongoing)
     --! - 3: TX FSM in IDLE (transmission may still be fading out)
-    --! - 2: UDP frame is being received
-    --! - 1: ICMP frame is being received
-    --! - 0: IDLE mode
+    --! - 2: RX FSM: UDP frame is being received
+    --! - 1: RX FSM: ICMP frame is being received
+    --! - 0: RX FSM: IDLE mode
     status_vector : out   std_logic_vector(12 downto 0)
   );
 end ip_module;
@@ -453,7 +453,7 @@ begin
 
       udp_tx_id <= std_logic_vector(udp_tx_id_i) when tx_mux = "10" and src_ip_accept = '1' and tx_ctrl(6) = '1' else (others => '0');
 
-      --! Instantiate trailer module to make tx controls right
+      --! Instantiate trailer_module to make tx controls right
       trailer_inst : entity ethernet_lib.trailer_module
       generic map (
         HEADER_LENGTH => 20,

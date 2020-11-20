@@ -3,10 +3,10 @@
 -- kate: tab-width 2; replace-tabs on; indent-width 2;
 -------------------------------------------------------------------------------
 --! @file
---! @brief Testbench for ip_header_module.vhd
+--! @brief Testbench for ethernet_header_module.vhd
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
 -------------------------------------------------------------------------------
---! @details Generates the environment for the ip_header_module.vhd.
+--! @details Generates the environment for the ethernet_header_module.vhd.
 --!
 --! RESET_DURATION is set to 5
 -------------------------------------------------------------------------------
@@ -16,15 +16,15 @@ library IEEE;
   use IEEE.std_logic_1164.all;
 --! @endcond
 
---! Testbench for ip_header_module.vhd
-entity ip_header_module_tb is
+--! Testbench for ethernet_header_module.vhd
+entity ethernet_header_module_tb is
   generic (
     --! File containing the reset input data
-    UDP_RXD_FILE      : string := "sim_data_files/UDP_data_in.dat";
+    IP_RXD_FILE       : string := "sim_data_files/IP_data_in.dat";
     --! File containing counters on which the RX interface is not ready
-    IP_RDY_FILE       : string := "sim_data_files/IP_rx_ready_in.dat";
+    ETH_RDY_FILE      : string := "sim_data_files/ETH_rx_ready_in.dat";
     --! File to write out the IP response of the module
-    IP_TXD_FILE       : string := "sim_data_files/IP_data_out.dat";
+    ETH_TXD_FILE      : string := "sim_data_files/ETH_data_out.dat";
     --! File containing counters on which a manual reset is carried out
     MNL_RST_FILE      : string := "sim_data_files/MNL_RST_in.dat";
 
@@ -33,7 +33,7 @@ entity ip_header_module_tb is
     --! Flat to use to indicate counters
     COUNTER_FLAG      : character := '@'
   );
-end ip_header_module_tb;
+end ethernet_header_module_tb;
 
 --! @cond
 library sim;
@@ -41,88 +41,90 @@ library misc;
 library ethernet_lib;
 --! @endcond
 
---! Implementation of ip_header_module_tb
-architecture tb of ip_header_module_tb is
+--! Implementation of ethernet_header_module_tb
+architecture tb of ethernet_header_module_tb is
 
   --! Clock
   signal clk            : std_logic;
   --! Reset, sync with #clk
   signal rst            : std_logic;
 
-  --! @name Avalon-ST (UDP) to module (read from file)
+  --! @name Avalon-ST (IP) to module (read from file)
   --! @{
 
   --! TX ready
-  signal udp_tx_ready   : std_logic;
+  signal ip_tx_ready    : std_logic;
   --! TX data
-  signal udp_tx_data    : std_logic_vector(63 downto 0);
+  signal ip_tx_data     : std_logic_vector(63 downto 0);
   --! TX controls
-  signal udp_tx_ctrl    : std_logic_vector(6 downto 0);
+  signal ip_tx_ctrl     : std_logic_vector(6 downto 0);
 
   --! @}
 
-  --! @name Avalon-ST (IP) from module (written to file)
+  --! @name Avalon-ST (ETH) from module (written to file)
   --! @{
 
   --! RX ready
-  signal ip_rx_ready    : std_logic;
+  signal eth_rx_ready   : std_logic;
   --! RX data
-  signal ip_rx_data     : std_logic_vector(63 downto 0);
+  signal eth_rx_data    : std_logic_vector(63 downto 0);
   --! RX controls
-  signal ip_rx_ctrl     : std_logic_vector(6 downto 0);
+  signal eth_rx_ctrl    : std_logic_vector(6 downto 0);
 
   --! @}
 
-  --! @name Interface for recovering IP address from given UDP ID
+  --! @name Interface for recovering MAC address from given IP address
   --! @{
 
   --! Recovery enable
   signal reco_en        : std_logic;
-  --! Recovery success indicator
-  signal reco_ip_found  : std_logic;
-  --! Recovered IP address
+  --! IP address to recover
   signal reco_ip        : std_logic_vector(31 downto 0);
+  --! Recovered MAC address
+  signal reco_mac       : std_logic_vector(47 downto 0);
+  --! Recovery success indicator
+  signal reco_mac_done  : std_logic;
   --! @}
 
-  --! @name Configuration of the module
-  --! @{
+  --! MAC address
+  signal my_mac         : std_logic_vector(47 downto 0) := x"00_22_8F_02_41_EE";
 
-  --! IP address
-  signal my_ip          : std_logic_vector(31 downto 0) := x"c0_a8_00_95";
-  --! Net mask
-  signal ip_netmask     : std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
-  --! @}
+  --! Clock cycle when 1 millisecond is passed
+  signal one_ms_tick    : std_logic;
 
   --! Status of the module
-  signal status_vector  : std_logic_vector(1 downto 0);
+  signal status_vector  : std_logic_vector(2 downto 0);
 
 begin
 
   --! Instantiate the Unit Under Test (UUT)
-  uut : entity ethernet_lib.ip_header_module
+  uut : entity ethernet_lib.ethernet_header_module
   port map (
 
     clk             => clk,
     rst             => rst,
 
     -- Avalon-ST RX interface
-    udp_rx_ready    => udp_tx_ready,
-    udp_rx_data     => udp_tx_data,
-    udp_rx_ctrl     => udp_tx_ctrl,
+    ip_rx_ready     => ip_tx_ready,
+    ip_rx_data      => ip_tx_data,
+    ip_rx_ctrl      => ip_tx_ctrl,
 
     -- Avalon-ST TX interface
-    ip_tx_ready     => ip_rx_ready,
-    ip_tx_data      => ip_rx_data,
-    ip_tx_ctrl      => ip_rx_ctrl,
+    eth_tx_ready    => eth_rx_ready,
+    eth_tx_data     => eth_rx_data,
+    eth_tx_ctrl     => eth_rx_ctrl,
+
+    -- interface for recovering mac address from given ip address
+    reco_en         => reco_en,
+    reco_ip         => reco_ip,
+    -- response (next clk if directly found, later if arp request needs to be sent)
+    reco_mac        => reco_mac,
+    reco_mac_done   => reco_mac_done,
 
     -- Configuration of the module
-    my_ip           => my_ip,
-    ip_netmask      => ip_netmask,
+    my_mac          => my_mac,
 
-    -- Interface for recovering IP address
-    reco_en         => reco_en,
-    reco_ip_found   => reco_ip_found,
-    reco_ip         => reco_ip,
+    one_ms_tick     => one_ms_tick,
 
     -- Status of the module
     status_vector   => status_vector
@@ -168,15 +170,15 @@ begin
     rst <= sim_rst or mnl_rst;
 
     -- fake auxiliary signals
-    reco_ip_found <= '1';
-    reco_ip       <= x"c0_a8_00_45";
+    reco_mac_done <= '1';
+    reco_mac      <= x"AB_CD_EF_01_23_45";
 
-    blk_udp_tx : block
+    blk_ip_tx : block
     begin
       --! Instantiate av_st_sender to read udp_tx from UDP_RXD_FILE
-      inst_udp_tx : entity sim.av_st_sender
+      inst_ip_tx : entity sim.av_st_sender
       generic map (
-        FILENAME      => UDP_RXD_FILE,
+        FILENAME      => IP_RXD_FILE,
         COMMENT_FLAG  => COMMENT_FLAG,
         COUNTER_FLAG  => COUNTER_FLAG
       )
@@ -186,56 +188,32 @@ begin
         cnt       => counter,
 
         -- Avalon-ST to outside world
-        tx_ready  => udp_tx_ready,
-        tx_data   => udp_tx_data,
-        tx_ctrl   => udp_tx_ctrl
+        tx_ready  => ip_tx_ready,
+        tx_data   => ip_tx_data,
+        tx_ctrl   => ip_tx_ctrl
       );
 
     end block;
 
-    blk_ip_log : block
-      --! @cond
-      signal wren          : std_logic := '0';
-      signal ip_rx_ready_n : std_logic := '0';
-      --! @endcond
+    blk_eth_log : block
     begin
 
-      --! Instantiate counter_matcher to generate ip_rx_ready_n
-      inst_rx_ready : entity sim.counter_matcher
+      --! Instantiate av_st_receiver to write eth_rx to ETH_TXD_FILE
+      inst_eth_rx : entity ethernet_lib.av_st_receiver
       generic map (
-        FILENAME      => IP_RDY_FILE,
+        READY_FILE    => ETH_RDY_FILE,
+        DATA_FILE     => ETH_TXD_FILE,
         COMMENT_FLAG  => COMMENT_FLAG
       )
       port map (
         clk       => clk,
         rst       => rst,
-        counter   => counter,
-        stimulus  => ip_rx_ready_n
-      );
+        cnt       => counter,
 
-      ip_rx_ready <= not ip_rx_ready_n;
-
-      -- logging block for TX interface
-      wren <= ip_rx_ctrl(6) and ip_rx_ready;
-
-      --! Instantiate file_writer_hex to write ip_tx_data
-      inst_ip_log : entity sim.file_writer_hex
-      generic map (
-        FILENAME      => IP_TXD_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG,
-        BITSPERWORD   => 16,
-        WORDSPERLINE  => 4
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        wren      => wren,
-
-        empty     => ip_rx_ctrl(2 downto 0),
-        eop       => ip_rx_ctrl(4),
-        err       => ip_rx_ctrl(3),
-
-        din       => ip_rx_data
+        -- Avalon-ST from outside world
+        rx_ready  => eth_rx_ready,
+        rx_data   => eth_rx_data,
+        rx_ctrl   => eth_rx_ctrl
       );
 
     end block;
