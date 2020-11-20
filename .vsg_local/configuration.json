@@ -86,6 +86,16 @@
 #        },
 #      },
 #    },
+    "src/ethernet_lib/ethernet_to_udp_module.vhd":{
+      "rule":{
+        "entity_005":{
+          "disable": true
+        },
+        "port_025":{
+          "disable": true
+        },
+      },
+    },
 #    "src/ethernet_lib/ip_module.vhd":{
 ## VSG 2.0.0 crashes on 'with ... select, so we must exclude it for now'
 #      "rule":{
@@ -184,6 +194,17 @@
       "rule":{
         # temporarily exclude the variable rules as it's an open question
         "architecture_008":{
+          "disable": true
+        },
+      },
+    },
+    "simulation/ethernet_lib/ethernet_to_udp_module/ethernet_to_udp_module_tb.vhd":{
+      "rule":{
+        # temporarily exclude the variable rules as it's an open question
+        "architecture_008":{
+          "disable": true
+        },
+        "entity_005":{
           "disable": true
         },
       },
