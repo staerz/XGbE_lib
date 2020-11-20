@@ -103,7 +103,7 @@ architecture tb of arp_module_tb is
   --! Clock cycle when 1 millisecond is passed
   signal one_ms_tick      : std_logic;
 
-  --! Status of the arp module
+  --! Status of the module
   signal status_vector    : std_logic_vector(4 downto 0);
 
 begin
