@@ -1,0 +1,41 @@
+% file to indicate counters for UDP_rx_ready
+% have one integer per line
+% must be in increasing order!
+% decimal numbers
+
+% interrupt 1st UPD rx packet
+26
+27
+28
+30
+
+% interrupt 2nd UPD rx packet
+44
+45
+46
+47
+48
+49
+50
+51
+
+% interrupt 3rd UPD rx packet
+84
+85
+86
+88
+
+% interrupt 4th UPD rx packet
+102
+103
+104
+105
+108
+109
+110
+111
+112
+113
+
+% interrupt 5th UPD rx packet
+130
