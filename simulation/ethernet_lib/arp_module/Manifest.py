@@ -1,5 +1,5 @@
 # Project description
-description = 'Simulation of the bare ARP_module'
+description = 'Simulation of the bare arp_module'
 
 # Simulating the design
 action = 'simulation'
