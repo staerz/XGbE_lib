@@ -9,6 +9,14 @@
         },
       },
     },
+    "src/ethernet_lib/av_st_receiver.vhd":{
+      "rule":{
+        # temporarily exclude the variable rules as it's an open question
+        "port_025":{
+          "disable": true
+        },
+      },
+    },
 #    "src/ethernet_lib/trailer_module.vhd":{
 # VSG 2.0.0 crashes on 'with ... select, so we must exclude it for now'
 #      "rule":{

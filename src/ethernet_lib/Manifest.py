@@ -10,6 +10,7 @@ library = "ethernet_lib"
 
 # List of source files for the module
 files = [
+  "av_st_receiver.vhd",
   "interface_merger.vhd",
   "port_io_table.vhd",
   "trailer_module.vhd",
