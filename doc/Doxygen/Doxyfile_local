@@ -25,6 +25,7 @@ PROJECT_NAME           = "Data Monitoring (damon)"
 # this path is relative to the original Doxyfile including this file
 # that's cumbersome, so we use the env variable (set in the Makefile)
 INPUT = $(COMPONENT_ROOT_PATH)/src/damon_top.vhd
+INPUT += $(COMPONENT_ROOT_PATH)/src/ethernet_lib/av_st_receiver.vhd
 INPUT += $(COMPONENT_ROOT_PATH)/src/ethernet_lib/interface_merger.vhd
 INPUT += $(COMPONENT_ROOT_PATH)/simulation/ethernet_lib/interface_merger/interface_merger_tb.vhd
 INPUT += $(COMPONENT_ROOT_PATH)/src/ethernet_lib/port_io_table.vhd
