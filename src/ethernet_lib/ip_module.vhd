@@ -25,8 +25,8 @@ entity ip_module is
     --! raises the error indicator upon eof if not matching.
     EOF_CHECK_EN   : std_logic               := '1';
     --! @brief Post-UDP-module UDP CRC calculation
-    --! @details If enabled, the UDP check sum will be (re)calculated from the pseudo
-    --! header.
+    --! @details If enabled, the UDP check sum will be (re)calculated from the UDP
+    --! pseudo header.
     --! This requires the check sum over the UDP data already being present in the
     --! UDP CRC field.
     --! If disabled, the check sum is omitted and set to x"0000".
@@ -368,9 +368,9 @@ begin
                     case protocol is
 
                       when NOTSUPPORTED =>
-                        rx_state <= skip;
+                        rx_state <= SKIP;
                       when others =>
-                        rx_state <= rx;
+                        rx_state <= RX;
 
                     end case;
 
@@ -381,7 +381,7 @@ begin
                       icmp_request <= '0';
                     end if;
                   else
-                    rx_state <= skip;
+                    rx_state <= SKIP;
                   end if;
                 when others =>
                   null;
