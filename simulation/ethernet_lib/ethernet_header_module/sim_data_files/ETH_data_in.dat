@@ -1,0 +1,272 @@
+% comments:
+% any line started with '%' - flag can be specified as generic in file_reader_hex
+anything less than
+length of a line
+containing data
+is also considered
+as a comment
+
+% interpreter ignores empty lines as well
+
+% "@" is used to indicate counters for transmission start
+% flag can be specified as generic in AV_ST_sender
+% must be decimal numbers in increasing order!
+
+% IP packet: addressed to FPGA1
+
+@ 30
+0022 8F02 41EE 0019
+9912 3956 0800 4500
+001d 093c 4000 8011
+0000 c0a8 0363 c0a8
+001e a191 0001 0044
+
+0000 0809 1011 1213
+1234 1234 1234 1234
+2345 2345 2345 2345
+3456 3456 3456 3456
+4567 4567 4567 4567
+5678 5678 5678 5678
+6789 6789 6789 6789
+7890 7890 7890 7890 100 0
+
+% Reset request addressed to Back_FPGA
+% using:
+% MY_MAC = 00:22:8F:02:41:EE
+% MY_IP = 192.168.0.30
+% MY_UDP_port = 5
+
+@ 80
+0022 8F02 41EE 0019
+9912 3956 0800 4500
+001d 093c 4000 8011
+0000 c0a8 0163 c0a8
+001e 1115 0005 0044
+
+0000 20FE DCF0 2FED
+011F 0000 0001 0001
+FFFF 0000 0000 0000 110 0
+
+% IP packet: addressed to FPGA2
+% will be looped back
+@ 100
+0022 8f02 41ee 0030
+6409 08fa 0800 4500
+0054 ed37 0000 ff11
+3ce8 c0a8 000a c0a8
+001e 04d2 0002 0040
+96de 7465 7374 2062
+6c61 2062 6c61 2065
+7465 2070 7020 4c41
+5050 2068 6575 7420
+6973 7420 6569 6e20
+7775 6e64 6572 7363
+686f 656e 6572 2074
+6167 ffff ffff ffff 110 0
+
+%0022 8F02 41EE 0019
+%9912 3956 0800 4500
+%001d 093c 4000 8011
+%0000 c0a8 0360 c0a8
+%0030 a191 0001 001a
+
+%1234 0809 1011 1213 100 0
+
+1415 1617
+1819 2021
+
+% padded IP packet: addressed to FPGA2
+% padding:
+% the packet is padded if its length is less then 64 bytes, including the 4 bytes of F(rame) C(heck) S(um)
+% so basically this means, a packet is padded, if:
+% - it's Ethernet data content (including header) is less than 60 bytes
+% - supposing 6+6+2 bytes Ethernet header, it's IPv4 frame length is less than 46 bytes
+% - supposing 14+20 bytes Eth+IP header, it's UDPv4 frame length is less than 26 bytes
+% will be looped back - if not filtered out due to 'invalid' length indication
+@ 120
+0022 8f02 41ee 0030
+6409 08fa 0800 4500
+002d ed37 0000 ff11
+3ce8 c0a8 000a c0a8
+001e 04d2 0002 0010
+96de 1000 0001 2000
+0002 0000 0000 0000
+0000 0000 0000 FC52 010 0
+
+ARP response:
+@ 140
+0022 8F02 41EE B3C2
+C701 1234 0806 0001
+0800 0604 0002 B3C2
+C701 1234 C0A8 0363
+0022 8F02 41EE C0A8
+001e 0000 0000 0000 100 0
+
+ARP request:
+@ 160
+FFFF FFFF FFFF 0019
+9912 3956 0806 0001
+0800 0604 0001 0019
+9912 3956 C0A8 0317
+FFFF FFFF FFFF C0A8
+
+without error:
+001e 0000 0000 0000
+0000 0000 0000 0000
+0000 0003 2100 0000 011 0
+
+PING request:
+@ 180
+0022 8F02 41EE 0019
+9912 3956 0800 4500
+003c 2f46 0000 8001
+0000 c0a8 0363 c0a8
+001e 0800 4d53 0001
+0008 6162 6364 6566
+6768 696a 6b6c 6d6e
+6f70 7172 7374 7576
+7761 6263 6465 6667
+6869 0000 0000 0000 110 0
+
+% complete packet
+% with empty flag end error flag
+
+ARP request:
+@ 200
+FFFF FFFF FFFF A3C2
+C700 1232 0806 0001
+0800 0604 0001 A3C2
+C700 1232 C0A8 0361
+FFFF FFFF FFFF C0A8
+
+without error:
+001e 0000 0000 0000
+0000 0000 0000 0000
+0000 0003 2100 0000 011 0
+
+% same ARP request:
+% FFFF FFFF FFFF A3C2
+% C700 1232 0806 0001
+% 0800 0604 0001 A3C2
+% C700 1232 C0A8 0361
+% FFFF FFFF FFFF C0A8
+%
+% with error:
+% 001e 0000 0000 0000 100 1
+
+ARP response:
+@ 230
+0022 8F02 41EE C3C2
+D701 4321 0806 0001
+0800 0604 0002 C3C2
+D701 4321 C0A8 000A
+0022 8F02 41EE C0A8
+001e 0000 0000 0000 100 0
+
+
+% shortest packet possible (unpadded), addressed to FPGA2:
+% 1 IPbus data word (32 bit) x"1000_0001"
+% this packet will actually be padded by the MAC
+
+@ 250
+0022 8F02 41EE 0019
+9912 3956 0800 4500
+001d 093c 4000 8011
+0000 c0a8 0361 c0a8
+% 000c: length field (UDP header + data)
+001e a192 0001 000c
+0000 1000 0001 ffff 010 0
+
+% shortest packet again, but this is the padded version:
+@ 270
+0022 8F02 41EE 0019
+9912 3956 0800 4500
+001d 093c 4000 8011
+0000 c0a8 0361 c0a8
+% 000c: length field (UDP header + data)
+001e a192 0002 000c
+0000 1000 0001 0000
+0000 0000 0000 0000
+0000 0000 0000 FC52 010 0
+
+% another IP packet, which will be filtered out due to unaccepted IP: 8d4c:5e60
+% if src address filter is enabled
+
+@ 290
+0022 8F02 41EE 0019
+9912 3956 0800 4500
+001d 093c 4000 8011
+0000 8d4c 5e60 c0a8
+001e a19f 0001 0035
+
+0000 0809 1011 1213
+0001 0001 0001 0001
+0002 0002 0002 0002
+0003 0003 0003 0003
+0004 0004 0004 0004
+0005 0005 0005 0005
+
+0000 0809 12ff ffff 011 0
+
+PING request:
+@ 320
+0022 8F02 41EE 0019
+9912 3956 0800 4500
+003c 2f46 0000 8001
+0000 c0a8 0363 c0a8
+001e 0800 4d53 0001
+0008 6162 6364 6566
+6768 696a 6b6c 6d6e
+6f70 7172 7374 7576
+7761 6263 6465 6667
+6869 0000 0000 0000 110 0
+
+PING request:
+@ 340
+0022 8F02 41EE 0019
+9912 3956 0800 4500
+003c 2f46 0000 8001
+0000 c0a8 0363 c0a8
+001e 0800 4d53 0001
+0008 6162 6364 6566
+6768 696a 6b6c 6d6e
+6f70 7172 7374 7576
+7761 6263 6465 6667
+6869 0000 0000 0000 110 0
+
+%PING request: (to wrong IP)
+@ 360
+1022 8F02 41EE 0019
+9912 3956 0800 4500
+003c 2f46 0000 8001
+0000 c0a8 0363 c0a8
+001e 0800 4d53 0001
+0008 6162 6364 6566
+6768 696a 6b6c 6d6e
+6f70 7172 7374 7576
+7761 6263 6465 6667
+6869 0000 0000 0000 110 0
+
+PING request:
+@ 380
+0022 8F02 41EE 0019
+9912 3956 0800 4500
+003c 2f46 0000 8001
+0000 c0a8 0363 c0a8
+001e 0800 4d53 0001
+0008 6162 6364 6566
+6768 696a 6b6c 6d6e
+6f70 7172 7374 7576
+7761 6263 6465 6667
+6869 0000 0000 0000 110 0
+
+% IPbus read request to Back FPGA addr 0x13000 for 11 words
+@ 550
+0022 8F02 41EE 0019
+9912 3956 0800 4500
+001d 093c 4000 8011
+0000 c0a8 0363 c0a8
+001e a191 0005 0014
+
+0000 2012 36f0 2322
+0b0f 0001 3000 bbbb 010 0
