@@ -465,6 +465,8 @@ begin
     signal rx_count       : integer range 0 to 1125 := 0;
     --! Register receiving data
     signal rx_data_reg    : std_logic_vector(63 downto 0) := (others => '0');
+    --! Register receiving controls
+    signal rx_ctrl_reg    : std_logic_vector(6 downto 0) := (others => '0');
 
     --! @name Register to extract relevant data of incoming (ARP) packets:
     --! These signals serve the RX path and extract data blindly
@@ -494,10 +496,12 @@ begin
         -- reset counter
         if (rst = '1') then
           rx_data_reg <= (others => '0');
+          rx_ctrl_reg <= (others => '0');
           rx_count <= 0;
         -- prevent from overwriting last received valid ARP data
         elsif arp_rx_ctrl(6) = '1' and arp_rx_ready_i = '1' then
-          rx_data_reg   <= arp_rx_data;
+          rx_data_reg <= arp_rx_data;
+          rx_ctrl_reg <= arp_rx_ctrl;
           -- ... sof initializes counter
           if (arp_rx_ctrl(5) = '1') then
             rx_count <= 1;
@@ -583,7 +587,7 @@ begin
         -- reset or sof indicate new header
         if (rst = '1') or (arp_rx_ctrl(5) = '1') then
           rx_state <= HEADER;
-        else
+        elsif arp_rx_ready_i = '1' then
 
           case rx_state is
             -- check header data
@@ -611,41 +615,29 @@ begin
                         rx_state <= SKIP;
                     end case;
                   end if;
-                -- when 2, 3 => MAC and IP data is copied from reg in process extract_rx_data_copy
                 when 4 =>
-                  -- IP address must match
-                  if  rx_data_reg(63 downto 32) /= my_ip then
+                  -- requested IP address must match and it mustn't be an error frame
+                  if rx_data_reg(63 downto 32) /= my_ip or rx_ctrl_reg(4 downto 3) = "11" then
                     rx_state <= SKIP;
                   else
-                    -- error indication
-                    if arp_rx_ctrl(4) = '1' and arp_rx_ctrl(3) = '0' then
-                      rx_state <= STORING_TG;
-                    else
-                      rx_state <= HEADER;
-                    end if;
+                    rx_state <= STORING_TG;
                   end if;
 
-                -- maybe padded: wait for eof
+                -- when 2, 3 => MAC and IP data is copied from reg in process extract_rx_data_copy
                 when others =>
-                  -- error indication
-                  if arp_rx_ctrl(4) = '1' and arp_rx_ctrl(3) = '0' then
-                    rx_state <= STORING_TG;
-                  else
-                    rx_state <= HEADER;
-                  end if;
+                  rx_state <= HEADER;
 
               end case;
 
             -- store source MAC and IP
             -- may only be assigned for one clk
             when STORING_TG =>
-              rx_state <= HEADER;
+              rx_state <= SKIP;
 
-            -- just let pass all other data, wait for EOF
+            -- just let pass all other data
+            -- new HEADER state is captured by reset condition of FSM
             when SKIP =>
-              if arp_rx_ctrl(4) = '1' then
-                rx_state <= HEADER;
-              end if;
+              rx_state <= SKIP;
 
           end case;
 
