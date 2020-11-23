@@ -12,30 +12,74 @@ containing data
 
 % for ARP_module_tester, the pure ARP request without Ethernet header is required
 
-ARP request
-with error
+% unpadded ARP request with error: expect no reply
 @ 2
 0001 0800 0604 0001
 A3C2 C700 1232 C0A8
 0003 0123 4567 89ab
 C0A8 001E 0000 0000 100 1
 
-ARP request
-without error
+% unpadded ARP request without error: expect reply
 @ 20
 0001 0800 0604 0001
 A3C2 C700 1232 C0A8
 0003 0123 4567 89ab
 C0A8 001E 0000 0000 100 0
 
-@ 40
+@ 30
+% (same) padded ARP request without error: expect reply
 0001 0800 0604 0001
 A3C2 C700 1232 C0A8
 0603 0123 4567 89ab
-C0A8 001E 0000 0000 100 0
+C0A8 001E 0000 0000
+0000 0000 0000 0000
+0000 0000 0000 0000
+0000 0000 0000 0000 110 0
 
-@ 60
+@ 40
+% (same) ARP request with error: expect no reply
 0001 0800 0604 0001
 A3C2 C700 1232 C0A8
 0003 0123 4567 89ab
 C0A8 001E 0000 0000 100 1
+
+@ 50
+% unpadded, requesting different IP: expect no reply
+0001 0800 0604 0001
+A3C2 C700 1232 C0A8
+0603 0123 4567 89ab
+C0A8 001F 0000 0000 100 0
+
+@ 60
+% padded, requesting different IP: expect no reply
+0001 0800 0604 0001
+A3C2 C700 1232 C0A8
+0603 0123 4567 89ab
+C0A8 001F 0000 0000
+0000 0000 0000 0000
+0000 0000 0000 0000
+0000 0000 0000 0000 110 0
+
+@ 70
+% unpadded, requesting different IP with error: expect no reply
+0001 0800 0604 0001
+A3C2 C700 1232 C0A8
+0603 0123 4567 89ab
+C0A8 001F 0000 0000 100 1
+
+@ 80
+% padded, requesting different IP with error: expect no reply
+0001 0800 0604 0001
+A3C2 C700 1232 C0A8
+0603 0123 4567 89ab
+C0A8 001F 0000 0000
+0000 0000 0000 0000
+0000 0000 0000 0000
+0000 0000 0000 0000 110 1
+
+% (same) unpadded ARP request without error: expect reply
+@ 90
+0001 0800 0604 0001
+A3C2 C700 1232 C0A8
+0003 0123 4567 89ab
+C0A8 001E 0000 0000 100 0
