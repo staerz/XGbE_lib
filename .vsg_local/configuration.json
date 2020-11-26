@@ -116,7 +116,59 @@
 #        },
 #      },
 #    },
-#    "src/ethernet_lib/reset_module.vhd",
+    "src/ethernet_lib/reset_module.vhd":{
+      # vsg doesn't like the indentation although it is alright ...
+      "rule":{
+        "architecture_008":{
+          "disable": true
+        },
+        "case_001":{
+          "disable": true
+        },
+        "case_013":{
+          "disable": true
+        },
+        "entity_005":{
+          "disable": true
+        },
+        "entity_009":{
+          "disable": true
+        },
+        "if_001":{
+          "disable": true
+        },
+        "if_004":{
+          "disable": true
+        },
+        "if_012":{
+          "disable": true
+        },
+        "if_013":{
+          "disable": true
+        },
+        "if_014":{
+          "disable": true
+        },
+        "process_001":{
+          "disable": true
+        },
+        "process_006":{
+          "disable": true
+        },
+        "process_003":{
+          "disable": true
+        },
+        "sequential_001":{
+          "disable": true
+        },
+        "signal_001":{
+          "disable": true
+        },
+        "type_001":{
+          "disable": true
+        },
+      },
+    },
     "src/damon_top.vhd":{
       "rule":{
         # temporarily exclude the variable rules as it's an open question
@@ -225,13 +277,6 @@
         },
       },
     },
-    "simulation/ethernet_lib/reset_module/reset_module_tb.vhd":{
-      "rule":{
-        # temporarily exclude the variable rules as it's an open question
-        "architecture_008":{
-          "disable": true
-        },
-      },
-    }
+    "simulation/ethernet_lib/reset_module/reset_module_tb.vhd",
   ],
 }
