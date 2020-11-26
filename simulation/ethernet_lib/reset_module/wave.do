@@ -1,27 +1,25 @@
 onerror {resume}
 quietly WaveActivateNextPane {} 0
-add wave -noupdate /reset_module_tb/RST_DAT_FILENAME
-add wave -noupdate /reset_module_tb/RST_LOG_FILENAME
-add wave -noupdate /reset_module_tb/RST_RX_READY_FILE
+add wave -noupdate /reset_module_tb/RST_RXD_FILE
+add wave -noupdate /reset_module_tb/RST_RDY_FILE
+add wave -noupdate /reset_module_tb/RST_TXD_FILE
 add wave -noupdate /reset_module_tb/MNL_RST_FILE
-add wave -noupdate -radix hexadecimal -radixshowbase 0 /reset_module_tb/my_mac
-add wave -noupdate -radix hexadecimal -radixshowbase 0 /reset_module_tb/my_ip
-add wave -noupdate -radix hexadecimal -radixshowbase 0 /reset_module_tb/my_udp_port
-add wave -noupdate -radix decimal -radixshowbase 0 /reset_module_tb/simulation/counter
+add wave -noupdate -radix hexadecimal -radixshowbase 0 /reset_module_tb/MY_MAC
+add wave -noupdate -radix hexadecimal -radixshowbase 0 /reset_module_tb/MY_IP
+add wave -noupdate -radix hexadecimal -radixshowbase 0 /reset_module_tb/MY_UDP_PORT
+add wave -noupdate -radix decimal -radixshowbase 0 /reset_module_tb/blk_simulation/counter
 add wave -noupdate /reset_module_tb/clk
 add wave -noupdate /reset_module_tb/rst
-add wave -noupdate -radix hexadecimal /reset_module_tb/uut/soft_resets
-add wave -noupdate -color Yellow -radix hexadecimal -radixshowbase 0 /reset_module_tb/rst_out
-add wave -noupdate /reset_module_tb/uut/rst_rx_ready
-add wave -noupdate -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/rst_rx_data
-add wave -noupdate -radix binary -radixshowbase 0 /reset_module_tb/uut/rst_rx_ctrl
-add wave -noupdate /reset_module_tb/uut/make_RX_interface/rst_rx_valid_d
-add wave -noupdate /reset_module_tb/uut/rst_tx_ready
-add wave -noupdate -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/rst_tx_data
-add wave -noupdate -radix binary -radixshowbase 0 /reset_module_tb/uut/rst_tx_ctrl
+add wave -noupdate /reset_module_tb/uut/rx_ready_o
+add wave -noupdate -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/rx_packet_i
+add wave -noupdate /reset_module_tb/uut/tx_ready_i
+add wave -noupdate -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/tx_packet_o
+add wave -noupdate -expand -group Internals /reset_module_tb/uut/make_RX_interface/rx_valid_d
 add wave -noupdate -expand -group Internals /reset_module_tb/uut/make_rx_interface/rx_state
+add wave -noupdate -color Yellow -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/rst_o
 add wave -noupdate -expand -group Internals -radix decimal -radixshowbase 0 /reset_module_tb/uut/make_RX_interface/rx_count
-add wave -noupdate -expand -group Internals -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/rst_rx_data
+add wave -noupdate -expand -group Internals -radix hexadecimal /reset_module_tb/uut/soft_resets
+add wave -noupdate -expand -group Internals -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/make_rx_interface/rx_ready
 add wave -noupdate -expand -group Internals -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/make_RX_interface/rx_data_reg1
 add wave -noupdate -expand -group Internals -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/make_RX_interface/rx_data_reg2
 add wave -noupdate -expand -group Internals -color Plum -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/make_RX_interface/rx_data_reg

@@ -14,7 +14,7 @@ library IEEE;
   use IEEE.std_logic_1164.all;
 --! @endcond
 
---! Testbench for ethernet_module.vhd
+--! Packet writer for the AVALON-ST interface, writes data to file.
 entity av_st_receiver is
   generic (
     --! File containing counters on which the RX interface is not ready
