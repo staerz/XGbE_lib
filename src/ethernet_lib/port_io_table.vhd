@@ -23,40 +23,40 @@ library IEEE;
 entity port_io_table is
   generic (
     --! Width of the port to be associated
-    PIN_WIDTH    : integer range 1 to 64   := 32;
+    PORT_I_W    : integer range 1 to 64   := 32;
     --! Width of the associated port
-    POUT_WIDTH   : integer range 1 to 64   := 48;
+    PORT_O_W    : integer range 1 to 64   := 48;
     --! Depth of the table
-    TABLE_DEPTH  : integer range 1 to 1024 := 4
+    TABLE_DEPTH : integer range 1 to 1024 := 4
   );
   port (
     --! Clock
-    clk           : in    std_logic;
+    clk             : in    std_logic;
     --! Reset, sync with #clk
-    rst           : in    std_logic;
+    rst             : in    std_logic;
 
     --! @name Discovery interface for writing pair of associated addresses/ports
     --! @{
 
     --! Discovery write enable
-    disco_wren     : in    std_logic;
+    disco_wren_i    : in    std_logic;
     --! Discovery input port
-    disco_pin      : in    std_logic_vector(PIN_WIDTH-1 downto 0);
+    disco_port_i    : in    std_logic_vector(PORT_I_W-1 downto 0);
     --! Discovery output port
-    disco_pout     : in    std_logic_vector(POUT_WIDTH-1 downto 0);
+    disco_port_o    : in    std_logic_vector(PORT_O_W-1 downto 0);
     --! @}
 
     --! @name Recovery interface for reading pair of associated addresses/ports
     --! @{
 
     --! Recovery read enable
-    reco_en        : in    std_logic;
+    reco_en_i       : in    std_logic;
     --! Recovery input port
-    reco_pin       : in    std_logic_vector(PIN_WIDTH-1 downto 0);
+    reco_port_i     : in    std_logic_vector(PORT_I_W-1 downto 0);
     --! Recovery output port (response next clk cycle)
-    reco_pout      : out   std_logic_vector(POUT_WIDTH-1 downto 0);
+    reco_port_o     : out   std_logic_vector(PORT_O_W-1 downto 0);
     --! Recovery success indicator
-    reco_found     : out   std_logic;
+    reco_found_o    : out   std_logic;
     --! @}
     --! @brief Status of the module
     --! @details Status of the module
@@ -64,8 +64,8 @@ entity port_io_table is
     --! - 0: table empty
     --!
     --! One could make the move to indicate the number of occupied entries instead...
-    --! That would make #status_vector a #TABLE_DEPTH-dependent length vector.
-    status_vector    : out   std_logic_vector(1 downto 0)
+    --! That would make #status_vector_o a #TABLE_DEPTH-dependent length vector.
+    status_vector_o : out   std_logic_vector(1 downto 0)
   );
 end port_io_table;
 
@@ -78,19 +78,20 @@ library IEEE;
 architecture behavioral of port_io_table is
 
   --! Type definition for table to store port pair in one entry
-  type   port_io_table_data_t is array(TABLE_DEPTH downto 1) of std_logic_vector((PIN_WIDTH+POUT_WIDTH-1) downto 0);
+  type port_io_table_data_t is array(TABLE_DEPTH downto 1) of std_logic_vector((PORT_I_W+PORT_O_W-1) downto 0);
+
   --! Table to store port pair in one entry
   signal port_io_table_data : port_io_table_data_t := (others => (others => '0'));
 
   --! Recovery function to find pout in #port_io_table_data
 
-  impure function find_pout_in_port_io_table(inport : std_logic_vector(PIN_WIDTH-1 downto 0)) return natural is
+  impure function find_pout_in_port_io_table(inport : std_logic_vector(PORT_I_W-1 downto 0)) return natural is
   begin
     if unsigned('0' & inport) = 0 then
       return 0;
     end if;
     for i in port_io_table_data'range loop
-      if port_io_table_data(i)(PIN_WIDTH-1 downto 0) = inport then
+      if port_io_table_data(i)(PORT_I_W-1 downto 0) = inport then
         return i;
       end if;
     end loop;
@@ -103,14 +104,14 @@ begin
 ------------------------------  <-  80 chars  ->  ------------------------------
 --! Handling of incoming data
 --------------------------------------------------------------------------------
-  write_block: block
+  blk_write : block
     --! Internal pointer of current write address of table
-    signal write_address  : integer range 1 to TABLE_DEPTH := 1;
+    signal write_address : integer range 1 to TABLE_DEPTH := 1;
     --! Internal pointer to entry with pin to discover
-    signal old_address    : integer range 0 to TABLE_DEPTH := 1;
+    signal old_address   : integer range 0 to TABLE_DEPTH := 1;
   begin
     -- check if discovered pin is already stored in table
-    old_address <= find_pout_in_port_io_table(disco_pin);
+    old_address <= find_pout_in_port_io_table(disco_port_i);
 
     proc_table_fill : process (clk) is
     begin
@@ -118,25 +119,25 @@ begin
         if (rst = '1') then
           port_io_table_data <= (others => (others => '0'));
           write_address      <= 1;
-          status_vector(1)   <= '0';
-          status_vector(0)   <= '1';
+          status_vector_o(1) <= '0';
+          status_vector_o(0) <= '1';
         else
-          if disco_wren = '1' then
+          if disco_wren_i = '1' then
             if old_address /= 0 then
               -- data already found in table: update entry
-              port_io_table_data(old_address) <= disco_pout & disco_pin;
+              port_io_table_data(old_address) <= disco_port_o & disco_port_i;
             else
               -- otherwise add as new entry
-              port_io_table_data(write_address) <= disco_pout & disco_pin;
+              port_io_table_data(write_address) <= disco_port_o & disco_port_i;
               if write_address = TABLE_DEPTH then
-                status_vector(1) <= '1';
-                write_address    <= 1;
+                status_vector_o(1) <= '1';
+                write_address      <= 1;
               else
                 write_address <= write_address + 1;
               end if;
             end if;
 
-            status_vector(0) <= '0';
+            status_vector_o(0) <= '0';
           end if;
         end if;
       end if;
@@ -150,18 +151,18 @@ begin
   begin
     if rising_edge(clk) then
       if rst = '1' then
-        reco_pout  <= (others => '0');
-        reco_found <= '0';
+        reco_port_o  <= (others => '0');
+        reco_found_o <= '0';
       else
-        read_address := find_pout_in_port_io_table(reco_pin);
+        read_address := find_pout_in_port_io_table(reco_port_i);
 
         -- default:
-        reco_pout  <= (others => '0');
-        reco_found <= '0';
-        if reco_en = '1' then
+        reco_port_o  <= (others => '0');
+        reco_found_o <= '0';
+        if reco_en_i = '1' then
           if read_address /= 0 then
-            reco_pout  <= port_io_table_data(read_address)(PIN_WIDTH+POUT_WIDTH-1 downto PIN_WIDTH);
-            reco_found <= '1';
+            reco_port_o  <= port_io_table_data(read_address)(PORT_I_W+PORT_O_W-1 downto PORT_I_W);
+            reco_found_o <= '1';
           end if;
         end if;
       end if;
