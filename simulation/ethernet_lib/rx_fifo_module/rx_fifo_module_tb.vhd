@@ -33,17 +33,12 @@ entity rx_fifo_module_tb is
     --! Flat to use to indicate counters
     COUNTER_FLAG       : character := '@';
 
-    --! @name Configuration of the module
-    --! @{
-
-    --! @brief Locking the FIFO on the writing side
+    --! Locking the FIFO on the writing side
     LOCK_FIFO      : boolean := true;
-    --! @brief Locking the FIFO on the reading side
+    --! Locking the FIFO on the reading side
     LOCK_FIFO_OUT  : boolean := false;
-    --! @brief Enable true dual clock mode or not.
+    --! Enable true dual clock mode or not.
     DUAL_CLK       : boolean := false
-
-    --! @}
   );
 end rx_fifo_module_tb;
 
