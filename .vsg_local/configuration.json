@@ -9,6 +9,22 @@
         },
       },
     },
+    "src/ethernet_lib/avst_packet_receiver.vhd":{
+      "rule":{
+        # temporarily exclude the variable rules as it's an open question
+        "port_025":{
+          "disable": true
+        },
+      },
+    },
+    "src/ethernet_lib/avst_packet_sender.vhd":{
+      "rule":{
+        # temporarily exclude the variable rules as it's an open question
+        "port_025":{
+          "disable": true
+        },
+      },
+    },
     "src/ethernet_lib/av_st_receiver.vhd":{
       "rule":{
         # temporarily exclude the variable rules as it's an open question
