@@ -1,11 +1,11 @@
 # Project description
-description = 'Simulation of the bare arp_module'
+description = 'Simulation of the bare ethernet_to_udp_module'
 
 # Simulating the design
 action = 'simulation'
 
 # Top module used for simulation
-top_module = 'ethernet_lib.arp_module_tb'
+top_module = 'ethernet_lib.ethernet_to_udp_module_tb'
 
 # Waveforms for simulation
 sim_do_cmd = 'wave.do'
@@ -23,7 +23,7 @@ library = "ethernet_lib"
 
 # List of source files for the Reset_module testbench
 files = [
-  "arp_module_tb.vhd",
+  "ethernet_to_udp_module_tb.vhd",
 ]
 
 # Project configuration override

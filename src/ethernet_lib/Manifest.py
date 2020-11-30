@@ -22,4 +22,5 @@ files = [
   "ethernet_module.vhd",
   "reset_module.vhd",
   "rx_fifo_module.vhd",
+  "ethernet_to_udp_module.vhd",
 ]

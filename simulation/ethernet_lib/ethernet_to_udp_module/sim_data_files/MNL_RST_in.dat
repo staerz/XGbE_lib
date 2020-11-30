@@ -1,0 +1,9 @@
+% file to indicate counters when to carry out a manual reset
+% have one integer per line
+% decimal numbers
+% must be in increasing order!
+
+9
+10
+11
+12
