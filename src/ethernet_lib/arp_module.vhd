@@ -34,7 +34,7 @@ entity arp_module is
   generic (
     --! Timeout in milliseconds
     ARP_TIMEOUT       : integer range 2 to 1000 := 50;
-    --! Cycle time in milliseconds for APR requests (when repetitions are needed)
+    --! Cycle time in milliseconds for ARP requests (when repetitions are needed)
     ARP_REQUEST_CYCLE : integer range 1 to 1000 := 2;
     --! Depth of ARP table (number of stored connections)
     ARP_TABLE_DEPTH   : integer range 1 to 1024 := 4
@@ -93,7 +93,7 @@ entity arp_module is
     --! - 4: ARP table full
     --! - 3: ARP table empty
     --! - 2: ARP request is being received
-    --! - 1: APR request is being answered
+    --! - 1: ARP request is being answered
     --! - 0: Data is being forwarded
     status_vector : out   std_logic_vector(4 downto 0)
   );
