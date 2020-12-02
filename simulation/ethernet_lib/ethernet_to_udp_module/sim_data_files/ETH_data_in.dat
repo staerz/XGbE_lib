@@ -15,7 +15,7 @@ as a comment
 % first we establish a connection from A3:C2:C7:00:12:32/C0.A8.03.61 (192.168.3.97)
 % starting with an ARP request and a ping.
 
-ARP request by A3:C2:C7:00:12:32/C0.A8.03.61 (192.168.3.97)
+% ARP request by A3:C2:C7:00:12:32/C0.A8.03.61 (192.168.3.97)
 @ 20
 FFFF FFFF FFFF A3C2
 C700 1232 0806 0001
