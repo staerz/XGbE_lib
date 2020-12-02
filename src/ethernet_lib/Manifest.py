@@ -23,6 +23,6 @@ files = [
   "ip_header_module.vhd",
   "ip_module.vhd",
   "ethernet_header_module.vhd",
-#  "ethernet_module.vhd",
+  "ethernet_module.vhd",
 #  "ethernet_to_udp_module.vhd",
 ]
