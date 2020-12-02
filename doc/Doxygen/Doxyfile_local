@@ -25,15 +25,15 @@ PROJECT_NAME           = "Data Monitoring (damon)"
 # this path is relative to the original Doxyfile including this file
 # that's cumbersome, so we use the env variable (set in the Makefile)
 INPUT = $(COMPONENT_ROOT_PATH)/src/damon_top.vhd
-INPUT += $(COMPONENT_ROOT_PATH)/src/ethernet_lib
-INPUT += $(COMPONENT_ROOT_PATH)/simulation/ethernet_lib
+INPUT += $(COMPONENT_ROOT_PATH)/src/xgbe_lib
+INPUT += $(COMPONENT_ROOT_PATH)/simulation/xgbe_lib
 
 # apparently package files need to be added explicitly
 # or it is due to an error with a previously processed file!?
 #INPUT += $(COMPONENT_ROOT_PATH)/src/damon_pkg.vhd
 
 # we exclude any third party source code, i.e. the lpGBT source code
-#EXCLUDE = $(COMPONENT_ROOT_PATH)/src/ethernet_lib/
+#EXCLUDE = $(COMPONENT_ROOT_PATH)/src/xgbe_lib/
 
 # exclude Readme files
 EXCLUDE_PATTERNS += *.md
