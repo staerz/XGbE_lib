@@ -41,17 +41,53 @@
         },
       },
     },
-#    "src/ethernet_lib/ip_header_module.vhd":{
+    "src/ethernet_lib/ip_header_module.vhd":{
 # VSG 2.0.0 crashes on 'with ... select, so we must exclude it for now'
-#      "rule":{
-#        "entity_005":{
-#          "disable": true
-#        },
-#        "port_025":{
-#          "disable": true
-#        },
-#      },
-#    },
+      "rule":{
+        "architecture_008":{
+          "disable": true
+        },
+        "entity_005":{
+          "disable": true
+        },
+        "entity_009":{
+          "disable": true
+        },
+        "generate_001":{
+          "disable": true
+        },
+        "generate_006":{
+          "disable": true
+        },
+        "generate_007":{
+          "disable": true
+        },
+        "if_001":{
+          "disable": true
+        },
+        "if_013":{
+          "disable": true
+        },
+        "if_014":{
+          "disable": true
+        },
+        "process_001":{
+          "disable": true
+        },
+        "process_003":{
+          "disable": true
+        },
+        "process_006":{
+          "disable": true
+        },
+        "sequential_001":{
+          "disable": true
+        },
+        "signal_001":{
+          "disable": true
+        },
+      },
+    },
 #    "src/ethernet_lib/ethernet_header_module.vhd":{
 ## VSG 2.0.0 crashes on 'with ... select, so we must exclude it for now'
 #      "rule":{
@@ -84,17 +120,17 @@
         },
       },
     },
-#    "src/ethernet_lib/ip_module.vhd":{
+    "src/ethernet_lib/ip_module.vhd":{
 ## VSG 2.0.0 crashes on 'with ... select, so we must exclude it for now'
-#      "rule":{
-#        "entity_005":{
-#          "disable": true
-#        },
-#        "port_025":{
-#          "disable": true
-#        },
-#      },
-#    },
+      "rule":{
+        "entity_005":{
+          "disable": true
+        },
+        "architecture_008":{
+          "disable": true
+        },
+      },
+    },
     "src/ethernet_lib/reset_module.vhd":{
       # vsg doesn't like the indentation although it is alright ...
       "rule":{
