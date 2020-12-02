@@ -11,7 +11,7 @@ add wave -noupdate -group {Constants and Config} -radix hexadecimal -radixshowba
 add wave -noupdate /ip_module_tb/clk
 add wave -noupdate /ip_module_tb/rst
 add wave -noupdate -expand -group {IP RX Data} -color Cyan -radix binary -radixshowbase 0 /ip_module_tb/uut/ip_rx_ready_o
-add wave -noupdate -expand -group {IP RX Data} -color Cyan -radix binary -radixshowbase 0 /ip_module_tb/uut/ip_rx_packet_i
+add wave -noupdate -expand -group {IP RX Data} -color Cyan -radix hexadecimal -radixshowbase 0 /ip_module_tb/uut/ip_rx_packet_i
 add wave -noupdate -group {Check header} -radixshowbase 0 /ip_module_tb/uut/blk_stripoff_header/rx_state
 add wave -noupdate -group {Check header} -radixshowbase 0 /ip_module_tb/uut/blk_stripoff_header/protocol
 add wave -noupdate -group {Check header} -radixshowbase 0 /ip_module_tb/uut/blk_stripoff_header/src_ip_accept

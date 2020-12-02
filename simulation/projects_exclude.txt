@@ -1,3 +1,2 @@
 ./ethernet_lib/ethernet_module
-./ethernet_lib/ethernet_header_module
 ./ethernet_lib/ethernet_to_udp_module
