@@ -8,13 +8,13 @@
 -------------------------------------------------------------------------------
 --! @details
 --! Watches for ARP requests dedicated to this client, referred by the
---! IP address configured in "my_ip".
---! The MAC address of the core has to be provided at all times to "my_mac".
+--! IP address configured in "my_ip_i".
+--! The MAC address of the core has to be provided at all times to "my_mac_i".
 --! The incoming interface expects the raw ARP frame (Ethernet header
 --! already stripped off), but will respond with the Ethernet header for
 --! an easier implementation in the hierarchy upper module.
 --!
---! Multiple ARP requests entering while arp_tx_ready is indicating busy are
+--! Multiple ARP requests entering while arp_tx_ready_i is indicating busy are
 --! stored in a FIFO and will be answered when the TX interface is free again.
 --!
 --! The incoming packet's MAC and IP address are discovered and provided in one
@@ -23,9 +23,8 @@
 -------------------------------------------------------------------------------
 
 --! @cond
-library IEEE;
-  use IEEE.STD_LOGIC_1164.ALL;
-  use IEEE.numeric_std.all;
+library fpga;
+  context fpga.interfaces;
 --! @endcond
 
 --! ARP request responder (and generator) according to RFC 826
@@ -41,52 +40,48 @@ entity arp_module is
   );
   port (
     --! Clock
-    clk           : in    std_logic;
+    clk              : in    std_logic;
     --! Reset, sync with #clk
-    rst           : in    std_logic;
+    rst              : in    std_logic;
 
     --! @name Avalon-ST from ARP requester
     --! @{
 
     --! RX ready
-    arp_rx_ready  : out   std_logic;
-    --! RX data
-    arp_rx_data   : in    std_logic_vector(63 downto 0);
-    --! RX controls
-    arp_rx_ctrl   : in    std_logic_vector(6 downto 0);
+    arp_rx_ready_o  : out   std_logic;
+    --! RX data and controls
+    arp_rx_packet_i : in    t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! @}
 
     --! @name Avalon-ST to ARP requester (with Ethernet header)
     --! @{
 
     --! TX ready
-    arp_tx_ready  : in    std_logic;
-    --! TX data
-    arp_tx_data   : out   std_logic_vector(63 downto 0);
-    --! TX controls
-    arp_tx_ctrl   : out   std_logic_vector(6 downto 0);
+    arp_tx_ready_i  : in    std_logic;
+    --! TX data and controls
+    arp_tx_packet_o : out   t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! @}
 
     --! @name Interface for recovering MAC address from given IP address
     --! @{
 
     --! Recovery enable
-    reco_en       : in    std_logic;
+    reco_en_i       : in    std_logic;
     --! IP address to recover
-    reco_ip       : in    std_logic_vector(31 downto 0);
+    reco_ip_i       : in    std_logic_vector(31 downto 0);
     --! Recovered MAC address
-    reco_mac      : out   std_logic_vector(47 downto 0);
+    reco_mac_o      : out   std_logic_vector(47 downto 0);
     --! Recovery success: 1 = found, 0 = not found (time out)
-    reco_mac_done : out   std_logic;
+    reco_done_o     : out   std_logic;
     --! @}
 
     --! MAC address of the module
-    my_mac        : in    std_logic_vector(47 downto 0);
+    my_mac_i        : in    std_logic_vector(47 downto 0);
     --! IP address of the module
-    my_ip         : in    std_logic_vector(31 downto 0);
+    my_ip_i         : in    std_logic_vector(31 downto 0);
 
     --! Clock cycle when 1 millisecond is passed
-    one_ms_tick   : in    std_logic;
+    one_ms_tick_i   : in    std_logic;
 
     --! @brief Status of the module
     --! @details Status of the module
@@ -95,7 +90,7 @@ entity arp_module is
     --! - 2: ARP request is being received
     --! - 1: ARP request is being answered
     --! - 0: Data is being forwarded
-    status_vector : out   std_logic_vector(4 downto 0)
+    status_vector_o : out   std_logic_vector(4 downto 0)
   );
 end arp_module;
 
@@ -159,10 +154,10 @@ begin
     --! jumbo frames: 9000 byte: 42 bytes unpadded, 64 bytes padded = 215 .. 140 packets
     --!
     --! Width: storing MAC (6 bytes) + IP (4 bytes) requires 10 bytes = 80 bit)
-    arp_fifo_inst : entity memory.generic_fifo
+    inst_arp_fifo : entity memory.generic_fifo
     generic map (
-      wr_d_width   => 80,
-      wr_d_depth   => 256
+      WR_D_WIDTH   => 80,
+      WR_D_DEPTH   => 256
     )
     port map (
       rst       => arp_fifo_rst,
@@ -198,8 +193,9 @@ begin
     --! - ARP_RESPONSE:  ARP response is being sent
     --! - ARP_REQUEST:   ARP request is being sent
     type t_tx_state is (IDLE, ARP_RESPONSE, ARP_REQUEST);
+
     --! State of the TX FSM
-    signal tx_state     : t_tx_state := IDLE;
+    signal tx_state : t_tx_state := IDLE;
 
     --! Register to temporarily store target MAC, used in TX path only and fed by FIFO
     signal config_tg_mac    : std_logic_vector(47 downto 0) := (others => '0');
@@ -220,58 +216,61 @@ begin
     --! - READ:     Read data from FIFO
     --! - HOLD:     Wait until read data is properly processed by TX module
     type t_fifo_state is (IDLE, PRE_READ, READ, HOLD);
+
     --! State of the FIFO FSM
     signal fifo_state : t_fifo_state := IDLE;
 
   begin
-    status_vector(0) <= '1' when arp_tx_ready = '0' else '0';--tx_state = PASS else '0';
-    status_vector(1) <= '1' when tx_state = arp_response else '0';
+    status_vector_o(0) <= '1' when arp_tx_ready_i = '0' else '0';
+    status_vector_o(1) <= '1' when tx_state = arp_response else '0';
 
-    -- arp_tx_data   <= see state machine;
+    -- arp_tx_packet_o   <= see state machine;
 
-    arp_tx_ctrl(6)  <= '1' when tx_count >= 1 and tx_count <= 6 else '0';
-    arp_tx_ctrl(5)  <= '1' when tx_count = 1 else '0';
-    arp_tx_ctrl(4)  <= '1' when tx_count = 6 else '0';
-    arp_tx_ctrl(3)  <= '0';
+    arp_tx_packet_o.valid <= '1' when tx_count >= 1 and tx_count <= 6 else '0';
+    arp_tx_packet_o.sop   <= '1' when tx_count = 1 else '0';
+    arp_tx_packet_o.eop   <= '1' when tx_count = 6 else '0';
+    arp_tx_packet_o.error <= "0";
 
-    with tx_count select arp_tx_ctrl(2 downto 0) <=
+    -- vsg_off
+    with tx_count select arp_tx_packet_o.empty <=
       "000" when 1 to 5,
       "110" when 6,
       "000" when others;
 
+    -- vsg_on
     --! @brief Counting the clks being in the ARP mode
     --! which is similar to the frames of 8 bytes to be sent
-    proc_count: process (clk)
+    proc_count : process (clk)
     begin
       if rising_edge(clk) then
         -- reset of tx_count on input reset or not when in ARP state
         if rst = '1' or tx_state = IDLE then
           tx_count <= 0;
         -- keep counting otherwise
-        elsif tx_state /= IDLE and arp_tx_ready = '1' then
+        elsif tx_state /= IDLE and arp_tx_ready_i = '1' then
           tx_count <= tx_count + 1;
         end if;
       end if;
     end process;
 
-    gen_tx_data: block is
+    gen_tx_data : block is
       signal target_mac     : std_logic_vector(47 downto 0) := (others => '0');
       signal target_ip      : std_logic_vector(31 downto 0) := (others => '0');
       signal target_ip_tmp  : std_logic_vector(31 downto 0) := (others => '0');
       signal send_request   : std_logic := '0';
       signal arp_operation  : std_logic_vector(15 downto 0) := (others => '0');
     begin
-      send_request_block: block is
+      blk_send_request : block is
         signal cnt_rst : std_logic := '0';
         signal cnt_en  : std_logic := '0';
       begin
-        cnt_en <= one_ms_tick and request_en;
+        cnt_en <= one_ms_tick_i and request_en;
 
         cnt_rst <= not request_en;
 
-        request_timeout_counter: entity misc.counting
+        inst_request_timeout_counter : entity misc.counting
         generic map (
-          counter_max_value => ARP_REQUEST_CYCLE
+          COUNTER_MAX_VALUE => ARP_REQUEST_CYCLE
         )
         port map (
           clk     => clk,
@@ -280,9 +279,10 @@ begin
 
           cycle_done  => send_request
         );
+
       end block;
 
-      proc_arp_request: process (clk)
+      proc_arp_request : process (clk)
       begin
         if rising_edge(clk) then
           if rst = '1' then
@@ -295,6 +295,7 @@ begin
         end if;
       end process;
 
+      -- vsg_off
       with tx_state select target_mac <=
         config_tg_mac when ARP_RESPONSE,
         (others => '1') when others; -- ARP_REQUEST
@@ -309,14 +310,14 @@ begin
 
       -- creates ARP response packet
       -- the complete Ethernet frame is created for easiness of the upper layer module
-      with tx_count select arp_tx_data <=
+      with tx_count select arp_tx_packet_o.data <=
         -- destination mac (6 bytes)
         target_mac &
         -- + first 2 bytes source MAC
         -- last 4 bytes source MAC
-        my_mac(47 downto 32)
+        my_mac_i(47 downto 32)
           when 1,
-        my_mac(31 downto 0) &
+        my_mac_i(31 downto 0) &
         -- packet type: ARP = x"0806"
         x"0806" &
         -- Hardware address type: Ethernet = x"0001"
@@ -331,12 +332,12 @@ begin
         -- Operation
         arp_operation &
         -- first 2 bytes source MAC address
-        my_mac(47 downto 32)
+        my_mac_i(47 downto 32)
           when 3,
         -- last 4 bytes source MAC address
-        my_mac(31 downto 0) &
+        my_mac_i(31 downto 0) &
         -- source IP address
-        my_ip
+        my_ip_i
           when 4,
         -- destination MAC address
         target_mac &
@@ -350,6 +351,7 @@ begin
           when 6,
         (others => '0')
           when others;
+      -- vsg_off
 
       --! Read FIFO and make disco interface
       proc_fifo_reader: process (clk)
@@ -459,7 +461,7 @@ begin
     signal rx_type        : std_logic := '0';
 
     --! Internal ready signal
-    signal arp_rx_ready_i : std_logic := '1';
+    signal arp_rx_ready_r : std_logic := '1';
 
     --! Counter for incoming packets: max possible = jumbo frame (9000 bytes = 1125 frames)
     signal rx_count       : integer range 0 to 1125 := 0;
@@ -482,12 +484,12 @@ begin
     signal config_tg_en         : std_logic := '0';
 
   begin
-    status_vector(2) <= '1' when rx_state = STORING_TG else '0';
+    status_vector_o(2) <= '1' when rx_state = STORING_TG else '0';
 
     -- receiver is always ready when the FIFO is not full
-    arp_rx_ready_i <= not arp_fifo_full;
+    arp_rx_ready_r <= not arp_fifo_full;
 
-    arp_rx_ready <= arp_rx_ready_i;
+    arp_rx_ready_o <= arp_rx_ready_r;
 
     --! Counting the frames of 8 bytes received
     proc_manage_rx_count_from_rx_sof : process (clk)
@@ -499,11 +501,11 @@ begin
           rx_ctrl_reg <= (others => '0');
           rx_count <= 0;
         -- prevent from overwriting last received valid ARP data
-        elsif arp_rx_ctrl(6) = '1' and arp_rx_ready_i = '1' then
-          rx_data_reg <= arp_rx_data;
-          rx_ctrl_reg <= arp_rx_ctrl;
+        elsif arp_rx_packet_i.valid = '1' and arp_rx_ready_r = '1' then
+          rx_data_reg <= arp_rx_packet_i.data;
+          rx_ctrl_reg <= avst_ctrl(arp_rx_packet_i);
           -- ... sof initializes counter
-          if (arp_rx_ctrl(5) = '1') then
+          if arp_rx_packet_i.sop = '1' then
             rx_count <= 1;
           -- ... otherwise keep counting
           else
@@ -585,9 +587,9 @@ begin
 
       if rising_edge(clk) then
         -- reset or sof indicate new header
-        if (rst = '1') or (arp_rx_ctrl(5) = '1') then
+        if (rst = '1') or (arp_rx_packet_i.sop = '1') then
           rx_state <= HEADER;
-        elsif arp_rx_ready_i = '1' then
+        elsif arp_rx_ready_r = '1' then
 
           case rx_state is
             -- check header data
@@ -617,7 +619,7 @@ begin
                   end if;
                 when 4 =>
                   -- requested IP address must match and it mustn't be an error frame
-                  if rx_data_reg(63 downto 32) /= my_ip or rx_ctrl_reg(4 downto 3) = "11" then
+                  if rx_data_reg(63 downto 32) /= my_ip_i or rx_ctrl_reg(4 downto 3) = "11" then
                     rx_state <= SKIP;
                   else
                     rx_state <= STORING_TG;
@@ -651,7 +653,7 @@ begin
   -- First, look up the requested IP in ARP table.
   -- If found, put out,
   -- if not found, initiate ARP request.
-  arp_table_block: block is
+  blk_arp_table : block is
     --! @brief Status vector of the ARP table
     --! @details
     --! - 1: ARP table full
@@ -662,15 +664,15 @@ begin
     --! @{
 
     --! Indicator for recovering IP address
-    signal reco_en_i      : std_logic := '0';
+    signal reco_en_r      : std_logic;
     --! ip address to recover
-    signal reco_ip_i      : std_logic_vector(31 downto 0) := (others => '0');
+    signal reco_ip_r      : std_logic_vector(31 downto 0);
     --! recovered mac address
-    signal reco_mac_i     : std_logic_vector(47 downto 0) := (others => '0');
+    signal reco_mac_r     : std_logic_vector(47 downto 0);
     --! valid flag for recovered mac address: 1 = found, 0 = time out
-    signal reco_mac_found_i   : std_logic := '0';
+    signal reco_found_r   : std_logic;
     --! timeout indication
-    signal request_timeout    : std_logic := '0';
+    signal request_timeout    : std_logic;
     --! @}
 
     --! @brief State definition for the ARP table FSM
@@ -687,7 +689,7 @@ begin
     --! Broadcast MAC address for ARP request
     constant MAC_BROADCAST_ADDR : std_logic_vector(47 downto 0) := (others => '1');
   begin
-    status_vector(4 downto 3) <= arptbl_status_vector;
+    status_vector_o(4 downto 3) <= arptbl_status_vector;
 
     --! FSM to request MAC address.
     proc_mac_address_request : process (clk)
@@ -695,23 +697,23 @@ begin
       if rising_edge(clk) then
         if (rst = '1') then
           request_state <= IDLE;
-          reco_en_i <= '0';
-          reco_ip_i <= (others => '0');
-          reco_mac <= (others => '0');
-          reco_mac_done <= '0';
+          reco_en_r <= '0';
+          reco_ip_r <= (others => '0');
+          reco_mac_o <= (others => '0');
+          reco_done_o <= '0';
           request_en <= '0';
         else
           -- defaults
-          reco_en_i <= '0';
-          reco_ip_i <= reco_ip_i;
-          reco_mac_done <= '0';
+          reco_en_r <= '0';
+          reco_ip_r <= reco_ip_r;
+          reco_done_o <= '0';
 
           case request_state is
             when IDLE =>
               request_en <= '0';
-              if reco_en = '1' then
-                reco_en_i <= '1';
-                reco_ip_i <= reco_ip;
+              if reco_en_i = '1' then
+                reco_en_r <= '1';
+                reco_ip_r <= reco_ip_i;
 
                 request_state <= ARP_TABLE_REQUEST;
               else
@@ -722,33 +724,33 @@ begin
               request_state <= ARP_TABLE_READ;
 
             when ARP_TABLE_READ =>
-              if reco_mac_found_i = '1' then
+              if reco_found_r = '1' then
                 -- take IP address from table
-                reco_mac <= reco_mac_i;
-                reco_mac_done <= '1';
+                reco_mac_o <= reco_mac_r;
+                reco_done_o <= '1';
 
                 request_state <= IDLE;
               else
                 -- initiate ARP request
                 request_en <= '1';
-                request_ip <= reco_ip_i;
+                request_ip <= reco_ip_r;
 
                 request_state <= ARP_WAIT_RESPONSE;
               end if;
 
             when ARP_WAIT_RESPONSE =>
-              reco_en_i <= '1';
+              reco_en_r <= '1';
 
-              if reco_mac_found_i = '1' then
+              if reco_found_r = '1' then
                 -- take ip address from table
-                reco_mac <= reco_mac_i;
-                reco_mac_done <= '1';
+                reco_mac_o <= reco_mac_r;
+                reco_done_o <= '1';
                 request_en <= '0';
 
                 request_state <= IDLE;
               elsif request_timeout = '1' then
-                reco_mac <= MAC_BROADCAST_ADDR;
-                reco_mac_done <= '1';
+                reco_mac_o <= MAC_BROADCAST_ADDR;
+                reco_done_o <= '1';
                 request_en <= '0';
 
                 request_state <= IDLE;
@@ -761,7 +763,7 @@ begin
       end if;
     end process;
 
-    request_timout_block: block is
+    blk_request_timout : block is
       --! @name Signals to steer request_timeout
       --! @{
 
@@ -772,7 +774,7 @@ begin
       --! @}
     begin
       cnt_rst <= '1' when request_state = ARP_TABLE_READ else '0';
-      cnt_en <= '1' when one_ms_tick = '1' and request_state = ARP_WAIT_RESPONSE else '0';
+      cnt_en <= '1' when one_ms_tick_i = '1' and request_state = ARP_WAIT_RESPONSE else '0';
 
       --! Instantiate counting to generate request_timeout
       request_timeout_counter: entity misc.counting
@@ -789,32 +791,32 @@ begin
     end block;
 
     --! Instantiate port_io_table as ARP table
-    arp_table_inst: entity ethernet_lib.port_io_table
+    inst_arp_table : entity ethernet_lib.port_io_table
     generic map (
       -- IP
-      PIN_WIDTH     => 32,
+      PORT_I_W    => 32,
       -- MAC
-      POUT_WIDTH    => 48,
+      PORT_O_W    => 48,
       -- Depth
-      TABLE_DEPTH   => ARP_TABLE_DEPTH
+      TABLE_DEPTH => ARP_TABLE_DEPTH
     )
     port map (
-      clk           => clk,
-      rst           => rst,
+      clk             => clk,
+      rst             => rst,
       -- Interface for writing new discovered MAC and IP to ARP table
-      disco_wren    => disco_wren,
-      disco_pin     => disco_ip,
-      disco_pout    => disco_mac,
+      disco_wren_i    => disco_wren,
+      disco_port_i    => disco_ip,
+      disco_port_o    => disco_mac,
       -- interface for recovered mac address from given ip address
-      reco_en       => reco_en_i,
-      reco_pin      => reco_ip_i,
+      reco_en_i       => reco_en_r,
+      reco_port_i     => reco_ip_r,
       -- response (next clk)
-      reco_found    => reco_mac_found_i,
-      reco_pout     => reco_mac_i,
+      reco_found_o    => reco_found_r,
+      reco_port_o     => reco_mac_r,
       -- status of the ARP table, see definitions below
-      status_vector => arptbl_status_vector
+      status_vector_o => arptbl_status_vector
       -- one could make the move to indicate the number of occupied entries instead...
-      -- that would make status_vector a table_depth-dependent length vector
+      -- that would make status_vector_o a table_depth-dependent length vector
     );
 
   end block;

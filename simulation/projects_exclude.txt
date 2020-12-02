@@ -1,9 +1,7 @@
 ./ethernet_lib/icmp_module
 ./ethernet_lib/interface_merger
-./ethernet_lib/port_io_table
 ./ethernet_lib/rx_fifo_module
 ./ethernet_lib/ethernet_module
-./ethernet_lib/arp_module
 ./ethernet_lib/ethernet_header_module
 ./ethernet_lib/ip_header_module
 ./ethernet_lib/ip_module
