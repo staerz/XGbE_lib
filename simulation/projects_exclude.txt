@@ -1,4 +1,3 @@
-./ethernet_lib/icmp_module
 ./ethernet_lib/ethernet_module
 ./ethernet_lib/ethernet_header_module
 ./ethernet_lib/ip_header_module

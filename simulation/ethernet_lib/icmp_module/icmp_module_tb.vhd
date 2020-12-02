@@ -12,8 +12,8 @@
 -------------------------------------------------------------------------------
 
 --! @cond
-library IEEE;
-  use IEEE.std_logic_1164.all;
+library fpga;
+  context fpga.interfaces;
 --! @endcond
 
 --! Testbench for icmp_module.vhd
@@ -37,7 +37,6 @@ end icmp_module_tb;
 
 --! @cond
 library sim;
-library misc;
 library ethernet_lib;
 --! @endcond
 
@@ -54,10 +53,8 @@ architecture tb of icmp_module_tb is
 
   --! TX ready
   signal ip_tx_ready     : std_logic;
-  --! TX data
-  signal ip_tx_data      : std_logic_vector(63 downto 0);
-  --! TX controls
-  signal ip_tx_ctrl      : std_logic_vector(6 downto 0);
+  --! TX data and controls
+  signal ip_tx_packet    : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
   --! Indication of being ICMP request
   signal is_icmp_request : std_logic;
 
@@ -68,38 +65,34 @@ architecture tb of icmp_module_tb is
 
   --! RX ready
   signal icmp_rx_ready   : std_logic;
-  --! RX data
-  signal icmp_rx_data    : std_logic_vector(63 downto 0);
-  --! RX controls
-  signal icmp_rx_ctrl    : std_logic_vector(6 downto 0);
+  --! RX data and controls
+  signal icmp_rx_packet  : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
 
   --! @}
 
   --! Status of the module
-  signal status_vector  : std_logic_vector(2 downto 0);
+  signal status_vector   : std_logic_vector(2 downto 0);
 
 begin
 
   --! Instantiate the Unit Under Test (UUT)
-  uut: entity ethernet_lib.icmp_module
+  uut : entity ethernet_lib.icmp_module
   port map (
 
-    clk             => clk,
-    rst             => rst,
+    clk               => clk,
+    rst               => rst,
 
     -- Avalon-ST RX interface
-    ip_rx_ready     => ip_tx_ready,
-    ip_rx_data      => ip_tx_data,
-    ip_rx_ctrl      => ip_tx_ctrl,
-    is_icmp_request => is_icmp_request,
+    ip_rx_ready_o     => ip_tx_ready,
+    ip_rx_packet_i    => ip_tx_packet,
+    is_icmp_request_i => is_icmp_request,
 
     -- Avalon-ST TX interface
-    icmp_out_ready  => icmp_rx_ready,
-    icmp_out_data   => icmp_rx_data,
-    icmp_out_ctrl   => icmp_rx_ctrl,
+    icmp_tx_ready_i   => icmp_rx_ready,
+    icmp_tx_packet_o  => icmp_rx_packet,
 
     -- Status of the module
-    status_vector   => status_vector
+    status_vector_o   => status_vector
   );
 
   -- Simulation part
@@ -140,76 +133,40 @@ begin
 
     rst <= sim_rst or mnl_rst;
 
-    blk_icmp_tx : block
-    begin
-      --! Instantiate av_st_sender to read rst_tx from ICMP_RXD_FILE
-      inst_ip_tx : entity sim.av_st_sender
-      generic map (
-        FILENAME      => ICMP_RXD_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG,
-        COUNTER_FLAG  => COUNTER_FLAG
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        cnt       => counter,
+    --! Instantiate avst_packet_sender to read ip_tx from ICMP_RXD_FILE
+    inst_icmp_tx : entity ethernet_lib.avst_packet_sender
+    generic map (
+      FILENAME      => ICMP_RXD_FILE,
+      COMMENT_FLAG  => COMMENT_FLAG,
+      COUNTER_FLAG  => COUNTER_FLAG
+    )
+    port map (
+      clk       => clk,
+      rst       => rst,
+      cnt       => counter,
 
-        -- Avalon-ST to outside world
-        tx_ready  => ip_tx_ready,
-        tx_data   => ip_tx_data,
-        tx_ctrl   => ip_tx_ctrl
-      );
+      tx_ready  => ip_tx_ready,
+      tx_packet => ip_tx_packet
+    );
 
-      -- mark any frame as valid icmp frame
-      is_icmp_request <= '1';
-    end block;
+    --! Instantiate avst_packet_receiver to write icmp_rx to ICMP_TXD_FILE
+    inst_icmp_rx : entity ethernet_lib.avst_packet_receiver
+    generic map (
+      READY_FILE    => ICMP_RDY_FILE,
+      DATA_FILE     => ICMP_TXD_FILE,
+      COMMENT_FLAG  => COMMENT_FLAG
+    )
+    port map (
+      clk       => clk,
+      rst       => rst,
+      cnt       => counter,
 
-    blk_icmp_log : block
-      --! @cond
-      signal wren            : std_logic := '0';
-      signal icmp_rx_ready_n : std_logic := '0';
-      --! @endcond
-    begin
+      rx_ready  => icmp_rx_ready,
+      rx_packet => icmp_rx_packet
+    );
 
-      --! Instantiate counter_matcher to generate icmp_rx_ready_n
-      inst_icmp_rx_ready : entity sim.counter_matcher
-      generic map (
-        FILENAME      => ICMP_RDY_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        counter   => counter,
-        stimulus  => icmp_rx_ready_n
-      );
-
-      icmp_rx_ready <= not icmp_rx_ready_n;
-
-      -- logging block for TX interface
-      wren <= icmp_rx_ctrl(6) and icmp_rx_ready;
-
-      --! Instantiate file_writer_hex to write icmp_tx_data
-      inst_icmp_log : entity sim.file_writer_hex
-      generic map (
-        FILENAME      => ICMP_TXD_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG,
-        BITSPERWORD   => 16,
-        WORDSPERLINE  => 4
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        wren      => wren,
-
-        empty     => icmp_rx_ctrl(2 downto 0),
-        eop       => icmp_rx_ctrl(4),
-        err       => icmp_rx_ctrl(3),
-
-        din       => icmp_rx_data
-      );
-
-    end block;
+    -- mark any frame as valid icmp frame
+    is_icmp_request <= '1';
 
   end block;
 
