@@ -50,7 +50,13 @@
 #    },
     "src/ethernet_lib/port_io_table.vhd",
 # contains "with ... select" which crashes VSG 2.0.0
-#    "src/ethernet_lib/arp_module.vhd",
+    "src/ethernet_lib/arp_module.vhd":{
+      "rule":{
+        "entity_005":{
+          "disable": true
+        },
+      },
+    },
 #    "src/ethernet_lib/icmp_module.vhd":{
 # VSG 2.0.0 crashes on 'with ... select, so we must exclude it for now'
 #      "rule":{
@@ -222,7 +228,7 @@
     },
 #    "simulation/damon_top/damon_top_tb.vhd",
     "simulation/ethernet_lib/port_io_table/port_io_table_tb.vhd",
-#    "simulation/ethernet_lib/arp_module/arp_module_tb.vhd",
+    "simulation/ethernet_lib/arp_module/arp_module_tb.vhd",
     "simulation/ethernet_lib/ip_header_module/ip_header_module_tb.vhd":{
       "rule":{
         # temporarily exclude the variable rules as it's an open question
