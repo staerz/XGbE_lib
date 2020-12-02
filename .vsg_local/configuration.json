@@ -1,14 +1,7 @@
 {
   "file_list":[
 #    "src/*.vhd",
-    "simulation/ethernet_lib/trailer_module/trailer_module_tb.vhd":{
-      "rule":{
-        # temporarily exclude the indentation rules as VSG is wrong here
-        "architecture_008":{
-          "disable": true
-        },
-      },
-    },
+    "simulation/ethernet_lib/trailer_module/trailer_module_tb.vhd",
     "src/ethernet_lib/avst_packet_receiver.vhd":{
       "rule":{
         # temporarily exclude the variable rules as it's an open question
@@ -33,7 +26,8 @@
         },
       },
     },
-#    "src/ethernet_lib/trailer_module.vhd":{
+    "src/ethernet_lib/trailer_module.vhd",
+#:{
 # VSG 2.0.0 crashes on 'with ... select, so we must exclude it for now'
 #      "rule":{
 #        # temporarily exclude the variable rules as it's an open question
