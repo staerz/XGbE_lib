@@ -4,7 +4,6 @@
     "simulation/ethernet_lib/trailer_module/trailer_module_tb.vhd",
     "src/ethernet_lib/avst_packet_receiver.vhd":{
       "rule":{
-        # temporarily exclude the variable rules as it's an open question
         "port_025":{
           "disable": true
         },
@@ -12,7 +11,6 @@
     },
     "src/ethernet_lib/avst_packet_sender.vhd":{
       "rule":{
-        # temporarily exclude the variable rules as it's an open question
         "port_025":{
           "disable": true
         },
@@ -20,28 +18,12 @@
     },
     "src/ethernet_lib/av_st_receiver.vhd":{
       "rule":{
-        # temporarily exclude the variable rules as it's an open question
         "port_025":{
           "disable": true
         },
       },
     },
     "src/ethernet_lib/trailer_module.vhd",
-#:{
-# VSG 2.0.0 crashes on 'with ... select, so we must exclude it for now'
-#      "rule":{
-#        # temporarily exclude the variable rules as it's an open question
-#        "generic_008":{
-#          "disable": true
-#        },
-#        "sequential_004":{
-#          "disable": true
-#        },
-#        "port_025":{
-#          "disable": true
-#        },
-#      },
-#    },
     "src/ethernet_lib/port_io_table.vhd",
 # contains "with ... select" which crashes VSG 2.0.0
     "src/ethernet_lib/arp_module.vhd":{
@@ -51,17 +33,14 @@
         },
       },
     },
-#    "src/ethernet_lib/icmp_module.vhd":{
+    "src/ethernet_lib/icmp_module.vhd":{
 # VSG 2.0.0 crashes on 'with ... select, so we must exclude it for now'
-#      "rule":{
-#        "entity_005":{
-#          "disable": true
-#        },
-#        "port_025":{
-#          "disable": true
-#        },
-#      },
-#    },
+      "rule":{
+        "entity_005":{
+          "disable": true
+        },
+      },
+    },
 #    "src/ethernet_lib/ip_header_module.vhd":{
 # VSG 2.0.0 crashes on 'with ... select, so we must exclude it for now'
 #      "rule":{
@@ -254,14 +233,7 @@
         },
       },
     },
-    "simulation/ethernet_lib/icmp_module/icmp_module_tb.vhd":{
-      "rule":{
-        # temporarily exclude the variable rules as it's an open question
-        "architecture_008":{
-          "disable": true
-        },
-      },
-    },
+    "simulation/ethernet_lib/icmp_module/icmp_module_tb.vhd",
     "simulation/ethernet_lib/reset_module/reset_module_tb.vhd",
   ],
 }
