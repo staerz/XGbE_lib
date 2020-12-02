@@ -183,19 +183,7 @@
         },
       },
     },
-#    "src/ethernet_lib/interface_merger.vhd":{
-# VSG 2.0.0 crashes on 'with ... select, so we must exclude it for now'
-#      "rule":{
-#        # temporarily exclude the indentation rules as VSG is wrong here
-#        "architecture_008":{
-#          "disable": true
-#        },
-#        "port_025":{
-#          "disable": true
-#        },
-#      },
-#    },
-    "simulation/ethernet_lib/interface_merger/interface_merger_tb.vhd":{
+    "src/ethernet_lib/interface_merger.vhd":{
       "rule":{
         # temporarily exclude the indentation rules as VSG is wrong here
         "architecture_008":{
@@ -203,6 +191,7 @@
         },
       },
     },
+    "simulation/ethernet_lib/interface_merger/interface_merger_tb.vhd",
 #    "src/ethernet_lib/rx_fifo_module.vhd":{
 # VSG 2.0.0 crashes on 'with ... select, so we must exclude it for now'
 #      "rule":{

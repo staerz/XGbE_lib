@@ -4,21 +4,18 @@ add wave -noupdate /interface_merger_tb/clk
 add wave -noupdate /interface_merger_tb/rst
 add wave -noupdate -radix decimal -radixshowbase 0 /interface_merger_tb/blk_simulation/counter
 add wave -noupdate -divider avst_tx_1
-add wave -noupdate /interface_merger_tb/avst1_dat_filename
+add wave -noupdate /interface_merger_tb/AVST1_RXD_FILE
 add wave -noupdate /interface_merger_tb/avst1_tx_ready
-add wave -noupdate -radix hexadecimal -radixshowbase 0 /interface_merger_tb/avst1_tx_data
-add wave -noupdate -radix binary -radixshowbase 0 /interface_merger_tb/avst1_tx_ctrl
+add wave -noupdate -radix hexadecimal -radixshowbase 0 /interface_merger_tb/avst1_tx_packet
 add wave -noupdate -divider avst_tx_2
-add wave -noupdate /interface_merger_tb/avst2_dat_filename
+add wave -noupdate /interface_merger_tb/AVST2_RXD_FILE
 add wave -noupdate /interface_merger_tb/avst2_tx_ready
-add wave -noupdate -radix hexadecimal -radixshowbase 0 /interface_merger_tb/avst2_tx_data
-add wave -noupdate -radix binary -radixshowbase 0 /interface_merger_tb/avst2_tx_ctrl
+add wave -noupdate -radix hexadecimal -radixshowbase 0 /interface_merger_tb/avst2_tx_packet
 add wave -noupdate -divider avst_rx
-add wave -noupdate /interface_merger_tb/avst_rx_ready_file
-add wave -noupdate /interface_merger_tb/avst_log_filename
+add wave -noupdate /interface_merger_tb/AVST_RDY_FILE
+add wave -noupdate /interface_merger_tb/AVST_TXD_FILE
 add wave -noupdate /interface_merger_tb/avst_rx_ready
-add wave -noupdate -radix hexadecimal -radixshowbase 0 /interface_merger_tb/avst_rx_data
-add wave -noupdate -radix binary -radixshowbase 0 /interface_merger_tb/avst_rx_ctrl
+add wave -noupdate -radix hexadecimal -radixshowbase 0 /interface_merger_tb/avst_rx_packet
 TreeUpdate [SetDefaultTree]
 WaveRestoreCursors {{Cursor 1} {0 ps} 0}
 quietly wave cursor active 1

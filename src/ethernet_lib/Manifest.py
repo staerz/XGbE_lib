@@ -16,7 +16,7 @@ files = [
   "reset_module.vhd",
   "port_io_table.vhd",
   "arp_module.vhd",
-#  "interface_merger.vhd",
+  "interface_merger.vhd",
 #  "trailer_module.vhd",
 #  "rx_fifo_module.vhd",
 #  "icmp_module.vhd",
