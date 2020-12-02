@@ -17,37 +17,29 @@ add wave -noupdate -group {Constants and Config} -radix hexadecimal -radixshowba
 add wave -noupdate -group {Constants and Config} -radix hexadecimal -radixshowbase 0 /ethernet_module_tb/uut/MAC_BROADCAST_ADDR
 add wave -noupdate /ethernet_module_tb/clk
 add wave -noupdate /ethernet_module_tb/rst
-add wave -noupdate -color Tan /ethernet_module_tb/uut/eth_rx_ready
-add wave -noupdate -color Tan /ethernet_module_tb/uut/eth_rx_data
-add wave -noupdate -color Tan /ethernet_module_tb/uut/eth_rx_ctrl
-add wave -noupdate /ethernet_module_tb/uut/eth_tx_ready
-add wave -noupdate /ethernet_module_tb/uut/eth_tx_data
-add wave -noupdate /ethernet_module_tb/uut/eth_tx_ctrl
-add wave -noupdate -color Pink /ethernet_module_tb/uut/arp_rx_ready
-add wave -noupdate -color Pink /ethernet_module_tb/uut/arp_rx_data
-add wave -noupdate -color Pink /ethernet_module_tb/uut/arp_rx_ctrl
-add wave -noupdate /ethernet_module_tb/uut/arp_tx_ready
-add wave -noupdate /ethernet_module_tb/uut/arp_tx_data
-add wave -noupdate /ethernet_module_tb/uut/arp_tx_ctrl
-add wave -noupdate -color Thistle /ethernet_module_tb/uut/ip_rx_ready
-add wave -noupdate -color Thistle /ethernet_module_tb/uut/ip_rx_data
-add wave -noupdate -color Thistle /ethernet_module_tb/uut/ip_rx_ctrl
-add wave -noupdate /ethernet_module_tb/uut/ip_tx_ready
-add wave -noupdate /ethernet_module_tb/uut/ip_tx_data
-add wave -noupdate /ethernet_module_tb/uut/ip_tx_ctrl
-add wave -noupdate /ethernet_module_tb/uut/reco_en
-add wave -noupdate /ethernet_module_tb/uut/reco_ip
-add wave -noupdate /ethernet_module_tb/uut/reco_mac
-add wave -noupdate /ethernet_module_tb/uut/reco_mac_done
-add wave -noupdate /ethernet_module_tb/uut/status_vector
-add wave -noupdate -expand -group internals /ethernet_module_tb/uut/stripoff_header/protocol
-add wave -noupdate -expand -group internals /ethernet_module_tb/uut/stripoff_header/rx_count
-add wave -noupdate -expand -group internals /ethernet_module_tb/uut/stripoff_header/rx_eof
-add wave -noupdate -expand -group internals /ethernet_module_tb/uut/stripoff_header/rx_mux
-add wave -noupdate -expand -group internals /ethernet_module_tb/uut/stripoff_header/rx_ready
-add wave -noupdate -expand -group internals /ethernet_module_tb/uut/stripoff_header/rx_sof
-add wave -noupdate -expand -group internals /ethernet_module_tb/uut/stripoff_header/rx_state
-add wave -noupdate -expand -group internals /ethernet_module_tb/uut/stripoff_header/tx_mux
+add wave -noupdate -color Tan /ethernet_module_tb/uut/eth_rx_ready_o
+add wave -noupdate -color Tan /ethernet_module_tb/uut/eth_rx_packet_i
+add wave -noupdate /ethernet_module_tb/uut/eth_tx_ready_i
+add wave -noupdate /ethernet_module_tb/uut/eth_tx_packet_o
+add wave -noupdate -color Pink /ethernet_module_tb/uut/arp_rx_ready_o
+add wave -noupdate -color Pink /ethernet_module_tb/uut/arp_rx_packet_i
+add wave -noupdate /ethernet_module_tb/uut/arp_tx_ready_i
+add wave -noupdate /ethernet_module_tb/uut/arp_tx_packet_o
+add wave -noupdate -color Thistle /ethernet_module_tb/uut/ip_rx_ready_o
+add wave -noupdate -color Thistle /ethernet_module_tb/uut/ip_rx_packet_i
+add wave -noupdate /ethernet_module_tb/uut/ip_tx_ready_i
+add wave -noupdate /ethernet_module_tb/uut/ip_tx_packet_o
+add wave -noupdate /ethernet_module_tb/uut/reco_en_o
+add wave -noupdate /ethernet_module_tb/uut/reco_ip_o
+add wave -noupdate /ethernet_module_tb/uut/reco_mac_i
+add wave -noupdate /ethernet_module_tb/uut/reco_done_i
+add wave -noupdate /ethernet_module_tb/uut/status_vector_o
+add wave -noupdate -expand -group internals /ethernet_module_tb/uut/blk_stripoff_header/protocol
+add wave -noupdate -expand -group internals /ethernet_module_tb/uut/blk_stripoff_header/rx_count
+add wave -noupdate -expand -group internals /ethernet_module_tb/uut/blk_stripoff_header/rx_mux
+add wave -noupdate -expand -group internals /ethernet_module_tb/uut/blk_stripoff_header/rx_ready
+add wave -noupdate -expand -group internals /ethernet_module_tb/uut/blk_stripoff_header/rx_state
+add wave -noupdate -expand -group internals /ethernet_module_tb/uut/blk_stripoff_header/tx_mux
 TreeUpdate [SetDefaultTree]
 WaveRestoreCursors {{Cursor 1} {783056 ps} 0}
 quietly wave cursor active 1

@@ -12,8 +12,8 @@
 -------------------------------------------------------------------------------
 
 --! @cond
-library IEEE;
-  use IEEE.std_logic_1164.all;
+library fpga;
+  context fpga.interfaces;
 --! @endcond
 
 --! Testbench for ethernet_module.vhd
@@ -55,11 +55,8 @@ entity ethernet_module_tb is
 end ethernet_module_tb;
 
 --! @cond
-library IEEE;
-  use IEEE.numeric_std.all;
 library ethernet_lib;
 library sim;
-library misc;
 --! @endcond
 
 --! Implementation of ethernet_module_tb
@@ -74,11 +71,9 @@ architecture tb of ethernet_module_tb is
   --! @{
 
   --! TX ready
-  signal eth_tx_ready   : std_logic;
-  --! TX data
-  signal eth_tx_data    : std_logic_vector(63 downto 0);
-  --! TX controls
-  signal eth_tx_ctrl    : std_logic_vector(6 downto 0);
+  signal eth_tx_ready  : std_logic;
+  --! TX data and controls
+  signal eth_tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
 
   --! @}
 
@@ -86,11 +81,9 @@ architecture tb of ethernet_module_tb is
   --! @{
 
   --! RX ready
-  signal eth_rx_ready   : std_logic;
-  --! RX data
-  signal eth_rx_data    : std_logic_vector(63 downto 0);
-  --! RX controls
-  signal eth_rx_ctrl    : std_logic_vector(6 downto 0);
+  signal eth_rx_ready  : std_logic;
+  --! RX data and controls
+  signal eth_rx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
 
   --! @}
 
@@ -98,11 +91,9 @@ architecture tb of ethernet_module_tb is
   --! @{
 
   --! TX ready
-  signal arp_tx_ready   : std_logic;
-  --! TX data
-  signal arp_tx_data    : std_logic_vector(63 downto 0);
-  --! TX controls
-  signal arp_tx_ctrl    : std_logic_vector(6 downto 0);
+  signal arp_tx_ready  : std_logic;
+  --! TX data and controls
+  signal arp_tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
 
   --! @}
 
@@ -110,11 +101,9 @@ architecture tb of ethernet_module_tb is
   --! @{
 
   --! RX ready
-  signal arp_rx_ready   : std_logic;
-  --! RX data
-  signal arp_rx_data    : std_logic_vector(63 downto 0);
-  --! RX controls
-  signal arp_rx_ctrl    : std_logic_vector(6 downto 0);
+  signal arp_rx_ready  : std_logic;
+  --! RX data and controls
+  signal arp_rx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
 
   --! @}
 
@@ -122,11 +111,9 @@ architecture tb of ethernet_module_tb is
   --! @{
 
   --! TX ready
-  signal ip_tx_ready    : std_logic;
-  --! TX data
-  signal ip_tx_data     : std_logic_vector(63 downto 0);
-  --! TX controls
-  signal ip_tx_ctrl     : std_logic_vector(6 downto 0);
+  signal ip_tx_ready   : std_logic;
+  --! TX data and controls
+  signal ip_tx_packet  : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
 
   --! @}
 
@@ -134,11 +121,9 @@ architecture tb of ethernet_module_tb is
   --! @{
 
   --! RX ready
-  signal ip_rx_ready    : std_logic;
-  --! RX data
-  signal ip_rx_data     : std_logic_vector(63 downto 0);
-  --! RX controls
-  signal ip_rx_ctrl     : std_logic_vector(6 downto 0);
+  signal ip_rx_ready   : std_logic;
+  --! RX data and controls
+  signal ip_rx_packet  : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
 
   --! @}
 
@@ -146,23 +131,23 @@ architecture tb of ethernet_module_tb is
   --! @{
 
   --! Recovery enable
-  signal reco_en        : std_logic;
+  signal reco_en       : std_logic;
   --! IP address to recover
-  signal reco_ip        : std_logic_vector(31 downto 0);
+  signal reco_ip       : std_logic_vector(31 downto 0);
   --! Recovered MAC address
-  signal reco_mac       : std_logic_vector(47 downto 0);
+  signal reco_mac      : std_logic_vector(47 downto 0);
   --! Recovery success indicator
-  signal reco_mac_done  : std_logic;
+  signal reco_done     : std_logic;
   --! @}
 
   --! MAC address
-  signal my_mac         : std_logic_vector(47 downto 0) := x"00_22_8F_02_41_EE";
+  signal my_mac        : std_logic_vector(47 downto 0) := x"00_22_8F_02_41_EE";
 
   --! Clock cycle when 1 millisecond is passed
-  signal one_ms_tick    : std_logic;
+  signal one_ms_tick   : std_logic;
 
   --! Status of the module
-  signal status_vector  : std_logic_vector(8 downto 0);
+  signal status_vector : std_logic_vector(8 downto 0);
 
 begin
 
@@ -177,40 +162,34 @@ begin
     clk             => clk,
     rst             => rst,
 
-    eth_rx_ready    => eth_tx_ready,
-    eth_rx_data     => eth_tx_data,
-    eth_rx_ctrl     => eth_tx_ctrl,
+    eth_rx_ready_o  => eth_tx_ready,
+    eth_rx_packet_i => eth_tx_packet,
 
-    eth_tx_ready    => eth_rx_ready,
-    eth_tx_data     => eth_rx_data,
-    eth_tx_ctrl     => eth_rx_ctrl,
+    eth_tx_ready_i  => eth_rx_ready,
+    eth_tx_packet_o => eth_rx_packet,
 
-    arp_rx_ready    => arp_tx_ready,
-    arp_rx_data     => arp_tx_data,
-    arp_rx_ctrl     => arp_tx_ctrl,
+    arp_rx_ready_o  => arp_tx_ready,
+    arp_rx_packet_i => arp_tx_packet,
 
-    arp_tx_ready    => arp_rx_ready,
-    arp_tx_data     => arp_rx_data,
-    arp_tx_ctrl     => arp_rx_ctrl,
+    arp_tx_ready_i  => arp_rx_ready,
+    arp_tx_packet_o => arp_rx_packet,
 
-    ip_rx_ready     => ip_tx_ready,
-    ip_rx_data      => ip_tx_data,
-    ip_rx_ctrl      => ip_tx_ctrl,
+    ip_rx_ready_o   => ip_tx_ready,
+    ip_rx_packet_i  => ip_tx_packet,
 
-    ip_tx_ready     => ip_rx_ready,
-    ip_tx_data      => ip_rx_data,
-    ip_tx_ctrl      => ip_rx_ctrl,
+    ip_tx_ready_i   => ip_rx_ready,
+    ip_tx_packet_o  => ip_rx_packet,
 
-    reco_en         => reco_en,
-    reco_ip         => reco_ip,
-    reco_mac        => reco_mac,
-    reco_mac_done   => reco_mac_done,
+    reco_en_o       => reco_en,
+    reco_ip_o       => reco_ip,
+    reco_mac_i      => reco_mac,
+    reco_done_i     => reco_done,
 
-    my_mac          => my_mac,
+    my_mac_i        => my_mac,
 
-    one_ms_tick     => one_ms_tick,
+    one_ms_tick_i   => one_ms_tick,
 
-    status_vector   => status_vector
+    status_vector_o => status_vector
   );
 
   -- Simulation part
@@ -252,126 +231,104 @@ begin
     rst <= sim_rst or mnl_rst;
 
     -- fake auxiliary signals
-    reco_mac_done <= '1';
-    reco_mac      <= x"AB_CD_EF_01_23_45";
+    reco_done <= '1';
+    reco_mac  <= x"AB_CD_EF_01_23_45";
 
-    blk_tx : block
-    begin
+    --! Instantiate av_st_sender to read eth_tx from ETH_RXD_FILE
+    inst_eth_tx : entity ethernet_lib.avst_packet_sender
+    generic map (
+      FILENAME      => ETH_RXD_FILE,
+      COMMENT_FLAG  => COMMENT_FLAG,
+      COUNTER_FLAG  => COUNTER_FLAG
+    )
+    port map (
+      clk       => clk,
+      rst       => rst,
+      cnt       => counter,
 
-      --! Instantiate av_st_sender to read eth_tx from ETH_RXD_FILE
-      inst_eth_tx : entity sim.av_st_sender
-      generic map (
-        FILENAME      => ETH_RXD_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG,
-        COUNTER_FLAG  => COUNTER_FLAG
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        cnt       => counter,
+      tx_ready  => eth_tx_ready,
+      tx_packet => eth_tx_packet
+    );
 
-        -- Avalon-ST to outside world
-        tx_ready  => eth_tx_ready,
-        tx_data   => eth_tx_data,
-        tx_ctrl   => eth_tx_ctrl
-      );
+    --! Instantiate av_st_sender to read arp_tx from ARP_RXD_FILE
+    inst_arp_tx : entity ethernet_lib.avst_packet_sender
+    generic map (
+      FILENAME      => ARP_RXD_FILE,
+      COMMENT_FLAG  => COMMENT_FLAG,
+      COUNTER_FLAG  => COUNTER_FLAG
+    )
+    port map (
+      clk       => clk,
+      rst       => rst,
+      cnt       => counter,
 
-      --! Instantiate av_st_sender to read arp_tx from ARP_RXD_FILE
-      inst_arp_tx : entity sim.av_st_sender
-      generic map (
-        FILENAME      => ARP_RXD_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG,
-        COUNTER_FLAG  => COUNTER_FLAG
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        cnt       => counter,
+      tx_ready  => arp_tx_ready,
+      tx_packet => arp_tx_packet
+    );
 
-        -- Avalon-ST to outside world
-        tx_ready  => arp_tx_ready,
-        tx_data   => arp_tx_data,
-        tx_ctrl   => arp_tx_ctrl
-      );
+    --! Instantiate avst_packet_sender to read ip_tx from IP_RXD_FILE
+    inst_ip_tx : entity ethernet_lib.avst_packet_sender
+    generic map (
+      FILENAME      => IP_RXD_FILE,
+      COMMENT_FLAG  => COMMENT_FLAG,
+      COUNTER_FLAG  => COUNTER_FLAG
+    )
+    port map (
+      clk       => clk,
+      rst       => rst,
+      cnt       => counter,
 
-      --! Instantiate av_st_sender to read ip_tx from IP_RXD_FILE
-      inst_ip_tx : entity sim.av_st_sender
-      generic map (
-        FILENAME      => IP_RXD_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG,
-        COUNTER_FLAG  => COUNTER_FLAG
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        cnt       => counter,
+      tx_ready  => ip_tx_ready,
+      tx_packet => ip_tx_packet
+    );
 
-        -- Avalon-ST to outside world
-        tx_ready  => ip_tx_ready,
-        tx_data   => ip_tx_data,
-        tx_ctrl   => ip_tx_ctrl
-      );
+    --! Instantiate avst_packet_receiver to write eth_rx to ETH_TXD_FILE
+    inst_eth_rx : entity ethernet_lib.avst_packet_receiver
+    generic map (
+      READY_FILE    => ETH_RDY_FILE,
+      DATA_FILE     => ETH_TXD_FILE,
+      COMMENT_FLAG  => COMMENT_FLAG
+    )
+    port map (
+      clk       => clk,
+      rst       => rst,
+      cnt       => counter,
 
-    end block;
+      rx_ready  => eth_rx_ready,
+      rx_packet => eth_rx_packet
+    );
 
-    blk_log : block
-    begin
+    --! Instantiate av_st_receiver to write arp_rx to ARP_TXD_FILE
+    inst_arp_rx : entity ethernet_lib.avst_packet_receiver
+    generic map (
+      READY_FILE    => ARP_RDY_FILE,
+      DATA_FILE     => ARP_TXD_FILE,
+      COMMENT_FLAG  => COMMENT_FLAG
+    )
+    port map (
+      clk       => clk,
+      rst       => rst,
+      cnt       => counter,
 
-      --! Instantiate av_st_receiver to write eth_rx to ETH_TXD_FILE
-      inst_eth_rx : entity ethernet_lib.av_st_receiver
-      generic map (
-        READY_FILE    => ETH_RDY_FILE,
-        DATA_FILE     => ETH_TXD_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        cnt       => counter,
+      rx_ready  => arp_rx_ready,
+      rx_packet => arp_rx_packet
+    );
 
-        -- Avalon-ST from outside world
-        rx_ready  => eth_rx_ready,
-        rx_data   => eth_rx_data,
-        rx_ctrl   => eth_rx_ctrl
-      );
+    --! Instantiate avst_packet_receiver to write ip_rx to IP_TXD_FILE
+    inst_ip_rx : entity ethernet_lib.avst_packet_receiver
+    generic map (
+      READY_FILE    => IP_RDY_FILE,
+      DATA_FILE     => IP_TXD_FILE,
+      COMMENT_FLAG  => COMMENT_FLAG
+    )
+    port map (
+      clk       => clk,
+      rst       => rst,
+      cnt       => counter,
 
-      --! Instantiate av_st_receiver to write arp_rx to ARP_TXD_FILE
-      inst_arp_rx : entity ethernet_lib.av_st_receiver
-      generic map (
-        READY_FILE    => ARP_RDY_FILE,
-        DATA_FILE     => ARP_TXD_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        cnt       => counter,
-
-        -- Avalon-ST from outside world
-        rx_ready  => arp_rx_ready,
-        rx_data   => arp_rx_data,
-        rx_ctrl   => arp_rx_ctrl
-      );
-
-      --! Instantiate av_st_receiver to write ip_rx to IP_TXD_FILE
-      inst_ip_rx : entity ethernet_lib.av_st_receiver
-      generic map (
-        READY_FILE    => IP_RDY_FILE,
-        DATA_FILE     => IP_TXD_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        cnt       => counter,
-
-        -- Avalon-ST from outside world
-        rx_ready  => ip_rx_ready,
-        rx_data   => ip_rx_data,
-        rx_ctrl   => ip_rx_ctrl
-      );
-
-    end block;
+      rx_ready  => ip_rx_ready,
+      rx_packet => ip_rx_packet
+    );
 
   end block;
 
