@@ -15,8 +15,8 @@
 -------------------------------------------------------------------------------
 
 --! @cond
-library ieee;
-  use ieee.std_logic_1164.all;
+library fpga;
+  context fpga.interfaces;
 --! @endcond
 
 --! Ethernet to UPD module
@@ -51,7 +51,7 @@ entity ethernet_to_udp_module is
     UDP_CRC_EN     : boolean                 := true;
     --! @brief Enable IP address filtering
     --! @details If enabled, only packets arriving from IP addresses of the same
-    --! network (specified by ip_netmask) as ip_scr_addr are accepted.
+    --! network (specified by ip_netmask_i) as ip_scr_addr are accepted.
     IP_FILTER_EN   : std_logic               := '1';
     --! Depth of table (number of stored connections)
     ID_TABLE_DEPTH : integer range 1 to 1024 := 4;
@@ -73,67 +73,59 @@ entity ethernet_to_udp_module is
   );
   port (
     --! Clock
-    clk           : in    std_logic;
+    clk             : in    std_logic;
     --! Reset, sync with #clk
-    rst           : in    std_logic;
+    rst             : in    std_logic;
 
     --! @name Avalon-ST from ETH outside world
     --! @{
 
     --! RX ready
-    eth_rx_ready  : out   std_logic;
-    --! RX data
-    eth_rx_data   : in    std_logic_vector(63 downto 0);
-    --! RX controls
-    eth_rx_ctrl   : in    std_logic_vector(6 downto 0);
+    eth_rx_ready_o  : out   std_logic;
+    --! RX data and controls
+    eth_rx_packet_i : in    t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! @}
 
     --! @name Avalon-ST to ETH outside world
     --! @{
 
     --! TX ready
-    eth_tx_ready  : in    std_logic;
-    --! TX data
-    eth_tx_data   : out   std_logic_vector(63 downto 0);
-    --! TX controls
-    eth_tx_ctrl   : out   std_logic_vector(6 downto 0);
+    eth_tx_ready_i  : in    std_logic;
+    --! TX data and controls
+    eth_tx_packet_o : out   t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! @}
 
     --! @name Avalon-ST from UDP module
     --! @{
 
     --! RX ready
-    udp_rx_ready  : out   std_logic;
-    --! RX data
-    udp_rx_data   : in    std_logic_vector(63 downto 0);
-    --! RX controls
-    udp_rx_ctrl   : in    std_logic_vector(6 downto 0);
+    udp_rx_ready_o  : out   std_logic;
+    --! RX data and controls
+    udp_rx_packet_i : in    t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! RX packet ID (to restore IP address)
-    udp_rx_id     : in    std_logic_vector(15 downto 0);
+    udp_rx_id_i     : in    std_logic_vector(15 downto 0);
     --! @}
 
     --! @name Avalon-ST to UDP module
     --! @{
 
     --! TX ready
-    udp_tx_ready  : in    std_logic;
-    --! TX data
-    udp_tx_data   : out   std_logic_vector(63 downto 0);
-    --! TX controls
-    udp_tx_ctrl   : out   std_logic_vector(6 downto 0);
+    udp_tx_ready_i  : in    std_logic;
+    --! TX data and controls
+    udp_tx_packet_o : out   t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! TX packet ID (to restore IP address)
-    udp_tx_id     : out   std_logic_vector(15 downto 0);
+    udp_tx_id_o     : out   std_logic_vector(15 downto 0);
     --! @}
 
     --! @name Configuration of the module
     --! @{
 
     --! MAC address of the module
-    my_mac        : in    std_logic_vector(47 downto 0);
+    my_mac_i        : in    std_logic_vector(47 downto 0);
     --! IP address
-    my_ip         : in    std_logic_vector(31 downto 0);
+    my_ip_i         : in    std_logic_vector(31 downto 0);
     --! Net mask
-    ip_netmask    : in    std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
+    ip_netmask_i    : in    std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
     --! @}
 
     --! @brief Status of the module
@@ -154,7 +146,7 @@ entity ethernet_to_udp_module is
     --! - 13: ARP Data is being forwarded
     --! - 12: IP/ID table: table full
     --! - 11: IP/ID table: table empty
-    --! - 10: ICMP: icmp_tx_ready
+    --! - 10: ICMP: icmp_tx_ready_i
     --! - 9: ICMP: rx_fifo_wr_full
     --! - 8: ICMP: rx_fifo_wr_empty
     --! - 7: IP module: Interface merger: ICMP is being forwarded
@@ -165,7 +157,7 @@ entity ethernet_to_udp_module is
     --! - 2: IP module: RX FSM: UDP frame is being received
     --! - 1: IP module: RX FSM: ICMP frame is being received
     --! - 0: IP module: RX FSM: IDLE mode
-    status_vector    : out   std_logic_vector(26 downto 0)
+    status_vector_o    : out   std_logic_vector(26 downto 0)
   );
 end ethernet_to_udp_module;
 
@@ -181,11 +173,9 @@ architecture behavioral of ethernet_to_udp_module is
   --! @{
 
   --! TX ready
-  signal arp_to_eth_ready : std_logic;
-  --! TX data
-  signal arp_to_eth_data  : std_logic_vector(63 downto 0);
-  --! TX controls
-  signal arp_to_eth_ctrl  : std_logic_vector(6 downto 0);
+  signal arp_to_eth_ready  : std_logic;
+  --! TX data and controls
+  signal arp_to_eth_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
 
   --! @}
 
@@ -193,11 +183,9 @@ architecture behavioral of ethernet_to_udp_module is
   --! @{
 
   --! RX ready
-  signal eth_to_arp_ready : std_logic;
-  --! RX data
-  signal eth_to_arp_data  : std_logic_vector(63 downto 0);
-  --! RX controls
-  signal eth_to_arp_ctrl  : std_logic_vector(6 downto 0);
+  signal eth_to_arp_ready  : std_logic;
+  --! RX data and controls
+  signal eth_to_arp_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
 
   --! @}
 
@@ -205,11 +193,9 @@ architecture behavioral of ethernet_to_udp_module is
   --! @{
 
   --! TX ready
-  signal eth_to_ip_ready  : std_logic;
-  --! TX data
-  signal eth_to_ip_data   : std_logic_vector(63 downto 0);
-  --! TX controls
-  signal eth_to_ip_ctrl   : std_logic_vector(6 downto 0);
+  signal eth_to_ip_ready   : std_logic;
+  --! TX data and controls
+  signal eth_to_ip_packet  : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
 
   --! @}
 
@@ -217,11 +203,9 @@ architecture behavioral of ethernet_to_udp_module is
   --! @{
 
   --! RX ready
-  signal ip_to_eth_ready  : std_logic;
-  --! RX data
-  signal ip_to_eth_data   : std_logic_vector(63 downto 0);
-  --! RX controls
-  signal ip_to_eth_ctrl   : std_logic_vector(6 downto 0);
+  signal ip_to_eth_ready   : std_logic;
+  --! RX data and controls
+  signal ip_to_eth_packet  : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
 
   --! @}
 
@@ -229,32 +213,32 @@ architecture behavioral of ethernet_to_udp_module is
   --! @{
 
   --! Recovery enable
-  signal reco_en          : std_logic;
+  signal reco_en           : std_logic;
   --! IP address to recover
-  signal reco_ip          : std_logic_vector(31 downto 0);
+  signal reco_ip           : std_logic_vector(31 downto 0);
   --! Recovered MAX address
-  signal reco_mac         : std_logic_vector(47 downto 0);
+  signal reco_mac          : std_logic_vector(47 downto 0);
   --! recovery success: 1 = found, 0 = not found (time out)
-  signal reco_mac_done    : std_logic;
+  signal reco_done         : std_logic;
   --! @}
 
   --! Clock cycle when 1 millisecond is passed
-  signal one_ms_tick      : std_logic;
+  signal one_ms_tick       : std_logic;
 
   --! @name Status vectors of the internal modules
   --! @{
 
   --! ethernet_module
-  signal eth_status_vector  : std_logic_vector(8 downto 0);
+  signal eth_status_vector : std_logic_vector(8 downto 0);
   --! arp_module
-  signal arp_status_vector  : std_logic_vector(4 downto 0);
+  signal arp_status_vector : std_logic_vector(4 downto 0);
   --! ip_module
-  signal ip_status_vector   : std_logic_vector(12 downto 0);
+  signal ip_status_vector  : std_logic_vector(12 downto 0);
   --! @}
 
 begin
 
-  status_vector <= eth_status_vector & arp_status_vector & ip_status_vector;
+  status_vector_o <= eth_status_vector & arp_status_vector & ip_status_vector;
 
   --! Instantiate the ethernet_module
   inst_ethernet_module : entity ethernet_lib.ethernet_module
@@ -267,44 +251,38 @@ begin
     clk             => clk,
     rst             => rst,
 
-    eth_rx_ready    => eth_rx_ready,
-    eth_rx_data     => eth_rx_data,
-    eth_rx_ctrl     => eth_rx_ctrl,
+    eth_rx_ready_o  => eth_rx_ready_o,
+    eth_rx_packet_i => eth_rx_packet_i,
 
-    eth_tx_ready    => eth_tx_ready,
-    eth_tx_data     => eth_tx_data,
-    eth_tx_ctrl     => eth_tx_ctrl,
+    eth_tx_ready_i  => eth_tx_ready_i,
+    eth_tx_packet_o => eth_tx_packet_o,
 
-    arp_rx_ready    => arp_to_eth_ready,
-    arp_rx_data     => arp_to_eth_data,
-    arp_rx_ctrl     => arp_to_eth_ctrl,
+    arp_rx_ready_o  => arp_to_eth_ready,
+    arp_rx_packet_i => arp_to_eth_packet,
 
-    arp_tx_ready    => eth_to_arp_ready,
-    arp_tx_data     => eth_to_arp_data,
-    arp_tx_ctrl     => eth_to_arp_ctrl,
+    arp_tx_ready_i  => eth_to_arp_ready,
+    arp_tx_packet_o => eth_to_arp_packet,
 
-    ip_rx_ready     => ip_to_eth_ready,
-    ip_rx_data      => ip_to_eth_data,
-    ip_rx_ctrl      => ip_to_eth_ctrl,
+    ip_rx_ready_o   => ip_to_eth_ready,
+    ip_rx_packet_i  => ip_to_eth_packet,
 
-    ip_tx_ready     => eth_to_ip_ready,
-    ip_tx_data      => eth_to_ip_data,
-    ip_tx_ctrl      => eth_to_ip_ctrl,
+    ip_tx_ready_i   => eth_to_ip_ready,
+    ip_tx_packet_o  => eth_to_ip_packet,
 
-    reco_en         => reco_en,
-    reco_ip         => reco_ip,
-    reco_mac        => reco_mac,
-    reco_mac_done   => reco_mac_done,
+    reco_en_o       => reco_en,
+    reco_ip_o       => reco_ip,
+    reco_mac_i      => reco_mac,
+    reco_done_i     => reco_done,
 
-    my_mac          => my_mac,
+    my_mac_i        => my_mac_i,
 
-    one_ms_tick     => one_ms_tick,
+    one_ms_tick_i   => one_ms_tick,
 
-    status_vector   => eth_status_vector
+    status_vector_o => eth_status_vector
   );
 
   --! Instantiate the arp_module
-  isnt_arp_module : entity ethernet_lib.arp_module
+  inst_arp_module : entity ethernet_lib.arp_module
   generic map (
     ARP_REQUEST_CYCLE => ARP_REQUEST_CYCLE,
     ARP_TIMEOUT       => ARP_TIMEOUT,
@@ -315,28 +293,25 @@ begin
     rst             => rst,
 
     -- signals from arp requester
-    arp_rx_ready    => eth_to_arp_ready,
-    arp_rx_data     => eth_to_arp_data,
-    arp_rx_ctrl     => eth_to_arp_ctrl,
+    arp_rx_ready_o  => eth_to_arp_ready,
+    arp_rx_packet_i => eth_to_arp_packet,
 
     -- signals to arp requester
-    arp_tx_ready    => arp_to_eth_ready,
-    arp_tx_data     => arp_to_eth_data,
-    arp_tx_ctrl     => arp_to_eth_ctrl,
+    arp_tx_ready_i  => arp_to_eth_ready,
+    arp_tx_packet_o => arp_to_eth_packet,
 
     -- interface for recovering mac address from given ip address
-    reco_en         => reco_en,
-    reco_ip         => reco_ip,
-    reco_mac        => reco_mac,
-    reco_mac_done   => reco_mac_done,
+    reco_en_i       => reco_en,
+    reco_ip_i       => reco_ip,
+    reco_mac_o      => reco_mac,
+    reco_done_o     => reco_done,
 
-    my_mac          => my_mac,
-    my_ip           => my_ip,
+    my_mac_i        => my_mac_i,
+    my_ip_i         => my_ip_i,
 
-    one_ms_tick     => one_ms_tick,
+    one_ms_tick_i   => one_ms_tick,
 
-    -- status of the ARP module, see definitions below
-    status_vector   => arp_status_vector
+    status_vector_o => arp_status_vector
   );
 
   --! Instantiate the ip_module
@@ -352,28 +327,24 @@ begin
     clk             => clk,
     rst             => rst,
 
-    ip_rx_ready     => eth_to_ip_ready,
-    ip_rx_data      => eth_to_ip_data,
-    ip_rx_ctrl      => eth_to_ip_ctrl,
+    ip_rx_ready_o   => eth_to_ip_ready,
+    ip_rx_packet_i  => eth_to_ip_packet,
 
-    ip_tx_ready     => ip_to_eth_ready,
-    ip_tx_data      => ip_to_eth_data,
-    ip_tx_ctrl      => ip_to_eth_ctrl,
+    ip_tx_ready_i   => ip_to_eth_ready,
+    ip_tx_packet_o  => ip_to_eth_packet,
 
-    udp_rx_ready    => udp_rx_ready,
-    udp_rx_data     => udp_rx_data,
-    udp_rx_ctrl     => udp_rx_ctrl,
-    udp_rx_id       => udp_rx_id,
+    udp_rx_ready_o  => udp_rx_ready_o,
+    udp_rx_packet_i => udp_rx_packet_i,
+    udp_rx_id_i     => udp_rx_id_i,
 
-    udp_tx_ready    => udp_tx_ready,
-    udp_tx_data     => udp_tx_data,
-    udp_tx_ctrl     => udp_tx_ctrl,
-    udp_tx_id       => udp_tx_id,
+    udp_tx_ready_i  => udp_tx_ready_i,
+    udp_tx_packet_o => udp_tx_packet_o,
+    udp_tx_id_o     => udp_tx_id_o,
 
-    my_ip           => my_ip,
-    ip_netmask      => ip_netmask,
+    my_ip_i         => my_ip_i,
+    ip_netmask_i    => ip_netmask_i,
 
-    status_vector   => ip_status_vector
+    status_vector_o => ip_status_vector
   );
 
   --! Instantiate cyclic counting to generate a tick each millisecond
