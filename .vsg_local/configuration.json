@@ -88,17 +88,50 @@
         },
       },
     },
-#    "src/ethernet_lib/ethernet_header_module.vhd":{
-## VSG 2.0.0 crashes on 'with ... select, so we must exclude it for now'
-#      "rule":{
-#        "entity_005":{
-#          "disable": true
-#        },
-#        "port_025":{
-#          "disable": true
-#        },
-#      },
-#    },
+    "src/ethernet_lib/ethernet_header_module.vhd":{
+# VSG 2.0.0 crashes on 'with ... select, so we must exclude it for now'
+      "rule":{
+        "entity_005":{
+          "disable": true
+        },
+        "architecture_008":{
+          "disable": true
+        },
+        "case_001":{
+          "disable": true
+        },
+        "entity_009":{
+          "disable": true
+        },
+        "if_001":{
+          "disable": true
+        },
+        "if_013":{
+          "disable": true
+        },
+        "if_014":{
+          "disable": true
+        },
+        "process_001":{
+          "disable": true
+        },
+        "process_003":{
+          "disable": true
+        },
+        "process_006":{
+          "disable": true
+        },
+        "sequential_001":{
+          "disable": true
+        },
+        "signal_001":{
+          "disable": true
+        },
+        "type_001":{
+          "disable": true
+        },
+      },
+    },
 #    "src/ethernet_lib/ethernet_module.vhd":{
 ## VSG 2.0.0 crashes on 'with ... select, so we must exclude it for now'
 #      "rule":{
