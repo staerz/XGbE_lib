@@ -13,8 +13,8 @@
 -------------------------------------------------------------------------------
 
 --! @cond
-library ieee;
-  use ieee.std_logic_1164.all;
+library fpga;
+  context fpga.interfaces;
 --! @endcond
 
 --! Testbench for interface_merger.vhd
@@ -35,10 +35,16 @@ entity interface_merger_tb is
     COMMENT_FLAG        : character := '%';
     --! Flat to use to indicate counters
     COUNTER_FLAG        : character := '@';
+
+    --! Width of the input data interface
+    DATA_W              : integer range 1 to 128 := 64;
+    --! Width of the empty indicator of the input data interface
+    EMPTY_W             : integer range 1 to 128 := 3;
+
     --! Enable or disable interface interruption (interface locking)
-    INTERRUPT_ENABLE    : boolean   := false;
+    INTERRUPT_ENABLE    : boolean := false;
     --! If true, a one clock idle is generated after each frame.
-    GAP_ENABLE          : boolean   := false
+    GAP_ENABLE          : boolean := false
   );
 end interface_merger_tb;
 
@@ -61,10 +67,8 @@ architecture tb of interface_merger_tb is
 
   --! TX ready
   signal avst1_tx_ready   : std_logic;
-  --! TX data
-  signal avst1_tx_data    : std_logic_vector(63 downto 0);
-  --! TX controls
-  signal avst1_tx_ctrl    : std_logic_vector(6 downto 0);
+  --! TX data and controls
+  signal avst1_tx_packet  : t_avst_packet(data(DATA_W-1 downto 0), empty(EMPTY_W-1 downto 0), error(0 downto 0));
 
   --! @}
 
@@ -73,10 +77,8 @@ architecture tb of interface_merger_tb is
 
   --! TX ready
   signal avst2_tx_ready   : std_logic;
-  --! TX data
-  signal avst2_tx_data    : std_logic_vector(63 downto 0);
-  --! TX controls
-  signal avst2_tx_ctrl    : std_logic_vector(6 downto 0);
+  --! TX data and controls
+  signal avst2_tx_packet  : t_avst_packet(data(DATA_W-1 downto 0), empty(EMPTY_W-1 downto 0), error(0 downto 0));
 
   --! @}
 
@@ -85,10 +87,8 @@ architecture tb of interface_merger_tb is
 
   --! RX ready
   signal avst_rx_ready    : std_logic;
-  --! RX data
-  signal avst_rx_data     : std_logic_vector(63 downto 0);
-  --! RX controls
-  signal avst_rx_ctrl     : std_logic_vector(6 downto 0);
+  --! RX data and controls
+  signal avst_rx_packet   : t_avst_packet(data(DATA_W-1 downto 0), empty(EMPTY_W-1 downto 0), error(0 downto 0));
 
   --! @}
 
@@ -100,6 +100,8 @@ begin
   --! Instantiate the Unit Under Test (UUT)
   uut: entity ethernet_lib.interface_merger
   generic map (
+    DATA_W            => DATA_W,
+    EMPTY_W           => EMPTY_W,
     INTERRUPT_ENABLE  => INTERRUPT_ENABLE,
     GAP_ENABLE        => GAP_ENABLE
   )
@@ -108,22 +110,19 @@ begin
     rst               => rst,
 
     -- avalon-st from first priority module
-    avst1_rx_ready    => avst1_tx_ready,
-    avst1_rx_data     => avst1_tx_data,
-    avst1_rx_ctrl     => avst1_tx_ctrl,
+    avst1_rx_ready_o  => avst1_tx_ready,
+    avst1_rx_packet_i => avst1_tx_packet,
 
     -- avalon-st from second priority module
-    avst2_rx_ready    => avst2_tx_ready,
-    avst2_rx_data     => avst2_tx_data,
-    avst2_rx_ctrl     => avst2_tx_ctrl,
+    avst2_rx_ready_o  => avst2_tx_ready,
+    avst2_rx_packet_i => avst2_tx_packet,
 
     -- avalon-st to outer module
-    avst_tx_ready     => avst_rx_ready,
-    avst_tx_data      => avst_rx_data,
-    avst_tx_ctrl      => avst_rx_ctrl,
+    avst_tx_ready_i   => avst_rx_ready,
+    avst_tx_packet_o  => avst_rx_packet,
 
     -- status of the module, see definitions below
-    status_vector     => status_vector
+    status_vector_o   => status_vector
   );
 
   -- Simulation part
@@ -148,7 +147,7 @@ begin
     );
 
     --! Instantiate counter_matcher to read mnl_rst from MNL_RST_FILE
-    mnl_rst_gen: entity sim.counter_matcher
+    inst_mnl_rst : entity sim.counter_matcher
     generic map (
       FILENAME      => MNL_RST_FILE,
       COMMENT_FLAG  => COMMENT_FLAG
@@ -162,8 +161,8 @@ begin
 
     rst <= sim_rst or mnl_rst;
 
-    --! Instantiate av_st_sender to read avst1_tx from AVST1_RXD_FILE
-    inst_avst1_tx : entity sim.av_st_sender
+    --! Instantiate avst_packet_sender to read avst1_tx from AVST1_RXD_FILE
+    inst_avst1_tx : entity ethernet_lib.avst_packet_sender
     generic map (
       FILENAME      => AVST1_RXD_FILE,
       COMMENT_FLAG  => COMMENT_FLAG,
@@ -175,12 +174,11 @@ begin
       cnt       => counter,
 
       tx_ready  => avst1_tx_ready,
-      tx_data   => avst1_tx_data,
-      tx_ctrl   => avst1_tx_ctrl
+      tx_packet => avst1_tx_packet
     );
 
-    --! Instantiate av_st_sender to read avst2_tx from AVST2_RXD_FILE
-    inst_avst2_tx : entity sim.av_st_sender
+    --! Instantiate avst_packet_sender to read avst2_tx from AVST2_RXD_FILE
+    inst_avst2_tx : entity ethernet_lib.avst_packet_sender
     generic map (
       FILENAME      => AVST2_RXD_FILE,
       COMMENT_FLAG  => COMMENT_FLAG,
@@ -192,56 +190,24 @@ begin
       cnt       => counter,
 
       tx_ready  => avst2_tx_ready,
-      tx_data   => avst2_tx_data,
-      tx_ctrl   => avst2_tx_ctrl
+      tx_packet => avst2_tx_packet
     );
 
-    -- logging for RX interface
-    blk_avst_log : block
-      --! Write enable
-      signal wren             : std_logic := '0';
-      --! Inverted ready signal
-      signal avst_rx_ready_n  : std_logic := '0';
-    begin
+    --! Instantiate avst_packet_receiver to write eth_rx to ETH_TXD_FILE
+    inst_rx : entity ethernet_lib.avst_packet_receiver
+    generic map (
+      READY_FILE    => AVST_RDY_FILE,
+      DATA_FILE     => AVST_TXD_FILE,
+      COMMENT_FLAG  => COMMENT_FLAG
+    )
+    port map (
+      clk       => clk,
+      rst       => rst,
+      cnt       => counter,
 
-      --! Instantiate counter_matcher to read avst_rx_ready_n from AVST_RDY_FILE
-      inst_avst_rx_ready : entity sim.counter_matcher
-      generic map (
-        FILENAME      => AVST_RDY_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        counter   => counter,
-        stimulus  => avst_rx_ready_n
-      );
-
-      avst_rx_ready <= not avst_rx_ready_n;
-
-      wren <= avst_rx_ctrl(6) and avst_rx_ready;
-
-      --! Instantiate file_writer_hex to write avst_rx_data
-      inst_avst_log : entity sim.file_writer_hex
-      generic map (
-        FILENAME      => AVST_TXD_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG,
-        BITSPERWORD   => 16,
-        WORDSPERLINE  => 4
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        wren      => wren,
-
-        empty     => avst_rx_ctrl(2 downto 0),
-        eop       => avst_rx_ctrl(4),
-        err       => avst_rx_ctrl(3),
-
-        din       => avst_rx_data
-      );
-
-    end block;
+      rx_ready  => avst_rx_ready,
+      rx_packet => avst_rx_packet
+    );
 
   end block;
 

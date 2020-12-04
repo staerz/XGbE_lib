@@ -3,22 +3,20 @@ quietly WaveActivateNextPane {} 0
 add wave -noupdate -radix decimal -radixshowbase 0 /arp_module_tb/blk_simulation/counter
 add wave -noupdate /arp_module_tb/uut/clk
 add wave -noupdate /arp_module_tb/uut/rst
-add wave -noupdate /arp_module_tb/uut/arp_rx_ready
-add wave -noupdate -radix hexadecimal -radixshowbase 0 /arp_module_tb/uut/arp_rx_data
-add wave -noupdate -radix binary -childformat {{/arp_module_tb/uut/arp_rx_ctrl(6) -radix binary} {/arp_module_tb/uut/arp_rx_ctrl(5) -radix binary} {/arp_module_tb/uut/arp_rx_ctrl(4) -radix binary} {/arp_module_tb/uut/arp_rx_ctrl(3) -radix binary} {/arp_module_tb/uut/arp_rx_ctrl(2) -radix binary} {/arp_module_tb/uut/arp_rx_ctrl(1) -radix binary} {/arp_module_tb/uut/arp_rx_ctrl(0) -radix binary}} -radixshowbase 0 -expand -subitemconfig {/arp_module_tb/uut/arp_rx_ctrl(6) {-height 18 -radix binary} /arp_module_tb/uut/arp_rx_ctrl(5) {-height 18 -radix binary -radixshowbase 0} /arp_module_tb/uut/arp_rx_ctrl(4) {-height 18 -radix binary} /arp_module_tb/uut/arp_rx_ctrl(3) {-height 18 -radix binary} /arp_module_tb/uut/arp_rx_ctrl(2) {-height 18 -radix binary} /arp_module_tb/uut/arp_rx_ctrl(1) {-height 18 -radix binary} /arp_module_tb/uut/arp_rx_ctrl(0) {-height 18 -radix binary}} /arp_module_tb/uut/arp_rx_ctrl
-add wave -noupdate /arp_module_tb/uut/arp_tx_ready
-add wave -noupdate -radix hexadecimal -radixshowbase 0 /arp_module_tb/uut/arp_tx_data
-add wave -noupdate -radix binary -childformat {{/arp_module_tb/uut/arp_tx_ctrl(6) -radix binary} {/arp_module_tb/uut/arp_tx_ctrl(5) -radix binary} {/arp_module_tb/uut/arp_tx_ctrl(4) -radix binary} {/arp_module_tb/uut/arp_tx_ctrl(3) -radix binary} {/arp_module_tb/uut/arp_tx_ctrl(2) -radix binary} {/arp_module_tb/uut/arp_tx_ctrl(1) -radix binary} {/arp_module_tb/uut/arp_tx_ctrl(0) -radix binary}} -radixshowbase 0 -expand -subitemconfig {/arp_module_tb/uut/arp_tx_ctrl(6) {-height 18 -radix binary} /arp_module_tb/uut/arp_tx_ctrl(5) {-height 18 -radix binary} /arp_module_tb/uut/arp_tx_ctrl(4) {-height 18 -radix binary} /arp_module_tb/uut/arp_tx_ctrl(3) {-height 18 -radix binary} /arp_module_tb/uut/arp_tx_ctrl(2) {-height 18 -radix binary} /arp_module_tb/uut/arp_tx_ctrl(1) {-height 18 -radix binary} /arp_module_tb/uut/arp_tx_ctrl(0) {-height 18 -radix binary}} /arp_module_tb/uut/arp_tx_ctrl
-add wave -noupdate /arp_module_tb/uut/reco_en
-add wave -noupdate -radix hexadecimal -radixshowbase 0 /arp_module_tb/uut/reco_ip
-add wave -noupdate -radix hexadecimal -radixshowbase 0 /arp_module_tb/uut/reco_mac
-add wave -noupdate /arp_module_tb/uut/reco_mac_done
-add wave -noupdate -radix hexadecimal -radixshowbase 0 /arp_module_tb/uut/my_mac
-add wave -noupdate -radix hexadecimal -radixshowbase 0 /arp_module_tb/uut/my_ip
-add wave -noupdate /arp_module_tb/uut/one_ms_tick
-add wave -noupdate -radix binary -radixshowbase 0 /arp_module_tb/uut/status_vector
+add wave -noupdate /arp_module_tb/uut/arp_rx_ready_o
+add wave -noupdate -radix hexadecimal -radixshowbase 0 /arp_module_tb/uut/arp_rx_packet_i
+add wave -noupdate /arp_module_tb/uut/arp_tx_ready_i
+add wave -noupdate -radix hexadecimal -radixshowbase 0 /arp_module_tb/uut/arp_tx_packet_o
+add wave -noupdate /arp_module_tb/uut/reco_en_i
+add wave -noupdate -radix hexadecimal -radixshowbase 0 /arp_module_tb/uut/reco_ip_i
+add wave -noupdate -radix hexadecimal -radixshowbase 0 /arp_module_tb/uut/reco_mac_o
+add wave -noupdate /arp_module_tb/uut/reco_done_o
+add wave -noupdate -radix hexadecimal -radixshowbase 0 /arp_module_tb/uut/my_mac_i
+add wave -noupdate -radix hexadecimal -radixshowbase 0 /arp_module_tb/uut/my_ip_i
+add wave -noupdate /arp_module_tb/uut/one_ms_tick_i
+add wave -noupdate -radix binary -radixshowbase 0 /arp_module_tb/uut/status_vector_o
 add wave -noupdate -expand -group internals -divider RX
-add wave -noupdate -expand -group internals /arp_module_tb/uut/make_rx_interface/arp_rx_ready_i
+add wave -noupdate -expand -group internals /arp_module_tb/uut/make_rx_interface/arp_rx_ready_r
 add wave -noupdate -expand -group internals /arp_module_tb/uut/make_rx_interface/config_tg_en
 add wave -noupdate -expand -group internals /arp_module_tb/uut/make_rx_interface/rx_count
 add wave -noupdate -expand -group internals /arp_module_tb/uut/make_rx_interface/rx_data_copy_tg_ip

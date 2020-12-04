@@ -24,8 +24,8 @@
 -------------------------------------------------------------------------------
 
 --! @cond
-library IEEE;
-  use IEEE.STD_LOGIC_1164.all;
+library fpga;
+  context fpga.interfaces;
 --! @endcond
 
 --! Trailer module to cut off a header from an AVST packet
@@ -40,21 +40,19 @@ entity trailer_module is
   );
   port (
     --! Clock
-    clk       : in    std_logic;
+    clk         : in    std_logic;
     --! Reset, sync with clk
-    rst       : in    std_logic;
+    rst         : in    std_logic;
 
     --! @name Avalon-ST RX interface
     --! @{
 
     --! RX ready
-    rx_ready  : out   std_logic;
-    --! RX data
-    rx_data   : in    std_logic_vector(63 downto 0);
-    --! RX controls
-    rx_ctrl   : in    std_logic_vector(6 downto 0);
+    rx_ready_o  : out   std_logic;
+    --! RX data and controls
+    rx_packet_i : in    t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! Additional rx indicator if multiple interfaces are used
-    rx_mux    : in    std_logic_vector(N_INTERFACES-1 downto 0);
+    rx_mux_i    : in    std_logic_vector(N_INTERFACES-1 downto 0);
 
     --! @}
 
@@ -62,24 +60,17 @@ entity trailer_module is
     --! @{
 
     --! TX ready
-    tx_ready  : in    std_logic;
-    --! TX data
-    tx_data   : out   std_logic_vector(63 downto 0);
-    --! TX controls
-    tx_ctrl   : out   std_logic_vector(6 downto 0);
+    tx_ready_i  : in    std_logic;
+    --! TX data and controls
+    tx_packet_o : out   t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! Additional tx indicator if multiple interfaces are used
-    tx_mux    : out   std_logic_vector(N_INTERFACES-1 downto 0);
+    tx_mux_o    : out   std_logic_vector(N_INTERFACES-1 downto 0);
     --! @}
 
     --! Counter for the incoming data words
-    rx_count : out   integer range 0 to 1600 := 0
+    rx_count_o  : out   integer range 0 to 1600 := 0
   );
 end trailer_module;
-
---! @cond
-library ieee;
-  use ieee.numeric_std.all;
---! @endcond
 
 --! Implementation of the trailer module
 architecture behavioral of trailer_module is
@@ -92,7 +83,7 @@ architecture behavioral of trailer_module is
   constant RX_CNT_MAX : integer := (HEADER_LENGTH + MAX_FRAME_SIZE)/8 + 1;
 
   --! Frame word counter
-  signal rx_count_i : integer range 0 to RX_CNT_MAX := 0;
+  signal rx_count_r : integer range 0 to RX_CNT_MAX := 0;
 
   --! Condensed version of controls:
   --! - 11: valid
@@ -121,50 +112,58 @@ architecture behavioral of trailer_module is
 
 begin
 
-  rx_ready  <= tx_ready;
-  rx_count  <= rx_count_i;
-  tx_ctrl   <= ctrl(11 downto 5);
+  rx_ready_o <= tx_ready_i;
+  rx_count_o <= rx_count_r;
 
-  --! Propagate rx_mux to tx_mux
+  -- set tx_packet control signals
+  tx_packet_o.valid <= ctrl(11);
+  tx_packet_o.sop   <= ctrl(10);
+  tx_packet_o.eop   <= ctrl(9);
+  tx_packet_o.error <= ctrl(8 downto 8);
+  tx_packet_o.empty <= ctrl(7 downto 5);
+
+  --! Propagate rx_mux_i to tx_mux_o
   proc_tx_mux : process (clk) is
   begin
     if rising_edge(clk) then
       if rst = '1' then
         tx_mux_reg  <= (others => '0');
         tx_mux_reg2 <= (others => '0');
-      elsif tx_ready = '1' then
+      elsif tx_ready_i = '1' then
         -- default: fade out
-        tx_mux_reg  <= rx_mux;
+        tx_mux_reg  <= rx_mux_i;
         tx_mux_reg2 <= tx_mux_reg;
-        if to_integer(unsigned(rx_mux)) /= 0 then
-          tx_mux_reg2 <= rx_mux;
+        if to_integer(unsigned(rx_mux_i)) /= 0 then
+          tx_mux_reg2 <= rx_mux_i;
         end if;
       end if;
     end if;
   end process;
 
-  with ctrl(11) select tx_mux <=
+  -- vsg_off
+  with ctrl(11) select tx_mux_o <=
     tx_mux_reg2 when '1',
     (others => '0') when others;
 
+  -- vsg_on
   --! Count the incoming data words (don't care about sof, that's handled by valid)
   proc_rx_count_from_rx_sof : process (clk) is
   begin
     if rising_edge(clk) then
       if rst = '1' then
-        rx_count_i <= 0;
-      elsif tx_ready = '1' then
+        rx_count_r <= 0;
+      elsif tx_ready_i = '1' then
         -- default: shift flags and reset counter
-        rx_eof_reg <= rx_ctrl(4);
+        rx_eof_reg <= rx_packet_i.eop;
         rx_of_reg  <= rx_overflow;
-        rx_count_i <= 0;
+        rx_count_r <= 0;
 
         -- reset overflow on eof(reg) of incoming packet
         if rx_eof_reg = '1' then
           rx_overflow <= '0';
-        elsif rx_ctrl(6) = '1' and rx_overflow = '0' then
-          if rx_count_i < RX_CNT_MAX then
-            rx_count_i <= rx_count_i + 1;
+        elsif rx_packet_i.valid = '1' and rx_overflow = '0' then
+          if rx_count_r < RX_CNT_MAX then
+            rx_count_r <= rx_count_r + 1;
           else
             rx_overflow <= '1';
           end if;
@@ -183,16 +182,18 @@ begin
     if rising_edge(clk) then
       if (rst = '1') then
         ctrl(9 downto 0) <= (others => '0');
-        tx_data          <= (others => '0');
+        tx_packet_o.data <= (others => '0');
         rx_dreg          <= (others => '0');
-      elsif tx_ready = '1' then
-        rx_dreg <= rx_data;
+      elsif tx_ready_i = '1' then
+        -- vsg_off
+        rx_dreg          <= rx_packet_i.data;
         -- make the byte shifting according to the given numbers
         -- the synthesizer may produce a warning here for a null range std_logic_vector
         -- when BYTE_SHIFT is 8, so when HEADER_LENGTH is a multiple of 8
-        tx_data <=
+        tx_packet_o.data <=
           rx_dreg((8*BYTE_SHIFT)-1 downto 0) &
-          rx_data (63 downto 8*BYTE_SHIFT);
+          rx_packet_i.data(63 downto 8*BYTE_SHIFT);
+        -- vsg_on
 
         -- default trailer: fade out
         ctrl(9 downto 0) <= ctrl(4 downto 0) & "00000";
@@ -201,7 +202,7 @@ begin
         -- the default is to derive it from the counter (the difference to DATA_START)
         -- but if the eof (= ctrl(9)) has been set, the next is not valid
         -- (the avst interface foresees one empty clk between two packets
-        diff := to_signed(DATA_START, 15)-to_signed(rx_count_i+1, 15);
+        diff := to_signed(DATA_START, 15)-to_signed(rx_count_r+1, 15);
         ctrl(11)  <= not ctrl(9) and diff(diff'left);
         -- register valid to determine sof
         valid_reg <= ctrl(11);
@@ -213,26 +214,24 @@ begin
           ctrl(9 downto 5) <= "11000";
           ctrl(4 downto 0) <= (others => '0');
         -- in the end: watch out for eof, empty and error
-        elsif rx_ctrl(4) = '1' then
+        elsif rx_packet_i.eop = '1' then
           -- take care of the flags to be set at the end of a frame
           -- according to the given numbers:
           --
-          --    empty from shift and given rx_ctrl(2 downto 0)
+          --    empty from shift and given rx_packet_i.empty
           --    (use auxiliary variable emptyy to prevent truncate warnings)
           --    error from rx error
-          emptyy := to_signed(to_integer(unsigned(rx_ctrl(2 downto 0))) + (8-BYTE_SHIFT), 5);
+          emptyy := to_signed(to_integer(unsigned(rx_packet_i.empty)) + (8-BYTE_SHIFT), 5);
           empty  := emptyy(2 downto 0);
 
-          if unsigned(rx_ctrl(2 downto 0)) < BYTE_SHIFT then
+          if unsigned(rx_packet_i.empty) < BYTE_SHIFT then
             -- ctrl for now
             ctrl(9 downto 5) <= (others => '0');
             -- ctrl for next clk
-            ctrl(4 downto 0) <=
-              "1" & rx_ctrl(3) & std_logic_vector(empty);
+            ctrl(4 downto 0) <= "1" & rx_packet_i.error & std_logic_vector(empty);
           else
             -- ctrl for now
-            ctrl(9 downto 5) <=
-              "1" & rx_ctrl(3) & std_logic_vector(empty);
+            ctrl(9 downto 5) <= "1" & rx_packet_i.error & std_logic_vector(empty);
             -- ctrl for next clk
             ctrl(4 downto 0) <= (others => '0');
           end if;
