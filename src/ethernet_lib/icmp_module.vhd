@@ -14,53 +14,49 @@
 --! If an ICMP request is already in the FIFO, further requests will simply be
 --! dropped.
 --!
---! @todo The is_icmp_request should be removed and instead a full RX FSM
+--! @todo The is_icmp_request_i should be removed and instead a full RX FSM
 --! analysing the header should be implemented (take from ip_module!) to really
 --! seal off module dependencies.
 -------------------------------------------------------------------------------
 
 --! @cond
-library IEEE;
-  use IEEE.STD_LOGIC_1164.all;
+library fpga;
+  context fpga.interfaces;
 --! @endcond
 
 entity icmp_module is
   port (
     --! Clock
-    clk              : in    std_logic;
+    clk               : in    std_logic;
     --! Reset, sync with clk
-    rst              : in    std_logic;
+    rst               : in    std_logic;
 
     --! @name Avalon-ST from IP module
     --! @{
 
     --! RX ready
-    ip_rx_ready      : out   std_logic;
-    --! RX data
-    ip_rx_data       : in    std_logic_vector(63 downto 0);
-    --! RX control
-    ip_rx_ctrl       : in    std_logic_vector(6 downto 0);
+    ip_rx_ready_o     : out   std_logic;
+    --! RX data and controls
+    ip_rx_packet_i    : in    t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! Indication of being ICMP request
-    is_icmp_request  : in    std_logic;
+    is_icmp_request_i : in    std_logic;
     --! @}
 
     --! @name Avalon-ST to IP module
     --! @{
 
     --! TX ready
-    icmp_out_ready   : in    std_logic;
-    --! TX data
-    icmp_out_data    : out   std_logic_vector(63 downto 0);
-    --! TX controls
-    icmp_out_ctrl    : out   std_logic_vector(6 downto 0);
+    icmp_tx_ready_i   : in    std_logic;
+    --! TX data and controls
+    icmp_tx_packet_o  : out   t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! @}
 
     --! @brief Status of the module
     --! @details Status of the module
-    --! - 2: icmp_tx_ready
+    --! - 2: icmp_tx_ready_i
     --! - 1: rx_fifo_wr_full
     --! - 0: rx_fifo_wr_empty
-    status_vector    : out   std_logic_vector(2 downto 0)
+    status_vector_o   : out   std_logic_vector(2 downto 0)
   );
 end icmp_module;
 
@@ -89,9 +85,9 @@ architecture behavioral of icmp_module is
 begin
 
   -- Receive part: the module is always ready to receive data
-  ip_rx_ready <= '1';
+  ip_rx_ready_o <= '1';
 
-  --! Store incoming data blindly, is_icmp_request will indicate if it's actually ICMP
+  --! Store incoming data blindly, is_icmp_request_i will indicate if it's actually ICMP
   proc_fill_buffer : process (clk) is
   begin
     if rising_edge(clk) then
@@ -103,7 +99,7 @@ begin
         sof_buffer <= sof_buffer(0) & icmp_buffer(ICMP_BUFFER_DEPTH-1)(69);
 
         -- MAC produces error on interruption => ignore error by inserting '0' instead;
-        icmp_buffer(0) <= ip_rx_ctrl & ip_rx_data;
+        icmp_buffer(0) <= avst_ctrl(ip_rx_packet_i) & ip_rx_packet_i.data;
 
         icmp_buffer(1 to ICMP_BUFFER_DEPTH) <= icmp_buffer(0 to ICMP_BUFFER_DEPTH-1);
       end if;
@@ -121,13 +117,15 @@ begin
     crc_in <=
       -- subtract 8 (corresponding from changing type from 8 to 0) (inverted byte order)
       x"F7FF" when icmp_buffer(0)(69) = '1' else
-      not ip_rx_data(15 downto 0) when icmp_buffer(1)(69) = '1' else
+      not ip_rx_packet_i.data(15 downto 0) when icmp_buffer(1)(69) = '1' else
       (others => '0');
 
-    with ip_rx_ctrl(5) select crc_rst <=
+    -- vsg_off
+    with ip_rx_packet_i.sop select crc_rst <=
       '1' when '1',
       '0' when others;
 
+    -- vsg_on
     --! Use checksum_calc to calculate icmp_crc
     crc_calc : entity misc.checksum_calc
     generic map (
@@ -144,7 +142,7 @@ begin
 
   end block;
 
-  fifo_block : block
+  blk_fifo : block
     --! @name Avalon-ST reply sent into FIFO
     --! @{
 
@@ -159,7 +157,7 @@ begin
     --! Switch for valid ICMP data
     signal valid_data       : std_logic;
     --! Status vector for the instantiated rx_fifo_module
-    signal status_vector_i  : std_logic_vector(4 downto 0);
+    signal status_vector_r  : std_logic_vector(4 downto 0);
   begin
 
     --! Mark valid data based on indication by outer module
@@ -167,7 +165,7 @@ begin
     begin
       if rising_edge(clk) then
         -- if the outer module indicated valid data: mark it
-        if is_icmp_request = '1' then
+        if is_icmp_request_i = '1' then
           valid_data <= '1';
         -- when the frame is over: unmark it
         elsif icmp_buffer(ICMP_BUFFER_DEPTH-1)(68) = '1' then
@@ -191,30 +189,33 @@ begin
     -- so far, the header is prepared correctly
 
     --! Storage of the incoming data into the rx_fifo_module
-    icmp_fifo_inst : entity ethernet_lib.rx_fifo_module
+    inst_icmp_fifo : entity ethernet_lib.rx_fifo_module
     generic map (
       LOCK_FIFO     => false,
       DUAL_CLK      => false
     )
     port map (
-      rx_fifo_in_rst    => rst,
+      rst_i             => rst,
 
       -- avalon-st to fill fifo
-      rx_fifo_in_clk    => clk,
-      rx_fifo_in_ready  => icmp_tx_ready,
-      rx_fifo_in_data   => icmp_tx_data,
-      rx_fifo_in_ctrl   => icmp_tx_ctrl,
+      clk_i             => clk,
+      rx_ready_o        => icmp_tx_ready,
+      rx_packet_i.data  => icmp_tx_data,
+      rx_packet_i.valid => icmp_tx_ctrl(6),
+      rx_packet_i.sop   => icmp_tx_ctrl(5),
+      rx_packet_i.eop   => icmp_tx_ctrl(4),
+      rx_packet_i.error => icmp_tx_ctrl(3 downto 3),
+      rx_packet_i.empty => icmp_tx_ctrl(2 downto 0),
 
       -- avalon-st to empty fifo
-      rx_fifo_out_clk   => clk,
-      rx_fifo_out_ready => icmp_out_ready,
-      rx_fifo_out_data  => icmp_out_data,
-      rx_fifo_out_ctrl  => icmp_out_ctrl,
+      clk_o             => clk,
+      tx_ready_i        => icmp_tx_ready_i,
+      tx_packet_o       => icmp_tx_packet_o,
 
-      status_vector   => status_vector_i
+      status_vector_o   => status_vector_r
     );
 
-    status_vector <= icmp_tx_ready & status_vector_i(1 downto 0);
+    status_vector_o <= icmp_tx_ready_i & status_vector_r(1 downto 0);
   end block;
 
 end behavioral;
