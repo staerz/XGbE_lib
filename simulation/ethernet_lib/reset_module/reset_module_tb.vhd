@@ -16,8 +16,8 @@
 -------------------------------------------------------------------------------
 
 --! @cond
-library IEEE;
-  use IEEE.std_logic_1164.all;
+library fpga;
+  context fpga.interfaces;
 --! @endcond
 
 --! Testbench for reset_module.vhd
@@ -66,45 +66,41 @@ library ethernet_lib;
 architecture tb of reset_module_tb is
 
   --! Clock
-  signal clk              : std_logic;
+  signal clk           : std_logic;
   --! Reset, sync with #clk
-  signal rst              : std_logic;
+  signal rst           : std_logic;
 
   --! @name Avalon-ST (IPbus) to module (read from file)
   --! @{
 
   --! TX ready
-  signal rst_tx_ready     : std_logic;
-  --! TX data
-  signal rst_tx_data      : std_logic_vector(63 downto 0);
-  --! TX controls
-  signal rst_tx_ctrl      : std_logic_vector(6 downto 0);
+  signal tx_ready      : std_logic;
+  --! TX data and controls
+  signal tx_packet     : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
   --! @}
 
   --! @name Avalon-ST (IPbus) from module (written to file)
   --! @{
 
   --! RX ready
-  signal rst_rx_ready     : std_logic;
-  --! RX data
-  signal rst_rx_data      : std_logic_vector(63 downto 0);
-  --! RX controls
-  signal rst_rx_ctrl      : std_logic_vector(6 downto 0);
+  signal rx_ready      : std_logic;
+  --! RX data and controls
+  signal rx_packet     : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
   --! @}
 
   --! Reset output
-  signal rst_out          : std_logic_vector(reset_width-1 downto 0);
+  signal rst_out       : std_logic_vector(reset_width-1 downto 0);
 
   --! Status of the module
-  signal status_vector    : std_logic_vector(2 downto 0);
+  signal status_vector : std_logic_vector(2 downto 0);
 
 begin
 
   --! Instantiate the Unit Under Test (UUT)
   uut: entity ethernet_lib.reset_module
   generic map (
-    RESET_DURATION  => RESET_DURATION,
-    RESET_WIDTH     => RESET_WIDTH,
+    RESET_DURATION     => RESET_DURATION,
+    RESET_WIDTH        => RESET_WIDTH,
     RESET_REGISTER_ADD => x"0000_0001"
   )
   port map (
@@ -112,25 +108,23 @@ begin
     rst             => rst,
 
     -- Avalon-ST from reset requester
-    rst_rx_ready    => rst_tx_ready,
-    rst_rx_data     => rst_tx_data,
-    rst_rx_ctrl     => rst_tx_ctrl,
+    rx_ready_o      => tx_ready,
+    rx_packet_i     => tx_packet,
 
     -- Avalon-ST to reset requester
-    rst_tx_ready    => rst_rx_ready,
-    rst_tx_data     => rst_rx_data,
-    rst_tx_ctrl     => rst_rx_ctrl,
+    tx_ready_i      => rx_ready,
+    tx_packet_o     => rx_packet,
 
     -- Configuration of the module
-    my_mac          => my_mac,
-    my_ip           => my_ip,
-    my_udp_port     => my_udp_port,
+    my_mac_i        => MY_MAC,
+    my_ip_i         => MY_IP,
+    my_udp_port_i   => MY_UDP_PORT,
 
     -- Reset output
-    rst_out         => rst_out,
+    rst_o           => rst_out,
 
     -- Status of the module
-    status_vector   => status_vector
+    status_vector_o => status_vector
   );
 
   -- Simulation part
@@ -169,72 +163,37 @@ begin
 
     rst <= sim_rst or mnl_rst;
 
-    blk_rst_tx : block
-    begin
-      --! Instantiate av_st_sender to read rst_tx from RST_RXD_FILE
-      rst_rx_gen: entity sim.av_st_sender
-      generic map (
-        FILENAME      => RST_RXD_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG,
-        COUNTER_FLAG  => COUNTER_FLAG
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        cnt       => counter,
+    --! Instantiate avst_packet_sender to read rst_tx from RST_RXD_FILE
+    inst_tx : entity ethernet_lib.avst_packet_sender
+    generic map (
+      FILENAME      => RST_RXD_FILE,
+      COMMENT_FLAG  => COMMENT_FLAG,
+      COUNTER_FLAG  => COUNTER_FLAG
+    )
+    port map (
+      clk       => clk,
+      rst       => rst,
+      cnt       => counter,
 
-        -- Avalon-ST to outside world
-        tx_ready  => rst_tx_ready,
-        tx_data   => rst_tx_data,
-        tx_ctrl   => rst_tx_ctrl
-      );
+      tx_ready  => tx_ready,
+      tx_packet => tx_packet
+    );
 
-    end block;
+    --! Instantiate avst_packet_receiver to write eth_rx to ETH_TXD_FILE
+    inst_rx : entity ethernet_lib.avst_packet_receiver
+    generic map (
+      READY_FILE    => RST_RDY_FILE,
+      DATA_FILE     => RST_TXD_FILE,
+      COMMENT_FLAG  => COMMENT_FLAG
+    )
+    port map (
+      clk       => clk,
+      rst       => rst,
+      cnt       => counter,
 
-    blk_rst_log : block
-      signal wren           : std_logic := '0';
-      signal rst_rx_ready_n : std_logic := '0';
-    begin
-
-      --! Instantiate counter_matcher to generate rst_rx_ready_n
-      inst_rx_ready : entity sim.counter_matcher
-      generic map (
-        FILENAME      => RST_RDY_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        counter   => counter,
-        stimulus  => rst_rx_ready_n
-      );
-
-      rst_rx_ready <= not rst_rx_ready_n;
-
-      -- logging block for rx interface
-      wren <= rst_rx_ctrl(6) and rst_rx_ready;
-
-      --! Instantiate file_writer_hex to write rst_rx_data
-      inst_rst_log : entity sim.file_writer_hex
-      generic map (
-        FILENAME      => RST_TXD_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG,
-        BITSPERWORD   => 16,
-        WORDSPERLINE  => 4
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        wren      => wren,
-
-        empty     => rst_rx_ctrl(2 downto 0),
-        eop       => rst_rx_ctrl(4),
-        err       => rst_rx_ctrl(3),
-
-        din       => rst_rx_data
-      );
-
-    end block;
+      rx_ready  => rx_ready,
+      rx_packet => rx_packet
+    );
 
   end block;
 
