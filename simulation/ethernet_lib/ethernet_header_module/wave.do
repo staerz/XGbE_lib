@@ -7,17 +7,16 @@ add wave -noupdate /ethernet_header_module_tb/MNL_RST_FILE
 add wave -noupdate -radix decimal -radixshowbase 0 /ethernet_header_module_tb/blk_simulation/counter
 add wave -noupdate /ethernet_header_module_tb/clk
 add wave -noupdate /ethernet_header_module_tb/rst
-add wave -noupdate /ethernet_header_module_tb/uut/ip_rx_ready
-add wave -noupdate /ethernet_header_module_tb/uut/ip_rx_data
-add wave -noupdate /ethernet_header_module_tb/uut/ip_rx_ctrl
-add wave -noupdate /ethernet_header_module_tb/uut/reco_en
-add wave -noupdate /ethernet_header_module_tb/uut/reco_mac_done
-add wave -noupdate /ethernet_header_module_tb/uut/reco_mac
-add wave -noupdate /ethernet_header_module_tb/uut/my_mac
-add wave -noupdate /ethernet_header_module_tb/uut/eth_tx_ready
-add wave -noupdate /ethernet_header_module_tb/uut/eth_tx_data
-add wave -noupdate -expand -subitemconfig {/ethernet_header_module_tb/uut/ip_tx_ctrl(4) {-color Coral -height 17}} /ethernet_header_module_tb/uut/eth_tx_ctrl
-add wave -noupdate /ethernet_header_module_tb/uut/status_vector
+add wave -noupdate /ethernet_header_module_tb/uut/ip_rx_ready_o
+add wave -noupdate /ethernet_header_module_tb/uut/ip_rx_packet_i
+add wave -noupdate /ethernet_header_module_tb/uut/reco_en_o
+add wave -noupdate /ethernet_header_module_tb/uut/reco_ip_o
+add wave -noupdate /ethernet_header_module_tb/uut/reco_done_i
+add wave -noupdate /ethernet_header_module_tb/uut/reco_mac_i
+add wave -noupdate /ethernet_header_module_tb/uut/my_mac_i
+add wave -noupdate /ethernet_header_module_tb/uut/eth_tx_ready_i
+add wave -noupdate /ethernet_header_module_tb/uut/eth_tx_packet_o
+add wave -noupdate /ethernet_header_module_tb/uut/status_vector_o
 add wave -noupdate -expand -group internals /ethernet_header_module_tb/uut/blk_make_tx_interface/tx_data_sr
 add wave -noupdate -expand -group internals /ethernet_header_module_tb/uut/blk_make_tx_interface/tx_ctrl_sr
 add wave -noupdate -expand -group internals /ethernet_header_module_tb/uut/blk_make_tx_interface/tx_valid

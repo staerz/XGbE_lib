@@ -12,8 +12,8 @@
 -------------------------------------------------------------------------------
 
 --! @cond
-library IEEE;
-  use IEEE.std_logic_1164.all;
+library fpga;
+  context fpga.interfaces;
 --! @endcond
 
 --! Testbench for ethernet_header_module.vhd
@@ -37,7 +37,6 @@ end ethernet_header_module_tb;
 
 --! @cond
 library sim;
-library misc;
 library ethernet_lib;
 --! @endcond
 
@@ -54,10 +53,8 @@ architecture tb of ethernet_header_module_tb is
 
   --! TX ready
   signal ip_tx_ready    : std_logic;
-  --! TX data
-  signal ip_tx_data     : std_logic_vector(63 downto 0);
-  --! TX controls
-  signal ip_tx_ctrl     : std_logic_vector(6 downto 0);
+  --! TX data and controls
+  signal ip_tx_packet   : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
 
   --! @}
 
@@ -66,10 +63,8 @@ architecture tb of ethernet_header_module_tb is
 
   --! RX ready
   signal eth_rx_ready   : std_logic;
-  --! RX data
-  signal eth_rx_data    : std_logic_vector(63 downto 0);
-  --! RX controls
-  signal eth_rx_ctrl    : std_logic_vector(6 downto 0);
+  --! RX data and controls
+  signal eth_rx_packet  : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
 
   --! @}
 
@@ -83,7 +78,7 @@ architecture tb of ethernet_header_module_tb is
   --! Recovered MAC address
   signal reco_mac       : std_logic_vector(47 downto 0);
   --! Recovery success indicator
-  signal reco_mac_done  : std_logic;
+  signal reco_done      : std_logic;
   --! @}
 
   --! MAC address
@@ -105,29 +100,27 @@ begin
     rst             => rst,
 
     -- Avalon-ST RX interface
-    ip_rx_ready     => ip_tx_ready,
-    ip_rx_data      => ip_tx_data,
-    ip_rx_ctrl      => ip_tx_ctrl,
+    ip_rx_ready_o   => ip_tx_ready,
+    ip_rx_packet_i  => ip_tx_packet,
 
     -- Avalon-ST TX interface
-    eth_tx_ready    => eth_rx_ready,
-    eth_tx_data     => eth_rx_data,
-    eth_tx_ctrl     => eth_rx_ctrl,
+    eth_tx_ready_i  => eth_rx_ready,
+    eth_tx_packet_o => eth_rx_packet,
 
     -- interface for recovering mac address from given ip address
-    reco_en         => reco_en,
-    reco_ip         => reco_ip,
+    reco_en_o       => reco_en,
+    reco_ip_o       => reco_ip,
     -- response (next clk if directly found, later if arp request needs to be sent)
-    reco_mac        => reco_mac,
-    reco_mac_done   => reco_mac_done,
+    reco_mac_i      => reco_mac,
+    reco_done_i     => reco_done,
 
     -- Configuration of the module
-    my_mac          => my_mac,
+    my_mac_i        => my_mac,
 
-    one_ms_tick     => one_ms_tick,
+    one_ms_tick_i   => one_ms_tick,
 
     -- Status of the module
-    status_vector   => status_vector
+    status_vector_o => status_vector
   );
 
   -- Simulation part
@@ -135,7 +128,6 @@ begin
   blk_simulation : block
     --! @cond
     signal counter    : integer := 0;
-    signal async_rst  : std_logic;
     signal sim_rst    : std_logic;
     signal mnl_rst    : std_logic;
     --! @endcond
@@ -170,53 +162,40 @@ begin
     rst <= sim_rst or mnl_rst;
 
     -- fake auxiliary signals
-    reco_mac_done <= '1';
-    reco_mac      <= x"AB_CD_EF_01_23_45";
+    reco_done <= '1';
+    reco_mac  <= x"AB_CD_EF_01_23_45";
 
-    blk_ip_tx : block
-    begin
-      --! Instantiate av_st_sender to read udp_tx from UDP_RXD_FILE
-      inst_ip_tx : entity sim.av_st_sender
-      generic map (
-        FILENAME      => IP_RXD_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG,
-        COUNTER_FLAG  => COUNTER_FLAG
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        cnt       => counter,
+    --! Instantiate avst_packet_sender to read ip_tx from IP_RXD_FILE
+    inst_ip_tx : entity ethernet_lib.avst_packet_sender
+    generic map (
+      FILENAME      => IP_RXD_FILE,
+      COMMENT_FLAG  => COMMENT_FLAG,
+      COUNTER_FLAG  => COUNTER_FLAG
+    )
+    port map (
+      clk       => clk,
+      rst       => rst,
+      cnt       => counter,
 
-        -- Avalon-ST to outside world
-        tx_ready  => ip_tx_ready,
-        tx_data   => ip_tx_data,
-        tx_ctrl   => ip_tx_ctrl
-      );
+      tx_ready  => ip_tx_ready,
+      tx_packet => ip_tx_packet
+    );
 
-    end block;
+    --! Instantiate avst_packet_receiver to write eth_rx to ETH_TXD_FILE
+    inst_eth_rx : entity ethernet_lib.avst_packet_receiver
+    generic map (
+      READY_FILE    => ETH_RDY_FILE,
+      DATA_FILE     => ETH_TXD_FILE,
+      COMMENT_FLAG  => COMMENT_FLAG
+    )
+    port map (
+      clk       => clk,
+      rst       => rst,
+      cnt       => counter,
 
-    blk_eth_log : block
-    begin
-
-      --! Instantiate av_st_receiver to write eth_rx to ETH_TXD_FILE
-      inst_eth_rx : entity ethernet_lib.av_st_receiver
-      generic map (
-        READY_FILE    => ETH_RDY_FILE,
-        DATA_FILE     => ETH_TXD_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        cnt       => counter,
-
-        -- Avalon-ST from outside world
-        rx_ready  => eth_rx_ready,
-        rx_data   => eth_rx_data,
-        rx_ctrl   => eth_rx_ctrl
-      );
-
-    end block;
+      rx_ready  => eth_rx_ready,
+      rx_packet => eth_rx_packet
+    );
 
   end block;
 
