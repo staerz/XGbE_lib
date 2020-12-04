@@ -14,8 +14,8 @@
 -------------------------------------------------------------------------------
 
 --! @cond
-library IEEE;
-  use IEEE.std_logic_1164.all;
+library fpga;
+  context fpga.interfaces;
 --! @endcond
 
 --! Testbench for trailer_module.vhd
@@ -59,13 +59,11 @@ architecture tb of trailer_module_tb is
   --! @{
 
   --! TX ready
-  signal fpga_tx_ready    : std_logic;
-  --! TX data
-  signal fpga_tx_data     : std_logic_vector(63 downto 0);
-  --! TX controls
-  signal fpga_tx_ctrl     : std_logic_vector(6 downto 0);
+  signal tx_ready  : std_logic;
+  --! TX data and controls
+  signal tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
   --! Additional rx indicator if multiple interfaces are used
-  signal tx_mux           : std_logic_vector(N_INTERFACES-1 downto 0) := (others => '0');
+  signal tx_mux    : std_logic_vector(N_INTERFACES-1 downto 0) := (others => '0');
 
   --! @}
 
@@ -73,40 +71,36 @@ architecture tb of trailer_module_tb is
   --! @{
 
   --! RX ready
-  signal fpga_rx_ready    : std_logic;
-  --! RX data
-  signal fpga_rx_data     : std_logic_vector(63 downto 0);
-  --! RX controls
-  signal fpga_rx_ctrl     : std_logic_vector(6 downto 0);
+  signal rx_ready  : std_logic;
+  --! RX data and controls
+  signal rx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
   --! Additional tx indicator if multiple interfaces are used
-  signal rx_mux           : std_logic_vector(N_INTERFACES-1 downto 0) := (others => '0');
+  signal rx_mux    : std_logic_vector(N_INTERFACES-1 downto 0) := (others => '0');
 
   --! @}
 
 begin
 
   --! Instantiate the Unit Under Test (UUT)
-  uut: entity ethernet_lib.trailer_module
+  uut : entity ethernet_lib.trailer_module
   generic map (
     HEADER_LENGTH   => HEADER_LENGTH,
     N_INTERFACES    => N_INTERFACES,
     MAX_FRAME_SIZE  => MAX_FRAME_SIZE
   )
   port map (
-    clk       => clk,
-    rst       => rst,
+    clk         => clk,
+    rst         => rst,
 
-    rx_ready  => fpga_tx_ready,
-    rx_data   => fpga_tx_data,
-    rx_ctrl   => fpga_tx_ctrl,
-    rx_mux    => tx_mux,
+    rx_ready_o  => tx_ready,
+    rx_packet_i => tx_packet,
+    rx_mux_i    => tx_mux,
 
-    rx_count  => open,
+    rx_count_o  => open,
 
-    tx_ready  => fpga_rx_ready,
-    tx_data   => fpga_rx_data,
-    tx_ctrl   => fpga_rx_ctrl,
-    tx_mux    => rx_mux
+    tx_ready_i  => rx_ready,
+    tx_packet_o => rx_packet,
+    tx_mux_o    => rx_mux
   );
 
   -- Simulation part
@@ -123,71 +117,37 @@ begin
       cnt => counter
     );
 
-    -- generating the input data
-    blk_avst_tx : block
-      signal fpga_rx_ready_n : std_logic := '0';
-    begin
-      --! Instantiate av_st_sender to read fpga_tx from AVST1_DAT_FILENAME
-      inst_avst_tx : entity sim.av_st_sender
-      generic map (
-        FILENAME      => AVST_RXD_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG,
-        COUNTER_FLAG  => COUNTER_FLAG
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        cnt       => counter,
+    --! Instantiate avst_packet_sender to read tx from AVST_RXD_FILE
+    inst_tx : entity ethernet_lib.avst_packet_sender
+    generic map (
+      FILENAME      => AVST_RXD_FILE,
+      COMMENT_FLAG  => COMMENT_FLAG,
+      COUNTER_FLAG  => COUNTER_FLAG
+    )
+    port map (
+      clk       => clk,
+      rst       => rst,
+      cnt       => counter,
 
-        tx_ready  => fpga_tx_ready,
-        tx_data   => fpga_tx_data,
-        tx_ctrl   => fpga_tx_ctrl
-      );
+      tx_ready  => tx_ready,
+      tx_packet => tx_packet
+    );
 
-      --! Instantiate counter_matcher to read fpga_tx_ready_n from AVST_RDY_FILE
-      inst_rx_ready : entity sim.counter_matcher
-      generic map (
-        FILENAME      => AVST_RDY_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        counter   => counter,
-        stimulus  => fpga_rx_ready_n
-      );
+    --! Instantiate avst_packet_receiver to write rx to AVST_TXD_FILE
+    inst_rx : entity ethernet_lib.avst_packet_receiver
+    generic map (
+      READY_FILE    => AVST_RDY_FILE,
+      DATA_FILE     => AVST_TXD_FILE,
+      COMMENT_FLAG  => COMMENT_FLAG
+    )
+    port map (
+      clk       => clk,
+      rst       => rst,
+      cnt       => counter,
 
-      fpga_rx_ready <= not fpga_rx_ready_n;
-
-    end block;
-
-    -- logging for RX interface
-    blk_avst_log : block
-      --! Write enable
-      signal wren       : std_logic := '0';
-    begin
-      wren <= fpga_rx_ctrl(6) and fpga_rx_ready;
-
-      inst_rx_log : entity sim.file_writer_hex
-      generic map (
-        FILENAME      => AVST_TXD_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG,
-        BITSPERWORD   => 16,
-        WORDSPERLINE  => 4
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        wren      => wren,
-
-        empty     => fpga_rx_ctrl(2 downto 0),
-        eop       => fpga_rx_ctrl(4),
-        err       => fpga_rx_ctrl(3),
-
-        din       => fpga_rx_data
-      );
-
-    end block;
+      rx_ready  => rx_ready,
+      rx_packet => rx_packet
+    );
 
   end block;
 
