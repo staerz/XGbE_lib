@@ -10,11 +10,13 @@
 --! Creates/descrambles the IP header from/to a UDP frame.
 --!
 --! Only IPv4 with header length of 20 bytes is supported.
+--! @todo Introduce a packet_null constant that sets data to don't care,
+--! controls to all zero.
 -------------------------------------------------------------------------------
 
 --! @cond
-library IEEE;
-  use IEEE.STD_LOGIC_1164.all;
+library fpga;
+  context fpga.interfaces;
 --! @endcond
 
 --! IP module
@@ -33,7 +35,7 @@ entity ip_module is
     UDP_CRC_EN     : boolean                 := true;
     --! @brief Enable IP address filtering
     --! @details If enabled, only packets arriving from IP addresses of the same
-    --! network (specified by ip_netmask) as ip_scr_addr are accepted.
+    --! network (specified by ip_netmask_i) as ip_scr_addr are accepted.
     IP_FILTER_EN   : std_logic               := '1';
     --! Depth of table (number of stored connections)
     ID_TABLE_DEPTH : integer range 1 to 1024 := 4;
@@ -42,65 +44,57 @@ entity ip_module is
   );
   port (
     --! Clock
-    clk           : in    std_logic;
+    clk             : in    std_logic;
     --! Reset, sync with #clk
-    rst           : in    std_logic;
+    rst             : in    std_logic;
 
     --! @name Avalon-ST from IP module
     --! @{
 
     --! RX ready
-    ip_rx_ready   : out   std_logic;
-    --! RX data
-    ip_rx_data    : in    std_logic_vector(63 downto 0);
-    --! RX controls
-    ip_rx_ctrl    : in    std_logic_vector(6 downto 0);
+    ip_rx_ready_o   : out   std_logic;
+    --! RX data and controls
+    ip_rx_packet_i  : in    t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! @}
 
     --! @name Avalon-ST to IP module
     --! @{
 
     --! TX ready
-    ip_tx_ready   : in    std_logic;
-    --! TX data
-    ip_tx_data    : out   std_logic_vector(63 downto 0);
-    --! TX controls
-    ip_tx_ctrl    : out   std_logic_vector(6 downto 0);
+    ip_tx_ready_i   : in    std_logic;
+    --! TX data and controls
+    ip_tx_packet_o  : out   t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! @}
 
     --! @name Avalon-ST from UDP module
     --! @{
 
     --! RX ready
-    udp_rx_ready  : out   std_logic;
-    --! RX data
-    udp_rx_data   : in    std_logic_vector(63 downto 0);
-    --! RX controls
-    udp_rx_ctrl   : in    std_logic_vector(6 downto 0);
+    udp_rx_ready_o  : out   std_logic;
+    --! RX data and controls
+    udp_rx_packet_i : in    t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! RX packet ID (to restore IP address)
-    udp_rx_id     : in    std_logic_vector(15 downto 0);
+    udp_rx_id_i     : in    std_logic_vector(15 downto 0);
     --! @}
 
     --! @name Avalon-ST to UDP module
     --! @{
 
     --! TX ready
-    udp_tx_ready  : in    std_logic;
-    --! TX data
-    udp_tx_data   : out   std_logic_vector(63 downto 0);
-    --! TX controls
-    udp_tx_ctrl   : out   std_logic_vector(6 downto 0);
+    udp_tx_ready_i  : in    std_logic;
+    --! TX data and controls
+    udp_tx_packet_o : out   t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! TX packet ID (to restore IP address)
-    udp_tx_id     : out   std_logic_vector(15 downto 0);
+    udp_tx_id_o     : out   std_logic_vector(15 downto 0);
     --! @}
 
     --! @name Configuration of the module
     --! @{
 
     --! IP address
-    my_ip         : in    std_logic_vector(31 downto 0);
+    my_ip_i         : in    std_logic_vector(31 downto 0);
     --! Net mask
-    ip_netmask    : in    std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
+    ip_netmask_i    : in    std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
     --! @}
 
     --! @brief Status of the module
@@ -118,14 +112,12 @@ entity ip_module is
     --! - 2: RX FSM: UDP frame is being received
     --! - 1: RX FSM: ICMP frame is being received
     --! - 0: RX FSM: IDLE mode
-    status_vector : out   std_logic_vector(12 downto 0)
+    status_vector_o : out   std_logic_vector(12 downto 0)
   );
 end ip_module;
 
 --! @cond
 library ethernet_lib;
-library ieee;
-  use ieee.numeric_std.all;
 --! @endcond
 
 --! Implementation of the IP module
@@ -151,35 +143,31 @@ architecture behavioral of ip_module is
   --! @{
 
   --! TX ready
-  signal icmp_tx_ready_i  : std_logic;
-  --! TX data
-  signal icmp_tx_data_i   : std_logic_vector(63 downto 0);
-  --! TX controls
-  signal icmp_tx_ctrl_i   : std_logic_vector(6 downto 0);
+  signal icmp_tx_ready  : std_logic;
+  --! TX data and controls
+  signal icmp_tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
   --! @}
 
 begin
 
-  -- address calculated from self configuration and ip_netmask
+  -- address calculated from self configuration and ip_netmask_i
   -- in tx if destination cannot be resolved
-  ip_broadcast_addr <= my_ip or not ip_netmask;
+  ip_broadcast_addr <= my_ip_i or not ip_netmask_i;
 
   -- IP transmitter interface
-  gen_ip_tx : block
+  blk_ip_tx : block
     --! @name Intermediate Avalon-ST after the IP header has been added
     --! @{
 
     --! TX ready
-    signal ip_tx_ready_i  : std_logic;
-    --! TX data
-    signal ip_tx_data_i   : std_logic_vector(63 downto 0);
-    --! TX controls
-    signal ip_tx_ctrl_i   : std_logic_vector(6 downto 0);
+    signal ip_tx_ready_r  : std_logic;
+    --! TX data and controls
+    signal ip_tx_packet_r : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! @}
   begin
 
     --! Instantiate the ip_header_module to generate header for incoming UPD frames
-    ip_header_module_inst : entity ethernet_lib.ip_header_module
+    inst_ip_header_module : entity ethernet_lib.ip_header_module
     generic map (
       EOF_CHECK_EN  => EOF_CHECK_EN,
       UDP_CRC_EN    => UDP_CRC_EN,
@@ -190,58 +178,53 @@ begin
       rst           => rst,
 
       -- avalon-st from udp module
-      udp_rx_ready  => udp_rx_ready,
-      udp_rx_data   => udp_rx_data,
-      udp_rx_ctrl   => udp_rx_ctrl,
+      udp_rx_ready_o  => udp_rx_ready_o,
+      udp_rx_packet_i => udp_rx_packet_i,
 
       -- avalon-st to ip module
-      ip_tx_ready   => ip_tx_ready_i,
-      ip_tx_data    => ip_tx_data_i,
-      ip_tx_ctrl    => ip_tx_ctrl_i,
+      ip_tx_ready_i   => ip_tx_ready_r,
+      ip_tx_packet_o  => ip_tx_packet_r,
 
       -- signals for building the header
-      reco_en       => reco_en,
-      reco_ip_found => reco_ip_found,
-      reco_ip       => reco_ip,
+      reco_en_o       => reco_en,
+      reco_ip_found_i => reco_ip_found,
+      reco_ip_i       => reco_ip,
 
       -- configuration of the module
-      my_ip         => my_ip,
-      ip_netmask    => ip_netmask,
+      my_ip_i         => my_ip_i,
+      ip_netmask_i    => ip_netmask_i,
 
       -- status of the module
-      status_vector => status_vector(4 downto 3)
+      status_vector_o => status_vector_o(4 downto 3)
     );
 
     --! Instantiate the interface_merger to merge TX of ip_header_module and icmp_module
-    interface_merger_inst: entity ethernet_lib.interface_merger
+    inst_interface_merger: entity ethernet_lib.interface_merger
     port map (
       -- clk (synch reset with clk)
       clk             => clk,
       rst             => rst,
 
       -- avalon-st from first priority module
-      avst1_rx_ready  => ip_tx_ready_i,
-      avst1_rx_data   => ip_tx_data_i,
-      avst1_rx_ctrl   => ip_tx_ctrl_i,
+      avst1_rx_ready_o  => ip_tx_ready_r,
+      avst1_rx_packet_i => ip_tx_packet_r,
 
       -- avalon-st from second priority module
-      avst2_rx_ready  => icmp_tx_ready_i,
-      avst2_rx_data   => icmp_tx_data_i,
-      avst2_rx_ctrl   => icmp_tx_ctrl_i,
+      avst2_rx_ready_o  => icmp_tx_ready,
+      avst2_rx_packet_i => icmp_tx_packet,
 
       -- avalon-st to outer module
-      avst_tx_ready   => ip_tx_ready,
-      avst_tx_data    => ip_tx_data,
-      avst_tx_ctrl    => ip_tx_ctrl,
+      avst_tx_ready_i   => ip_tx_ready_i,
+      avst_tx_packet_o  => ip_tx_packet_o,
 
       -- status of the module, see definitions below
-      status_vector   => status_vector(7 downto 5)
+      status_vector_o   => status_vector_o(7 downto 5)
     );
 
   end block;
 
   -- receive part - IP interface
-  stripoff_header : block
+  blk_stripoff_header : block
     --! @brief State definition for the RX FSM
     --! @details
     --! State definition for the RX FSM
@@ -253,16 +236,8 @@ begin
     --! State of the RX FSM
     signal rx_state : t_rx_state := HEADER;
 
-    --! @name Avalon-ST rx controls (for better readability)
-    --! @{
-
-    --! Start of frame
-    signal rx_sof       : std_logic;
-    --! End of frame
-    signal rx_eof       : std_logic;
     --! Ready
     signal rx_ready     : std_logic;
-    --! @}
 
     --! Counter for incoming packets
     signal rx_count     : integer range 0 to 1500 := 0;
@@ -285,30 +260,30 @@ begin
     signal icmp_in_ready    : std_logic;
 
     --! Number of interfaces (for trailer_module)
-    constant N_INTERFACES_I : positive := 2;
+    constant N_INTERFACES : positive := 2;
 
     --! RX interface selection
-    signal rx_mux         : std_logic_vector(N_INTERFACES_I-1 downto 0);
+    signal rx_mux         : std_logic_vector(N_INTERFACES-1 downto 0);
     --! TX interface selection
-    signal tx_mux         : std_logic_vector(N_INTERFACES_I-1 downto 0);
+    signal tx_mux         : std_logic_vector(N_INTERFACES-1 downto 0);
 
     --! ID for storing in the UDP-ID/IP table
-    signal udp_tx_id_i    : unsigned(15 downto 0);
+    signal udp_tx_id_r    : unsigned(15 downto 0);
 
   begin
     -- mapping of module dependent to block specific signals
-    ip_rx_ready <= rx_ready;
-    rx_sof      <= ip_rx_ctrl(5);
-    rx_eof      <= ip_rx_ctrl(4);
+    ip_rx_ready_o <= rx_ready;
 
+    -- vsg_off
     -- receiver is ready when data can be forwarded to the consecutive modules
     with tx_mux select rx_ready <=
-      udp_tx_ready  when "10",
+      udp_tx_ready_i  when "10",
       icmp_in_ready when "01",
       '1' when others;
 
-    status_vector(2 downto 1) <= rx_mux;
-    status_vector(0)          <= '1' when rx_state = HEADER else '0';
+    -- vsg_on
+    status_vector_o(2 downto 1) <= rx_mux;
+    status_vector_o(0)          <= '1' when rx_state = HEADER else '0';
 
     --! @brief RX FSM to handle IP requests
     --! @details Analyse incoming data packets and check them for UDP content.
@@ -334,9 +309,9 @@ begin
               case rx_count is
 
                 when 0 =>
-                  if rx_sof = '1' then
+                  if ip_rx_packet_i.sop = '1' then
                     -- version 4, 20 bytes header and no more fragments
-                    if ip_rx_data(63 downto 56) = x"45" and ip_rx_data(13) = '0' then
+                    if ip_rx_packet_i.data(63 downto 56) = x"45" and ip_rx_packet_i.data(13) = '0' then
                       rx_state <= HEADER;
                     else
                       rx_state <= SKIP;
@@ -348,7 +323,7 @@ begin
                   -- check protocol and retrieve source address as potential
                   -- destination address for tx path
 
-                  case ip_rx_data(55 downto 48) is
+                  case ip_rx_packet_i.data(55 downto 48) is
 
                     when x"11" =>
                       protocol <= UDP;
@@ -363,7 +338,7 @@ begin
 
                 when 2 =>
                   -- apply IP address filter
-                  if (ip_rx_data(63 downto 32) = my_ip or ip_rx_data(63 downto 32) = ip_broadcast_addr) and src_ip_accept = '1' then
+                  if (ip_rx_packet_i.data(63 downto 32) = my_ip_i or ip_rx_packet_i.data(63 downto 32) = ip_broadcast_addr) and src_ip_accept = '1' then
 
                     case protocol is
 
@@ -375,7 +350,7 @@ begin
                     end case;
 
                     -- check icmp packet for "request"
-                    if protocol = ICMP and ip_rx_data(31 downto 24) = x"08" then
+                    if protocol = ICMP and ip_rx_packet_i.data(31 downto 24) = x"08" then
                       icmp_request <= '1';
                     else
                       icmp_request <= '0';
@@ -390,7 +365,7 @@ begin
 
             -- stay in rx mode until the end of the packet
             when RX =>
-              if rx_eof = '1' then
+              if ip_rx_packet_i.eop = '1' then
                 icmp_request <= '0';
                 protocol     <= NOTSUPPORTED;
                 rx_state     <= HEADER;
@@ -400,7 +375,7 @@ begin
 
             -- just let pass all other data until the end of the packet
             when SKIP =>
-              if rx_eof = '1' then
+              if ip_rx_packet_i.eop = '1' then
                 icmp_request <= '0';
                 protocol     <= NOTSUPPORTED;
                 rx_state     <= HEADER;
@@ -414,73 +389,70 @@ begin
       end if;
     end process;
 
+    -- vsg_off
     with protocol select rx_mux <=
       "10" when UDP,
       "01" when ICMP,
       "00" when NOTSUPPORTED;
 
+    -- vsg_on
     --! Instantiate the icmp_module to treat ICMP requests
-    icmp_inst : entity ethernet_lib.icmp_module
+    inst_icmp : entity ethernet_lib.icmp_module
     port map (
       -- clk
-      clk             => clk,
-      rst             => rst,
+      clk               => clk,
+      rst               => rst,
 
       -- avalon-st to fill fifo
-      ip_rx_ready     => icmp_in_ready,
-      ip_rx_data      => ip_rx_data,
-      ip_rx_ctrl      => ip_rx_ctrl,
+      ip_rx_ready_o     => icmp_in_ready,
+      ip_rx_packet_i    => ip_rx_packet_i,
 
       -- indication of being ICMP request
-      is_icmp_request => icmp_request,
+      is_icmp_request_i => icmp_request,
 
       -- avalon-st to empty FIFO
-      icmp_out_ready  => icmp_tx_ready_i,
-      icmp_out_data   => icmp_tx_data_i,
-      icmp_out_ctrl   => icmp_tx_ctrl_i,
+      icmp_tx_ready_i   => icmp_tx_ready,
+      icmp_tx_packet_o  => icmp_tx_packet,
 
-      status_vector   => status_vector(10 downto 8)
+      status_vector_o   => status_vector_o(10 downto 8)
     );
 
-    make_trailer_block : block
-      --! TX data for trailer_module
-      signal tx_data      : std_logic_vector(63 downto 0);
-      --! TX controls for trailer_module: valid & sof & eof & error & empty
-      signal tx_ctrl      : std_logic_vector(6 downto 0);
+    blk_make_trailer : block
+      --! TX data and controls for trailer_module
+      signal tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     begin
-      udp_tx_data <= tx_data when tx_mux = "10" and src_ip_accept = '1' else (others => '0');
-      udp_tx_ctrl <= tx_ctrl when tx_mux = "10" and src_ip_accept = '1' else (others => '0');
+      udp_tx_packet_o <=
+        tx_packet when tx_mux = "10" and src_ip_accept = '1' else
+        (data => (others => '-'), error => (others => '0'), empty => (others => '0'), others => '0');
 
-      udp_tx_id <= std_logic_vector(udp_tx_id_i) when tx_mux = "10" and src_ip_accept = '1' and tx_ctrl(6) = '1' else (others => '0');
+      udp_tx_id_o <= std_logic_vector(udp_tx_id_r) when tx_mux = "10" and src_ip_accept = '1' and tx_packet.valid = '1' else (others => '0');
 
       --! Instantiate trailer_module to make tx controls right
-      trailer_inst : entity ethernet_lib.trailer_module
+      inst_trailer : entity ethernet_lib.trailer_module
       generic map (
         HEADER_LENGTH => 20,
-        N_INTERFACES  => N_INTERFACES_I
+        N_INTERFACES  => N_INTERFACES
       )
       port map (
         -- clk
-        clk       => clk,
-        rst       => rst,
+        clk         => clk,
+        rst         => rst,
 
         -- avalon-st from outer module
-        rx_data     => ip_rx_data,
-        rx_ctrl     => ip_rx_ctrl,
-        rx_mux      => rx_mux,
+        rx_packet_i => ip_rx_packet_i,
+        rx_mux_i    => rx_mux,
 
-        rx_count    => rx_count,
+        rx_count_o  => rx_count,
 
         -- avalon-st to outer module
-        tx_ready    => rx_ready,
-        tx_data     => tx_data,
-        tx_ctrl     => tx_ctrl,
-        tx_mux      => tx_mux
+        tx_ready_i  => rx_ready,
+        tx_packet_o => tx_packet,
+        tx_mux_o    => tx_mux
       );
 
     end block;
 
-    make_ip_udp_table: block
+    blk_make_ip_udp_table : block
       --! @name Signals for the discovery interface of the udp/ip table
       --! @{
 
@@ -511,7 +483,7 @@ begin
               disco_ip <= (others => '0');
             elsif rx_ready = '1' then
               if rx_state = header and rx_count = 1 then
-                disco_ip <= ip_rx_data(31 downto 0);
+                disco_ip <= ip_rx_packet_i.data(31 downto 0);
               end if;
             end if;
           end if;
@@ -536,11 +508,11 @@ begin
               disco_ip      <= (others => '0');
             elsif rx_ready = '1' then
               if rx_state = header and rx_count = 1 then
-                -- Check weather source address ('ip_rx_data(31 downto 0)')
-                -- is in the same network as the core address ('my_ip')
-                if ((not(my_ip xor ip_rx_data(31 downto 0))) and ip_netmask) = ip_netmask then
+                -- Check weather source address ('ip_rx_packet_i.data(31 downto 0)')
+                -- is in the same network as the core address ('my_ip_i')
+                if ((not(my_ip_i xor ip_rx_packet_i.data(31 downto 0))) and ip_netmask_i) = ip_netmask_i then
                   src_ip_accept <= '1';
-                  disco_ip      <= ip_rx_data(31 downto 0);
+                  disco_ip      <= ip_rx_packet_i.data(31 downto 0);
                 else
                   src_ip_accept <= '0';
                 end if;
@@ -555,27 +527,27 @@ begin
       --! @details For each package the ID is increased with each start of frame.
       --! The ID is used for port_io_table and forwarded to the udp_module.
       --! @todo Test if the overflow is needed/useful: It looks like we could simply always
-      --! increase, udp_tx_id_i'left seems to actually half the available addresses.
+      --! increase, udp_tx_id_r'left seems to actually half the available addresses.
       proc_gen_id_counter : process (clk) is
       begin
         if rising_edge(clk) then
           -- Default: keep current id in memory, nothing to discover
-          udp_tx_id_i <= udp_tx_id_i;
+          udp_tx_id_r <= udp_tx_id_r;
           make_disco  <= '0';
 
           if rst = '1' then
             -- Reset brings the id back to 0
-            udp_tx_id_i <= (others => '0');
+            udp_tx_id_r <= (others => '0');
           -- Valid updates are only on ready signal
           -- Once protocol matches (but tx to udp is just not yet started):
-          elsif rx_ready = '1' and protocol = udp and rx_count = 2 and src_ip_accept = '1' then
+          elsif rx_ready = '1' and protocol = UDP and rx_count = 2 and src_ip_accept = '1' then
             -- Increase the ID, so 1 is the actual first possible ID as the ID is
             -- 'discovered' only at the 3rd clock cycle of the incoming frame
-            if udp_tx_id_i(udp_tx_id_i'left) = '1' then
+            if udp_tx_id_r(udp_tx_id_r'left) = '1' then
               -- Watch overflow: if table is already filled, use 1 as the first id, not 0
-              udp_tx_id_i <= to_unsigned(1, udp_tx_id_i'length);
+              udp_tx_id_r <= to_unsigned(1, udp_tx_id_r'length);
             else
-              udp_tx_id_i <= udp_tx_id_i + 1;
+              udp_tx_id_r <= udp_tx_id_r + 1;
             end if;
             make_disco <= '1';
           end if;
@@ -593,36 +565,36 @@ begin
           disco_wren <= '0';
           -- store if indicated (and not in reset)
           if rst = '0' and make_disco = '1' then
-            disco_id   <= std_logic_vector(udp_tx_id_i);
+            disco_id   <= std_logic_vector(udp_tx_id_r);
             disco_wren <= '1';
           end if;
         end if;
       end process;
 
       --! Instantiate port_io_table to store pair of discovered IP and package ID
-      id_ip_table_inst : entity ethernet_lib.port_io_table
+      inst_id_ip_table : entity ethernet_lib.port_io_table
       generic map (
-        PIN_WIDTH     => 16,
-        POUT_WIDTH    => 32,
+        PORT_I_W      => 16,
+        PORT_O_W      => 32,
         TABLE_DEPTH   => ID_TABLE_DEPTH
       )
       port map (
-        clk           => clk,
-        rst           => rst,
+        clk             => clk,
+        rst             => rst,
 
         -- Discovery interface for writing pair of associated addresses/ports
-        disco_wren    => disco_wren,
-        disco_pin     => disco_id,
-        disco_pout    => disco_ip,
+        disco_wren_i    => disco_wren,
+        disco_port_i    => disco_id,
+        disco_port_o    => disco_ip,
 
         -- Recovery interface for reading pair of associated addresses/ports
-        reco_en       => reco_en,
-        reco_pin      => udp_rx_id,
-        reco_found    => reco_ip_found,
-        reco_pout     => reco_ip,
+        reco_en_i       => reco_en,
+        reco_port_i     => udp_rx_id_i,
+        reco_found_o    => reco_ip_found,
+        reco_port_o     => reco_ip,
 
         -- Status of the module
-        status_vector => status_vector(12 downto 11)
+        status_vector_o => status_vector_o(12 downto 11)
       );
 
     end block;

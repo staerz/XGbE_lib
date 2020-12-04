@@ -12,8 +12,8 @@
 -------------------------------------------------------------------------------
 
 --! @cond
-library IEEE;
-  use IEEE.std_logic_1164.all;
+library fpga;
+  context fpga.interfaces;
 --! @endcond
 
 --! Testbench for ip_module.vhd
@@ -53,30 +53,25 @@ entity ip_module_tb is
 end ip_module_tb;
 
 --! @cond
-library IEEE;
-  use IEEE.numeric_std.all;
 library ethernet_lib;
 library sim;
-library misc;
 --! @endcond
 
 --! Implementation of ip_module_tb
 architecture tb of ip_module_tb is
 
   --! Clock
-  signal clk            : std_logic;
+  signal clk           : std_logic;
   --! Reset, sync with #clk
-  signal rst            : std_logic;
+  signal rst           : std_logic;
 
   --! @name Avalon-ST (IP) to module (read from file)
   --! @{
 
   --! TX ready
-  signal ip_tx_ready    : std_logic;
-  --! TX data
-  signal ip_tx_data     : std_logic_vector(63 downto 0);
-  --! TX controls
-  signal ip_tx_ctrl     : std_logic_vector(6 downto 0);
+  signal ip_tx_ready   : std_logic;
+  --! TX data and controls
+  signal ip_tx_packet  : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
 
   --! @}
 
@@ -84,11 +79,9 @@ architecture tb of ip_module_tb is
   --! @{
 
   --! RX ready
-  signal ip_rx_ready    : std_logic;
-  --! RX data
-  signal ip_rx_data     : std_logic_vector(63 downto 0);
-  --! RX controls
-  signal ip_rx_ctrl     : std_logic_vector(6 downto 0);
+  signal ip_rx_ready   : std_logic;
+  --! RX data and controls
+  signal ip_rx_packet  : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
 
   --! @}
 
@@ -96,13 +89,11 @@ architecture tb of ip_module_tb is
   --! @{
 
   --! TX ready
-  signal udp_tx_ready   : std_logic;
-  --! TX data
-  signal udp_tx_data    : std_logic_vector(63 downto 0);
-  --! TX controls
-  signal udp_tx_ctrl    : std_logic_vector(6 downto 0);
+  signal udp_tx_ready  : std_logic;
+  --! TX data and controls
+  signal udp_tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
   --! TX identifier
-  signal udp_tx_id      : std_logic_vector(15 downto 0);
+  signal udp_tx_id     : std_logic_vector(15 downto 0);
 
   --! @}
 
@@ -110,13 +101,11 @@ architecture tb of ip_module_tb is
   --! @{
 
   --! RX ready
-  signal udp_rx_ready   : std_logic;
-  --! RX data
-  signal udp_rx_data    : std_logic_vector(63 downto 0);
-  --! RX controls
-  signal udp_rx_ctrl    : std_logic_vector(6 downto 0);
+  signal udp_rx_ready  : std_logic;
+  --! RX data and controls
+  signal udp_rx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
   --! RX identifier
-  signal udp_rx_id      : std_logic_vector(15 downto 0);
+  signal udp_rx_id     : std_logic_vector(15 downto 0);
 
   --! @}
 
@@ -124,13 +113,13 @@ architecture tb of ip_module_tb is
   --! @{
 
   --! IP address
-  signal my_ip          : std_logic_vector(31 downto 0) := x"c0_a8_00_1e";
+  signal my_ip         : std_logic_vector(31 downto 0) := x"c0_a8_00_1e";
   --! Net mask
-  signal ip_netmask     : std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
+  signal ip_netmask    : std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
   --! @}
 
   --! Status of the module
-  signal status_vector  : std_logic_vector(12 downto 0);
+  signal status_vector : std_logic_vector(12 downto 0);
 
 begin
 
@@ -147,37 +136,34 @@ begin
     clk             => clk,
     rst             => rst,
 
-    ip_rx_ready     => ip_tx_ready,
-    ip_rx_data      => ip_tx_data,
-    ip_rx_ctrl      => ip_tx_ctrl,
+    ip_rx_ready_o   => ip_tx_ready,
+    ip_rx_packet_i  => ip_tx_packet,
 
-    ip_tx_ready     => ip_rx_ready,
-    ip_tx_data      => ip_rx_data,
-    ip_tx_ctrl      => ip_rx_ctrl,
+    ip_tx_ready_i   => ip_rx_ready,
+    ip_tx_packet_o  => ip_rx_packet,
 
-    udp_rx_ready    => udp_tx_ready,
-    udp_rx_data     => udp_tx_data,
-    udp_rx_ctrl     => udp_tx_ctrl,
-    udp_rx_id       => udp_tx_id,
+    udp_rx_ready_o  => udp_tx_ready,
+    udp_rx_packet_i => udp_tx_packet,
+    udp_rx_id_i     => udp_tx_id,
 
-    udp_tx_ready    => udp_rx_ready,
-    udp_tx_data     => udp_rx_data,
-    udp_tx_ctrl     => udp_rx_ctrl,
-    udp_tx_id       => udp_rx_id,
+    udp_tx_ready_i  => udp_rx_ready,
+    udp_tx_packet_o => udp_rx_packet,
+    udp_tx_id_o     => udp_rx_id,
 
-    my_ip           => my_ip,
-    ip_netmask      => ip_netmask,
+    my_ip_i         => my_ip,
+    ip_netmask_i    => ip_netmask,
 
-    status_vector   => status_vector
+    status_vector_o => status_vector
   );
 
   -- Simulation part
   -- generating stimuli based on counter
   blk_simulation : block
     --! @cond
-    signal counter    : integer := 0;
-    signal sim_rst    : std_logic;
-    signal mnl_rst    : std_logic;
+    signal counter     : integer := 0;
+    signal sim_rst     : std_logic;
+    signal mnl_rst     : std_logic;
+    signal udp_tx_id_r : unsigned(15 downto 0);
     --! @endcond
 
   begin
@@ -209,168 +195,93 @@ begin
 
     rst <= sim_rst or mnl_rst;
 
-    blk_ip_tx : block
+    --! Instantiate avst_packet_sender to read ip_tx from IP_RXD_FILE
+    inst_ip_tx : entity ethernet_lib.avst_packet_sender
+    generic map (
+      FILENAME      => IP_RXD_FILE,
+      COMMENT_FLAG  => COMMENT_FLAG,
+      COUNTER_FLAG  => COUNTER_FLAG
+    )
+    port map (
+      clk       => clk,
+      rst       => rst,
+      cnt       => counter,
+
+      tx_ready  => ip_tx_ready,
+      tx_packet => ip_tx_packet
+    );
+
+    --! Instantiate avst_packet_receiver to write ip_rx to IP_TXD_FILE
+    inst_ip_rx : entity ethernet_lib.avst_packet_receiver
+    generic map (
+      READY_FILE    => IP_RDY_FILE,
+      DATA_FILE     => IP_TXD_FILE,
+      COMMENT_FLAG  => COMMENT_FLAG
+    )
+    port map (
+      clk       => clk,
+      rst       => rst,
+      cnt       => counter,
+
+      rx_ready  => ip_rx_ready,
+      rx_packet => ip_rx_packet
+    );
+
+    --! Instantiate avst_packet_sender to read udp_tx from UDP_RXD_FILE
+    inst_udp_tx : entity ethernet_lib.avst_packet_sender
+    generic map (
+      FILENAME      => UDP_RXD_FILE,
+      COMMENT_FLAG  => COMMENT_FLAG,
+      COUNTER_FLAG  => COUNTER_FLAG
+    )
+    port map (
+      clk       => clk,
+      rst       => rst,
+      cnt       => counter,
+
+      tx_ready  => udp_tx_ready,
+      tx_packet => udp_tx_packet
+    );
+
+    --! Instantiate avst_packet_receiver to write udp_rx to UDP_TXD_FILE
+    inst_upd_rx : entity ethernet_lib.avst_packet_receiver
+    generic map (
+      READY_FILE    => UDP_RDY_FILE,
+      DATA_FILE     => UDP_TXD_FILE,
+      COMMENT_FLAG  => COMMENT_FLAG
+    )
+    port map (
+      clk       => clk,
+      rst       => rst,
+      cnt       => counter,
+
+      rx_ready  => udp_rx_ready,
+      rx_packet => udp_rx_packet
+    );
+
+    --! Generate an ID for each new UDP packet
+    proc_gen_id_counter : process (clk) is
     begin
-      --! Instantiate av_st_sender to read ip_tx from IP_RXD_FILE
-      inst_ip_tx : entity sim.av_st_sender
-      generic map (
-        FILENAME      => IP_RXD_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG,
-        COUNTER_FLAG  => COUNTER_FLAG
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        cnt       => counter,
-
-        -- Avalon-ST to outside world
-        tx_ready  => ip_tx_ready,
-        tx_data   => ip_tx_data,
-        tx_ctrl   => ip_tx_ctrl
-      );
-
-    end block;
-
-    blk_ip_log : block
-      --! @cond
-      signal wren          : std_logic := '0';
-      signal ip_rx_ready_n : std_logic := '0';
-      --! @endcond
-    begin
-
-      --! Instantiate counter_matcher to generate ip_rx_ready_n
-      inst_ip_rx_ready : entity sim.counter_matcher
-      generic map (
-        FILENAME      => IP_RDY_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        counter   => counter,
-        stimulus  => ip_rx_ready_n
-      );
-
-      ip_rx_ready <= not ip_rx_ready_n;
-
-      -- logging block for TX interface
-      wren <= ip_rx_ctrl(6) and ip_rx_ready;
-
-      --! Instantiate file_writer_hex to write ip_tx_data
-      inst_ip_log : entity sim.file_writer_hex
-      generic map (
-        FILENAME      => IP_TXD_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG,
-        BITSPERWORD   => 16,
-        WORDSPERLINE  => 4
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        wren      => wren,
-
-        empty     => ip_rx_ctrl(2 downto 0),
-        eop       => ip_rx_ctrl(4),
-        err       => ip_rx_ctrl(3),
-
-        din       => ip_rx_data
-      );
-
-    end block;
-
-    blk_udp_tx : block
-      signal udp_tx_id_i : unsigned(15 downto 0);
-    begin
-      --! Instantiate av_st_sender to read udp_tx from UDP_RXD_FILE
-      inst_udp_tx : entity sim.av_st_sender
-      generic map (
-        FILENAME      => UDP_RXD_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG,
-        COUNTER_FLAG  => COUNTER_FLAG
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        cnt       => counter,
-
-        -- Avalon-ST to outside world
-        tx_ready  => udp_tx_ready,
-        tx_data   => udp_tx_data,
-        tx_ctrl   => udp_tx_ctrl
-      );
-
-      --! Generate an ID for each new UDP packet
-      proc_gen_id_counter : process (clk) is
-      begin
-        if rising_edge(clk) then
-          if rst = '1' then
-            udp_tx_id_i <= to_unsigned(1, udp_tx_id_i'length);
-          elsif udp_tx_ctrl(4) = '1' and udp_tx_ready = '1' then
-            -- let simulation generate one id which will not be generated by ip module
-            -- itself in order to test the proper reaction of a non-existing id
-            if udp_tx_id_i = to_unsigned(id_table_depth+1, 16) then
-              udp_tx_id_i <= to_unsigned(1, udp_tx_id_i'length);
-            else
-              udp_tx_id_i <= udp_tx_id_i + 1;
-            end if;
+      if rising_edge(clk) then
+        if rst = '1' then
+          udp_tx_id_r <= to_unsigned(1, udp_tx_id_r'length);
+        elsif udp_tx_packet.eop = '1' and udp_tx_ready = '1' then
+          -- let simulation generate one id which will not be generated by ip module
+          -- itself in order to test the proper reaction of a non-existing id
+          if udp_tx_id_r = to_unsigned(id_table_depth+1, 16) then
+            udp_tx_id_r <= to_unsigned(1, udp_tx_id_r'length);
           else
-            udp_tx_id_i <= udp_tx_id_i;
+            udp_tx_id_r <= udp_tx_id_r + 1;
           end if;
+        else
+          udp_tx_id_r <= udp_tx_id_r;
         end if;
-      end process;
+      end if;
+    end process;
 
-      udp_tx_id <=
-        std_logic_vector(udp_tx_id_i) when udp_tx_ctrl(6) = '1' else
-        (others => '0');
-
-    end block;
-
-    blk_udp_log : block
-      --! @cond
-      signal wren           : std_logic := '0';
-      signal udp_rx_ready_n : std_logic := '0';
-      --! @endcond
-    begin
-
-      --! Instantiate counter_matcher to generate ip_rx_ready_n
-      inst_udp_rx_ready : entity sim.counter_matcher
-      generic map (
-        FILENAME      => UDP_RDY_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        counter   => counter,
-        stimulus  => udp_rx_ready_n
-      );
-
-      udp_rx_ready <= not udp_rx_ready_n;
-
-      -- logging block for TX interface
-      wren <= udp_rx_ctrl(6) and udp_rx_ready;
-
-      --! Instantiate file_writer_hex to write ip_tx_data
-      inst_upd_log : entity sim.file_writer_hex
-      generic map (
-        FILENAME      => UDP_TXD_FILE,
-        COMMENT_FLAG  => COMMENT_FLAG,
-        BITSPERWORD   => 16,
-        WORDSPERLINE  => 4
-      )
-      port map (
-        clk       => clk,
-        rst       => rst,
-        wren      => wren,
-
-        empty     => udp_rx_ctrl(2 downto 0),
-        eop       => udp_rx_ctrl(4),
-        err       => udp_rx_ctrl(3),
-
-        din       => udp_rx_data
-      );
-
-    end block;
+    udp_tx_id <=
+      std_logic_vector(udp_tx_id_r) when udp_tx_packet.valid = '1' else
+      (others => '0');
 
   end block;
 
