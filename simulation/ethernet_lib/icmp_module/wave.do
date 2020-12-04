@@ -7,14 +7,12 @@ add wave -noupdate /icmp_module_tb/MNL_RST_FILE
 add wave -noupdate -radix decimal -radixshowbase 0 /icmp_module_tb/blk_simulation/counter
 add wave -noupdate /icmp_module_tb/clk
 add wave -noupdate /icmp_module_tb/rst
-add wave -noupdate /icmp_module_tb/uut/ip_rx_ready
-add wave -noupdate /icmp_module_tb/uut/ip_rx_data
-add wave -noupdate /icmp_module_tb/uut/ip_rx_ctrl
-add wave -noupdate /icmp_module_tb/uut/is_icmp_request
-add wave -noupdate /icmp_module_tb/uut/icmp_out_ready
-add wave -noupdate /icmp_module_tb/uut/icmp_out_data
-add wave -noupdate /icmp_module_tb/uut/icmp_out_ctrl
-add wave -noupdate /icmp_module_tb/uut/status_vector
+add wave -noupdate /icmp_module_tb/uut/ip_rx_ready_o
+add wave -noupdate /icmp_module_tb/uut/ip_rx_packet_i
+add wave -noupdate /icmp_module_tb/uut/is_icmp_request_i
+add wave -noupdate /icmp_module_tb/uut/icmp_tx_ready_i
+add wave -noupdate /icmp_module_tb/uut/icmp_tx_packet_o
+add wave -noupdate /icmp_module_tb/uut/status_vector_o
 TreeUpdate [SetDefaultTree]
 WaveRestoreCursors {{Cursor 1} {442536 ps} 0}
 quietly wave cursor active 1
