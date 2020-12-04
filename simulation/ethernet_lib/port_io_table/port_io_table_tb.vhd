@@ -21,11 +21,11 @@ library IEEE;
 entity port_io_table_tb is
   generic (
     --! Width of the port to be associated
-    PIN_WIDTH    : integer range 1 to 64   := 32;
+    PORT_I_W    : integer range 1 to 64   := 32;
     --! Width of the associated port
-    POUT_WIDTH   : integer range 1 to 64   := 48;
+    PORT_O_W    : integer range 1 to 64   := 48;
     --! Depth of the table
-    TABLE_DEPTH  : integer range 1 to 1024 := 3
+    TABLE_DEPTH : integer range 1 to 1024 := 3
   );
 end port_io_table_tb;
 
@@ -36,42 +36,44 @@ library sim;
 
 --! Implementation of port_io_table_tb
 architecture tb of port_io_table_tb is
+
   --! Clock
-  signal clk        : std_logic;
+  signal clk             : std_logic;
   --! Reset, sync with #clk
-  signal rst        : std_logic;
+  signal rst             : std_logic;
 
   --! @name Discovery interface for writing pair of associated addresses/ports
   --! @{
 
   --! Discovery write enable
-  signal disco_wren : std_logic;
+  signal disco_wren_i    : std_logic;
   --! Discovery input port
-  signal disco_pin  : std_logic_vector(PIN_WIDTH-1 downto 0);
+  signal disco_port_i    : std_logic_vector(PORT_I_W-1 downto 0);
   --! Discovery output port
-  signal disco_pout : std_logic_vector(POUT_WIDTH-1 downto 0);
+  signal disco_port_o    : std_logic_vector(PORT_O_W-1 downto 0);
   --! @}
 
   --! @name Recovery interface for reading pair of associated addresses/ports
   --! @{
 
   --! Recovery read enable
-  signal reco_en    : std_logic;
+  signal reco_en_i       : std_logic;
   --! Recovery input port
-  signal reco_pin   : std_logic_vector(PIN_WIDTH-1 downto 0);
+  signal reco_port_i     : std_logic_vector(PORT_I_W-1 downto 0);
   --! Recovery output port (response next clk cycle)
-  signal reco_pout  : std_logic_vector(POUT_WIDTH-1 downto 0);
+  signal reco_port_o     : std_logic_vector(PORT_O_W-1 downto 0);
   --! Recovery success indicator
-  signal reco_found : std_logic;
+  signal reco_found_o    : std_logic;
   --! @}
 
   --! Status of the module
-  signal status_vector    : std_logic_vector(1 downto 0);
+  signal status_vector_o : std_logic_vector(1 downto 0);
 
   --! Counter for simulation
-  signal counter    : integer := 0;
+  signal counter         : integer := 0;
 
 begin
+
   --! Instantiate simulation_basics to start
   sim_basics : entity sim.simulation_basics
   port map (
@@ -83,59 +85,60 @@ begin
   --! Instantiate the Unit Under Test (UUT)
   uut : entity ethernet_lib.port_io_table
   generic map (
-    PIN_WIDTH     => PIN_WIDTH,
-    POUT_WIDTH    => POUT_WIDTH,
-    TABLE_DEPTH   => TABLE_DEPTH
+    PORT_I_W        => PORT_I_W,
+    PORT_O_W        => PORT_O_W,
+    TABLE_DEPTH     => TABLE_DEPTH
   )
   port map (
-    clk           => clk,
-    rst           => rst,
+    clk             => clk,
+    rst             => rst,
 
     -- interface for writing new discovered MAC and IP to ARP table
-    disco_wren    => disco_wren,
-    disco_pin     => disco_pin,
-    disco_pout    => disco_pout,
+    disco_wren_i    => disco_wren_i,
+    disco_port_i    => disco_port_i,
+    disco_port_o    => disco_port_o,
 
     -- interface for recovered MAC address from given IP address
-    reco_en       => reco_en,
-    reco_pin      => reco_pin,
+    reco_en_i       => reco_en_i,
+    reco_port_i     => reco_port_i,
     -- response (next clk)
-    reco_found    => reco_found,
-    reco_pout     => reco_pout,
+    reco_found_o    => reco_found_o,
+    reco_port_o     => reco_port_o,
 
     -- status of the ARP table, see definitions below
-    status_vector => status_vector
+    status_vector_o => status_vector_o
   );
 
---  generating stimuli based on counter
+  --  generating stimuli based on counter
 
---  generate 4 ARP entries in a table with 3 spaces:
---  last one to overwrite first
-  with counter select disco_wren <=
+  --  generate 4 ARP entries in a table with 3 spaces:
+  --  last one to overwrite first
+  -- vsg_off
+  with counter select disco_wren_i <=
     '1' when 4 | 8 | 16 | 40,
     '0' when others;
 
-  with counter select disco_pin <=
+  with counter select disco_port_i <=
     x"11_22_ab_01" when 4,
     x"22_33_cd_02" when 8,
     x"33_44_ef_03" when 16,
     x"44_55_01_04" when 40,
     (others => '0') when others;
 
-  with counter select disco_pout <=
+  with counter select disco_port_o <=
     x"11_22_33_44_55_66" when 4,
     x"aa_bb_cc_dd_ee_ff" when 8,
     x"ab_cd_ef_ab_cd_ef" when 16,
     x"12_34_56_78_90_ab" when 40,
     (others => '0') when others;
 
---  generate 4 ARP recover requests
-  with counter select reco_en <=
+  --  generate 4 ARP recover requests
+  with counter select reco_en_i <=
     '1' when 20 | 25 | 30 | 45 | 50 | 55,
     '1' when 60, -- reco for not known address
     '0' when others;
 
-  with counter select reco_pin <=
+  with counter select reco_port_i <=
     x"11_22_ab_01" when 20,
     x"22_33_cd_02" when 25,
     x"33_44_ef_03" when 30,
@@ -144,5 +147,6 @@ begin
     x"22_33_cd_02" when 55, -- second again: should be found
     x"ff_aa_bb_cc" when 60, -- unknown address: should not be found
     (others => '0') when others;
+  -- vsg_on
 
 end tb;

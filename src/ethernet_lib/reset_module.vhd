@@ -18,74 +18,70 @@
 --! and should have first priority on the TX interface merger.
 --!
 --! Addresses and ports for self-configuration have to be always provided:
---!   - my_mac: Ethernet MAC address
---!   - my_ip: IP address
---!   - my_udp_port: UDP port
+--!   - my_mac_i: Ethernet MAC address
+--!   - my_ip_i: IP address
+--!   - my_udp_port_i: UDP port
 -------------------------------------------------------------------------------
 
 --! @cond
-library ieee;
-  use ieee.std_logic_1164.all;
+library fpga;
+  context fpga.interfaces;
 --! @endcond
 
 --! IPbus reset responder
 entity reset_module is
   generic (
-    --! Reset duration for rst_out in clk cycles
+    --! Reset duration for rst_o in clk cycles
     RESET_DURATION      : positive               := 10;
-    --! Width of rst_out
+    --! Width of rst_o
     RESET_WIDTH         : positive range 1 to 32 := 1;
     --! IPbus address of the reset register
     RESET_REGISTER_ADD  : std_logic_vector(31 downto 0)
   );
   port (
     --! Clock
-    clk           : in    std_logic;
+    clk             : in    std_logic;
     --! Reset, sync with #clk
-    rst           : in    std_logic;
+    rst             : in    std_logic;
 
     --! @name Avalon-ST from reset requester
     --! @{
 
     --! RX ready
-    rst_rx_ready  : out   std_logic;
-    --! RX data
-    rst_rx_data   : in    std_logic_vector(63 downto 0);
-    --! RX controls
-    rst_rx_ctrl   : in    std_logic_vector(6 downto 0);
+    rx_ready_o      : out   std_logic;
+    --! RX data and controls
+    rx_packet_i     : in    t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! @}
 
     --! @name Avalon-ST to reset requester
     --! @{
 
     --! TX ready
-    rst_tx_ready  : in    std_logic;
-    --! TX data
-    rst_tx_data   : out   std_logic_vector(63 downto 0);
-    --! TX controls
-    rst_tx_ctrl   : out   std_logic_vector(6 downto 0);
+    tx_ready_i      : in    std_logic;
+    --! TX data and controls
+    tx_packet_o     : out   t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! @}
 
     --! @name Configuration of the module
     --! @{
 
     --! MAC address
-    my_mac        : in    std_logic_vector(47 downto 0);
+    my_mac_i        : in    std_logic_vector(47 downto 0);
     --! IP address
-    my_ip         : in    std_logic_vector(31 downto 0);
+    my_ip_i         : in    std_logic_vector(31 downto 0);
     --! UDP port
-    my_udp_port   : in    std_logic_vector(15 downto 0);
+    my_udp_port_i   : in    std_logic_vector(15 downto 0);
     --! @}
 
     --! Reset output
-    rst_out       : out   std_logic_vector(RESET_WIDTH-1 downto 0);
+    rst_o           : out   std_logic_vector(RESET_WIDTH-1 downto 0);
 
     --! @brief Status of the module
     --! @details Status of the module
     --! - 2: Reset in progress
     --! - 1: Reset response is being sent
     --! - 0: Reset receiver is not ready
-    status_vector : out   std_logic_vector(2 downto 0)
+    status_vector_o : out   std_logic_vector(2 downto 0)
   );
 end reset_module;
 
@@ -120,7 +116,7 @@ architecture behavioral of reset_module is
   --! Packet ID
   signal ipbus_packet_id    : std_logic_vector(15 downto 0) := (others => '0');
   --! Transaction ID
-  signal ipbus_trans_id   : std_logic_vector(11 downto 0) := (others => '0');
+  signal ipbus_trans_id     : std_logic_vector(11 downto 0) := (others => '0');
   --! Number of words
   signal ipbus_number_words : std_logic_vector(7 downto 0) := (others => '0');
   --! Packet endianness
@@ -149,21 +145,23 @@ begin
     signal tx_count       : unsigned(4 downto 0) := (others => '1');
 
   begin
-    status_vector(0) <= '1' when rst_tx_ready = '0' else '0';
-    status_vector(1) <= '1' when to_integer(tx_count) >= 1 and to_integer(tx_count) <= 7 else '0';
+    status_vector_o(0) <= '1' when tx_ready_i = '0' else '0';
+    status_vector_o(1) <= '1' when to_integer(tx_count) >= 1 and to_integer(tx_count) <= 7 else '0';
 
-    --  rst_tx_data   <= see state machine;
+    --  tx_packet_o   <= see state machine;
 
-    rst_tx_ctrl(6)  <= '1' when to_integer(tx_count) >= 1 and to_integer(tx_count) <= 7 else '0';
-    rst_tx_ctrl(5)  <= '1' when to_integer(tx_count) = 1 else '0';
-    rst_tx_ctrl(4)  <= '1' when to_integer(tx_count) = 7 else '0';
-    rst_tx_ctrl(3)  <= '0';
+    tx_packet_o.valid <= '1' when to_integer(tx_count) >= 1 and to_integer(tx_count) <= 7 else '0';
+    tx_packet_o.sop   <= '1' when to_integer(tx_count) = 1 else '0';
+    tx_packet_o.eop   <= '1' when to_integer(tx_count) = 7 else '0';
+    tx_packet_o.error <= "0";
 
-    with to_integer(tx_count) select rst_tx_ctrl(2 downto 0) <=
+    -- vsg_off
+    with to_integer(tx_count) select tx_packet_o.empty <=
       "000" when 1 to 6,
       "010" when 7,
       "000" when others;
 
+    -- vsg_on
     --! @brief Counting the clock cycles being in the sending mode
     --! (the frames of 8 bytes to be sent)
     proc_cnt : process (clk) is
@@ -172,7 +170,7 @@ begin
         if init_reset = '1' then
           tx_count <= (others => '0');
         -- keep counting otherwise
-        elsif rst_tx_ready = '1' and tx_count(tx_count'left) = '0' then
+        elsif tx_ready_i = '1' and tx_count(tx_count'left) = '0' then
           tx_count <= tx_count + 1;
         else
           tx_count <= tx_count;
@@ -207,16 +205,17 @@ begin
       --! @}
 
     begin
+      -- vsg_off
       -- Create reset response packet as the complete Ethernet frame
-      with to_integer(tx_count) select rst_tx_data <=
+      with to_integer(tx_count) select tx_packet_o.data <=
         -- destination mac (6 bytes)
         tg_mac &
         -- + first 2 bytes source mac
-        my_mac(47 downto 32)
+        my_mac_i(47 downto 32)
           when 1,
 
         -- last 4 bytes source mac
-        my_mac(31 downto 0) &
+        my_mac_i(31 downto 0) &
         -- packet type: ip = x"0800"
         x"0800" &
         -- type of service
@@ -236,7 +235,7 @@ begin
         -- IP CRC
         ip_crc_out &
         -- source IP address
-        my_ip &
+        my_ip_i &
         -- destination IP address (upper part)
         tg_ip(31 downto 16)
           when 4,
@@ -244,7 +243,7 @@ begin
         -- destination IP address (lower part)
         tg_ip(15 downto 0) &
         -- source UDP port
-        my_udp_port &
+        my_udp_port_i &
         -- destination UDP port
         tg_udp &
         -- UDP length ... is constant as write is only confirmed
@@ -269,6 +268,7 @@ begin
         (others => '0')
           when others;
 
+      -- vsg_on
       -- actually setting the IPbus data to be transmitted according to endianness
       -- IPbus packet header
       ipbus_word_1 <= twist32(x"20" & ipbus_packet_id & x"f0", ipbus_big_endian);
@@ -285,10 +285,11 @@ begin
         signal ip_crc_rst : std_logic;
       begin
 
+        -- vsg_off
         -- Consider the IP header when creating the packet
         with to_integer(tx_count) select ip_header_before_crc <=
           x"4500" & IP_LENGTH & IP_ID & x"0000" when 1,
-          IP_TTLPROT & x"0000" & my_ip when 2,
+          IP_TTLPROT & x"0000" & my_ip_i when 2,
           tg_ip & x"0000_0000" when 3,
           (others => '0') when others;
 
@@ -297,6 +298,7 @@ begin
           '1' when 0,
           '0' when others;
 
+        -- vsg_on
         --! Instantiate checksum_calc to calculate IP CRC
         crc_calc: entity misc.checksum_calc
         generic map (
@@ -305,7 +307,7 @@ begin
         )
         port map (
           clk     => clk,
-          en      => rst_tx_ready,
+          en      => tx_ready_i,
           rst     => ip_crc_rst,
           data_in => ip_header_before_crc,
           sum_out => ip_crc_out
@@ -359,7 +361,7 @@ begin
       cycle_done  => cnt_done
     );
 
-    rst_out <= soft_resets(RESET_WIDTH-1 downto 0) when cnt_en = '1' else (others => '0');
+    rst_o <= soft_resets(RESET_WIDTH-1 downto 0) when cnt_en = '1' else (others => '0');
   end block;
 
   -- Receiver part
@@ -377,9 +379,9 @@ begin
     signal rx_state       : t_rx_state := IDLE;
 
     --! Internal ready
-    signal rst_rx_ready_i   : std_logic := '1';
+    signal rx_ready         : std_logic := '1';
     --! Internal valid (delayed)
-    signal rst_rx_valid_d   : std_logic := '0';
+    signal rx_valid_d       : std_logic := '0';
 
     --! Counter for incoming frame
     signal rx_count         : unsigned(7 downto 0) := to_unsigned(0, 8);
@@ -390,7 +392,7 @@ begin
     signal rx_data_reg2     : std_logic_vector(63 downto 0) := (others => '0');
     --! @}
     --! RX control signals
-    signal rst_rx_ctrl_reg  : std_logic_vector(6 downto 0) := (others => '0');
+    signal rx_ctrl_reg      : std_logic_vector(6 downto 0) := (others => '0');
 
     --! @name Registers to extract relevant data from incoming (reset) packets
     --! these signals serve the tx path and are extracted blindly
@@ -411,12 +413,12 @@ begin
     --! @}
 
   begin
-    status_vector(2) <= '1' when rx_state = RESETTING else '0';
+    status_vector_o(2) <= '1' when rx_state = RESETTING else '0';
 
     -- receiver is always ready
-    rst_rx_ready_i <= '1';
+    rx_ready <= '1';
 
-    rst_rx_ready <= rst_rx_ready_i;
+    rx_ready_o <= rx_ready;
 
     --! @brief Transfer of recovered IDs to signals for TX FSM
     --! @todo rst should actually reset all signals here - and default values should be removed
@@ -446,14 +448,14 @@ begin
       end if;
     end process;
 
-    --! Introduce delay of rst_valid to keep counting one frame after the packet
-    proc_rst_rx_valid_d : process (clk) is
+    --! Introduce delay of rx_packet_i.valid to keep counting one frame after the packet
+    proc_rx_valid_d : process (clk) is
     begin
       if rising_edge(clk) then
         if (rst = '1') then
-          rst_rx_valid_d <= '0';
+          rx_valid_d <= '0';
         else
-          rst_rx_valid_d <= rst_rx_ctrl(6);
+          rx_valid_d <= rx_packet_i.valid;
         end if;
       end if;
     end process;
@@ -467,9 +469,9 @@ begin
           rx_data_reg      <= (others => '0');
           rx_count         <= (others => '0');
           ipbus_big_endian <= '0';
-        elsif (rst_rx_ctrl(6) = '1' or rst_rx_valid_d = '1') and rst_rx_ready_i = '1' then
+        elsif (rx_packet_i.valid = '1' or rx_valid_d = '1') and rx_ready = '1' then
           -- ... sof initializes counter and endian-ness
-          if (rst_rx_ctrl(5) = '1') then
+          if rx_packet_i.sop = '1' then
             -- rx_count <= to_unsigned(1, 8);
             -- with new reg stage, make it from 0
             rx_count         <= to_unsigned(0, 8);
@@ -486,32 +488,32 @@ begin
             -- IPbus packet header in little-endian
             -- IPbus protocol version 2
             -- endianness and control packet
-            if rst_rx_data(47 downto 40) = x"20" and
-              rst_rx_data(23 downto 16) = x"f0" then
+            if rx_packet_i.data(47 downto 40) = x"20" and
+              rx_packet_i.data(23 downto 16) = x"f0" then
               ipbus_big_endian <= '0';
-            elsif rst_rx_data(47 downto 40) = x"f0" and
+            elsif rx_packet_i.data(47 downto 40) = x"f0" and
               -- or in big-endian
-              rst_rx_data(23 downto 16) = x"20" then
+              rx_packet_i.data(23 downto 16) = x"20" then
               ipbus_big_endian <= '1';
             end if;
           end if;
 
-          rst_rx_ctrl_reg <= rst_rx_ctrl;
-          rx_data_reg1    <= rst_rx_data;
-          rx_data_reg2    <= rx_data_reg1;
+          rx_ctrl_reg  <= avst_ctrl(rx_packet_i);
+          rx_data_reg1 <= rx_packet_i.data;
+          rx_data_reg2 <= rx_data_reg1;
           -- if required, twist 32 bit words of IPbus
           if ipbus_big_endian = '1' then
             if rx_count = 5 then
               rx_data_reg(63 downto 48) <= rx_data_reg1(63 downto 48);
               rx_data_reg(47 downto 16) <= twist32(rx_data_reg1(47 downto 16), '1');
-              rx_data_reg(15 downto  8) <= rst_rx_data(55 downto 48);
-              rx_data_reg( 7 downto  0) <= rst_rx_data(63 downto 56);
+              rx_data_reg(15 downto  8) <= rx_packet_i.data(55 downto 48);
+              rx_data_reg( 7 downto  0) <= rx_packet_i.data(63 downto 56);
             else
               rx_data_reg(63 downto 56) <= rx_data_reg2( 7 downto 0);
               rx_data_reg(55 downto 48) <= rx_data_reg2(15 downto 8);
               rx_data_reg(47 downto 16) <= twist32(rx_data_reg1(47 downto 16), '1');
-              rx_data_reg(15 downto  8) <= rst_rx_data(55 downto 48);
-              rx_data_reg( 7 downto  0) <= rst_rx_data(63 downto 56);
+              rx_data_reg(15 downto  8) <= rx_packet_i.data(55 downto 48);
+              rx_data_reg( 7 downto  0) <= rx_packet_i.data(63 downto 56);
             end if;
           else
             rx_data_reg <= rx_data_reg1;
@@ -576,7 +578,7 @@ begin
 
             when IDLE =>
               -- check for start of frame
-              if (rst_rx_ctrl(5) = '1') then
+              if rx_packet_i.sop = '1' then
                 rx_state <= HEADER;
               else
                 rx_state <= IDLE;
@@ -593,7 +595,7 @@ begin
                   rx_state <= HEADER;
                 when 1 =>
                   -- require proper mac address
-                  if rx_data_reg(63 downto 16) /= my_mac then
+                  if rx_data_reg(63 downto 16) /= my_mac_i then
                     rx_state <= SKIP;
                   end if;
                 when 2 =>
@@ -602,7 +604,7 @@ begin
                     rx_state <= SKIP;
                   end if;
                 when 3 =>
-                  -- no more fragments
+                  -- no more fragments,
                   if rx_data_reg(29) /= '0' or
                     -- udp
                     rx_data_reg(7 downto 0) /= x"11"
@@ -610,12 +612,12 @@ begin
                     rx_state <= SKIP;
                   end if;
                 when 4 =>
-                  if rx_data_reg(15 downto 0) /= my_ip(31 downto 16) then
+                  if rx_data_reg(15 downto 0) /= my_ip_i(31 downto 16) then
                     rx_state <= SKIP;
                   end if;
                 when 5 =>
-                  if rx_data_reg(63 downto 48) /= my_ip(15 downto 0) or
-                    rx_data_reg(31 downto 16) /= my_udp_port
+                  if rx_data_reg(63 downto 48) /= my_ip_i(15 downto 0) or
+                    rx_data_reg(31 downto 16) /= my_udp_port_i
                   then
                     rx_state <= SKIP;
                   end if;
@@ -640,7 +642,7 @@ begin
                     rx_state <= SKIP;
                   else
                     -- error indication
-                    if rst_rx_ctrl_reg(4) = '1' and rst_rx_ctrl_reg(3) = '0' then
+                    if rx_ctrl_reg(4) = '1' and rx_ctrl_reg(3) = '0' then
                       rx_state                  <= RESETTING;
                       soft_resets(31 downto 16) <= rx_data_reg(15 downto 0);
                     else
@@ -651,7 +653,7 @@ begin
                 when others =>
                   -- may be padded: wait for eof
                   -- error indication
-                  if rst_rx_ctrl_reg(4) = '1' and rst_rx_ctrl_reg(3) = '0' then
+                  if rx_ctrl_reg(4) = '1' and rx_ctrl_reg(3) = '0' then
                     rx_state <= RESETTING;
                   end if;
 
@@ -664,7 +666,7 @@ begin
 
             -- just let pass all other data, wait for eof
             when SKIP =>
-              if rst_rx_ctrl(4) = '1' then
+              if rx_packet_i.eop = '1' then
                 rx_state <= IDLE;
               end if;
 
