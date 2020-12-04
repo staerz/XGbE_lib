@@ -148,9 +148,6 @@
         "entity_005":{
           "disable": true
         },
-        "port_025":{
-          "disable": true
-        },
       },
     },
     "src/ethernet_lib/ip_module.vhd":{

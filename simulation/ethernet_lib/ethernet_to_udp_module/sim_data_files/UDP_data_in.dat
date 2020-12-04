@@ -31,13 +31,13 @@ containing data
 % this packet will trigger arp requests since the 3rd id came from ip 192.168.0.10 which is not yet in the arp table, so the arp reply should be sent next
 
 % short packet with good CRC but wrong length indication
-%launch exactly when ICMP module starts answering to provoke a crash
+% launch exactly when ICMP module starts answering to provoke a crash
 @ 333
 0002 a193 000b eefe
 1112 3456 7890 abcd 111 0
 % this fault is spotted
 
-%long packet with wrong CRC and wrong length indication
+% long packet with wrong CRC and wrong length indication
 @ 400
 0002 a194 000c effe
 0000 0018 1000 0001
@@ -64,6 +64,7 @@ containing data
 @ 435
 0002 a192 000c effe
 1000 0001 0000 0000 100 0
+
 % expected reaction: As ID is not found, the broadcast IP will be used
 % that triggers an ARP request
 % as that request is never replied, the package is sent out via a broadcast.
