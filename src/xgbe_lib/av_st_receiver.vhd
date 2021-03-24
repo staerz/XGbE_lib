@@ -73,7 +73,7 @@ begin
   port map (
     clk       => clk,
     rst       => rst,
-    counter   => cnt,
+    cnt       => cnt,
     stimulus  => rx_ready_n
   );
 
