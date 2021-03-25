@@ -140,7 +140,7 @@ begin
     port map (
       clk       => clk,
       rst       => '0',
-      counter   => counter,
+      cnt       => counter,
       stimulus  => mnl_rst
     );
 
