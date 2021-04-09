@@ -95,12 +95,13 @@ architecture behavioral of interface_merger is
   type t_tx_state is (IDLE, AVST1, AVST2, INTERRUPT, IGAP, FGAP);
 
   --! State of the TX FSM
+  -- vsg_disable_next_line signal_007
   signal tx_state : t_tx_state := IDLE;
 
   --! AVST end of frame
-  signal avst_tx_eof : std_logic := '0';
+  signal avst_tx_eof : std_logic;
   --! Indicator if avst2 wants to send a packet next
-  signal avst2_next  : std_logic := '0';
+  signal avst2_next  : std_logic;
 
 begin
 
@@ -211,9 +212,9 @@ begin
     constant IDLE_CTRL      : std_logic_vector(EMPTY_W + 3 downto 0) := (others => '0');
 
     --! Internal ready signal for avst1
-    signal avst1_rx_ready_r : std_logic := '0';
+    signal avst1_rx_ready_r : std_logic;
     --! Internal ready signal for avst2
-    signal avst2_rx_ready_r : std_logic := '0';
+    signal avst2_rx_ready_r : std_logic;
   begin
 
     --! Buffer first word that each interface wants to transmit

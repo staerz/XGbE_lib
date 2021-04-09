@@ -309,8 +309,8 @@ begin
 
       -- instantiate counting to generate artificial gap between packets
       blk_make_tx_done : block
-        signal cnt_rst : std_logic := '0';
-        signal tx_next : std_logic := '0';
+        signal cnt_rst : std_logic;
+        signal tx_next : std_logic;
       begin
 
         cnt_rst <= '1' when tx_state /= TRAILER else tx_valid(3);

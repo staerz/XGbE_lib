@@ -96,30 +96,30 @@ library misc;
 architecture behavioral of reset_module is
 
   --! Reset initiation once a reset request has been recovered
-  signal init_reset : std_logic := '0';
+  signal init_reset : std_logic;
 
   --! @name Ethernet configuration of the reset requester
   --! @{
 
   --! MAC address
-  signal tg_mac : std_logic_vector(47 downto 0) := (others => '0');
+  signal tg_mac : std_logic_vector(47 downto 0);
   --! IP address
-  signal tg_ip  : std_logic_vector(31 downto 0) := (others => '0');
+  signal tg_ip  : std_logic_vector(31 downto 0);
   --! UDP port
-  signal tg_udp : std_logic_vector(15 downto 0) := (others => '0');
+  signal tg_udp : std_logic_vector(15 downto 0);
   --! @}
 
   --! @name Information on the requesting IPbus packet
   --! @{
 
   --! Packet ID
-  signal ipbus_packet_id    : std_logic_vector(15 downto 0) := (others => '0');
+  signal ipbus_packet_id    : std_logic_vector(15 downto 0);
   --! Transaction ID
-  signal ipbus_trans_id     : std_logic_vector(11 downto 0) := (others => '0');
+  signal ipbus_trans_id     : std_logic_vector(11 downto 0);
   --! Number of words
-  signal ipbus_number_words : std_logic_vector(7 downto 0) := (others => '0');
+  signal ipbus_number_words : std_logic_vector(7 downto 0);
   --! Packet endianness
-  signal ipbus_big_endian   : std_logic := '0';
+  signal ipbus_big_endian   : std_logic;
   --! @}
 
   --! Decoded soft resets from reset request
@@ -141,6 +141,7 @@ begin
   -- Transmitter part
   blk_make_tx_interface : block
     --! Counter for outgoing response frame
+    -- vsg_disable_next_line signal_007
     signal tx_count : unsigned(4 downto 0) := (others => '1');
   begin
 
@@ -188,17 +189,17 @@ begin
       --! @}
 
       --! IPbus CRC
-      signal ip_crc_out : std_logic_vector(15 downto 0) := (others => '0');
+      signal ip_crc_out : std_logic_vector(15 downto 0);
 
       --! @name Intermediate data words
       --! @{
 
       --! IPbus word 1
-      signal ipbus_word_1 : std_logic_vector(31 downto 0) := (others => '0');
+      signal ipbus_word_1 : std_logic_vector(31 downto 0);
       --! IPbus word 2
-      signal ipbus_word_2 : std_logic_vector(31 downto 0) := (others => '0');
+      signal ipbus_word_2 : std_logic_vector(31 downto 0);
       --! IPbus word 3
-      signal ipbus_word_3 : std_logic_vector(31 downto 0) := (others => '0');
+      signal ipbus_word_3 : std_logic_vector(31 downto 0);
       --! @}
     begin
 
@@ -311,9 +312,10 @@ begin
     --! @{
 
     --! Counter enable
+    -- vsg_disable_next_line signal_007
     signal cnt_en   : std_logic := '0';
     --! Counter end
-    signal cnt_done : std_logic := '0';
+    signal cnt_done : std_logic;
     --! @}
   begin
 
@@ -364,40 +366,42 @@ begin
     type t_rx_state is (IDLE, HEADER, SKIP, RESETTING);
 
     --! State of the RX FSM
+    -- vsg_disable_next_line signal_007
     signal rx_state : t_rx_state := IDLE;
 
     --! Internal ready
-    signal rx_ready   : std_logic := '1';
+    signal rx_ready   : std_logic;
     --! Internal valid (delayed)
-    signal rx_valid_d : std_logic := '0';
+    signal rx_valid_d : std_logic;
 
     --! Counter for incoming frame
+    -- vsg_disable_next_line signal_007
     signal rx_count     : unsigned(7 downto 0) := to_unsigned(0, 8);
     --! @names Registers for receiving data
     --! @{
-    signal rx_data_reg  : std_logic_vector(63 downto 0) := (others => '0');
-    signal rx_data_reg1 : std_logic_vector(63 downto 0) := (others => '0');
-    signal rx_data_reg2 : std_logic_vector(63 downto 0) := (others => '0');
+    signal rx_data_reg  : std_logic_vector(63 downto 0);
+    signal rx_data_reg1 : std_logic_vector(63 downto 0);
+    signal rx_data_reg2 : std_logic_vector(63 downto 0);
     --! @}
     --! RX control signals
-    signal rx_ctrl_reg  : std_logic_vector(6 downto 0) := (others => '0');
+    signal rx_ctrl_reg  : std_logic_vector(6 downto 0);
 
     --! @name Registers to extract relevant data from incoming (reset) packets
     --! these signals serve the tx path and are extracted blindly
     --! @{
 
     --! Target MAC address
-    signal rx_data_copy_tg_mac       : std_logic_vector(47 downto 0) := (others => '0');
+    signal rx_data_copy_tg_mac       : std_logic_vector(47 downto 0);
     --! Target IP address
-    signal rx_data_copy_tg_ip        : std_logic_vector(31 downto 0) := (others => '0');
+    signal rx_data_copy_tg_ip        : std_logic_vector(31 downto 0);
     --! Target UDP port
-    signal rx_data_copy_tg_udp       : std_logic_vector(15 downto 0) := (others => '0');
+    signal rx_data_copy_tg_udp       : std_logic_vector(15 downto 0);
     --! Target IPbus packet ID
-    signal rx_data_copy_packet_id    : std_logic_vector(15 downto 0) := (others => '0');
+    signal rx_data_copy_packet_id    : std_logic_vector(15 downto 0);
     --! Target IPbus transaction ID
-    signal rx_data_copy_trans_id     : std_logic_vector(11 downto 0) := (others => '0');
+    signal rx_data_copy_trans_id     : std_logic_vector(11 downto 0);
     --! Target IPbus number of words
-    signal rx_data_copy_number_words : std_logic_vector(7 downto 0) := (others => '0');
+    signal rx_data_copy_number_words : std_logic_vector(7 downto 0);
     --! @}
   begin
 
@@ -409,11 +413,17 @@ begin
     rx_ready_o <= rx_ready;
 
     --! @brief Transfer of recovered IDs to signals for TX FSM
-    --! @todo rst should actually reset all signals here - and default values should be removed
     proc_initiate_reset : process (clk)
     begin
       if rising_edge(clk) then
         if (rst = '1') then
+          init_reset         <= '0';
+          tg_mac             <= (others => '0');
+          tg_ip              <= (others => '0');
+          tg_upd             <= (others => '0');
+          ipbus_packet_id    <= (others => '0');
+          ipbus_trans_id     <= (others => '0');
+          ipbus_number_words <= (others => '0');
         else
           if rx_state = RESETTING then
             init_reset         <= '1';

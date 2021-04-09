@@ -236,6 +236,7 @@ begin
     type t_rx_state is (HEADER, RX, SKIP);
 
     --! State of the RX FSM
+    -- vsg_disable_next_line signal_007
     signal rx_state : t_rx_state := HEADER;
 
     --! Ready
@@ -256,6 +257,7 @@ begin
     type t_protocol is (NOTSUPPORTED, UDP, ICMP);
 
     --! Protocol of the incoming packet
+    -- vsg_disable_next_line signal_007
     signal protocol : t_protocol := NOTSUPPORTED;
 
     --! Ready signal of the icmp_module
