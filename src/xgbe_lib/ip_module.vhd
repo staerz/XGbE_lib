@@ -227,15 +227,16 @@ begin
 
   blk_stripoff_header : block
     --! @brief State definition for the RX FSM
-
     --! @details
     --! State definition for the RX FSM
     --! - HEADER: Expecting IP header
     --! - RX:     Packet forwarding
     --! - SKIP:   Skips all frames until EOF (if header is wrong)
+
     type t_rx_state is (HEADER, RX, SKIP);
 
     --! State of the RX FSM
+
     -- vsg_disable_next_line signal_007
     signal rx_state : t_rx_state := HEADER;
 
@@ -257,6 +258,7 @@ begin
     type t_protocol is (NOTSUPPORTED, UDP, ICMP);
 
     --! Protocol of the incoming packet
+
     -- vsg_disable_next_line signal_007
     signal protocol : t_protocol := NOTSUPPORTED;
 

@@ -126,8 +126,7 @@ begin
   -- generating stimuli based on counter
   blk_simulation : block
     --! @cond
-    -- vsg_disable_next_line signal_007
-    signal counter : integer := 0;
+    signal counter : integer;
     signal sim_rst : std_logic;
     signal mnl_rst : std_logic;
     --! @endcond

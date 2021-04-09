@@ -70,8 +70,7 @@ architecture tb of port_io_table_tb is
   signal status_vector_o : std_logic_vector(1 downto 0);
 
   --! Counter for simulation
-  -- vsg_disable_next_line signal_007
-  signal counter : integer := 0;
+  signal counter : integer;
 
 begin
 

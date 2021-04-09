@@ -111,8 +111,7 @@ begin
   -- generating stimuli based on counter
   blk_simulation : block
     --! @cond
-    -- vsg_disable_next_line signal_007
-    signal counter   : integer := 0;
+    signal counter   : integer;
     signal async_rst : std_logic;
     signal sim_rst   : std_logic;
     signal mnl_rst   : std_logic;
@@ -133,7 +132,7 @@ begin
     );
 
     --! Instantiate counter_matcher to read mnl_rst from MNL_RST_FILE
-    inst_mnl_rst_gen : entity sim.counter_matcher
+    inst_mnl_rst : entity sim.counter_matcher
     generic map (
       FILENAME     => MNL_RST_FILE,
       COMMENT_FLAG => COMMENT_FLAG

@@ -143,6 +143,7 @@ architecture behavioral of rx_fifo_module is
   type t_fifo_state is (IDLE, WRITE, LOCK);
 
   --! State of the RX FSM
+
   -- vsg_disable_next_line signal_007
   signal fifo_state : t_fifo_state := LOCK;
 

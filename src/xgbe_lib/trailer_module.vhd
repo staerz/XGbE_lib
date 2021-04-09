@@ -91,6 +91,7 @@ architecture behavioral of trailer_module is
   --! - 9, 4: eof (now, next)
   --! - 8, 3: error (now, next)
   --! - 7 downto 5, 2 downto 0: empty (now, next)
+
   -- vsg_disable_next_line signal_007
   signal ctrl    : std_logic_vector(11 downto 0) := (others => '0');
   --! Data register
@@ -102,6 +103,7 @@ architecture behavioral of trailer_module is
   signal rx_eof_reg : std_logic;
 
   --! Overflow indicator
+
   -- vsg_disable_next_line signal_007
   signal rx_overflow : std_logic := '0';
   --! Overflow register
@@ -185,15 +187,15 @@ begin
         tx_packet_o.data <= (others => '0');
         rx_dreg          <= (others => '0');
       elsif tx_ready_i = '1' then
-        -- vsg_off
         rx_dreg          <= rx_packet_i.data;
         -- make the byte shifting according to the given numbers
         -- the synthesizer may produce a warning here for a null range std_logic_vector
         -- when BYTE_SHIFT is 8, so when HEADER_LENGTH is a multiple of 8
+        -- vsg_off sequential_004
         tx_packet_o.data <=
-          rx_dreg((8*BYTE_SHIFT)-1 downto 0) &
-          rx_packet_i.data(63 downto 8*BYTE_SHIFT);
-        -- vsg_on
+          rx_dreg((8 * BYTE_SHIFT) - 1 downto 0) &
+          rx_packet_i.data(63 downto 8 * BYTE_SHIFT);
+        -- vsg_on sequential_004
 
         -- default trailer: fade out
         ctrl(9 downto 0) <= ctrl(4 downto 0) & "00000";
