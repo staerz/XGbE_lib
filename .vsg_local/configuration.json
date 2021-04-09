@@ -1,8 +1,8 @@
 {
   "file_list":[
-    "src/*.vhd",
-    "src/*/*.vhd",
-    "simulation/*/*.vhd",
-    "simulation/*/*/*.vhd",
+    # full list, need to exclude the altera (via [!a]) and Intel directory (via [!I])
+    "[!a]*/*.vhd",
+    "[!a]*/[!I]*/*.vhd",
+    "[!a]*/[!I]*/*/*.vhd",
   ],
 }
