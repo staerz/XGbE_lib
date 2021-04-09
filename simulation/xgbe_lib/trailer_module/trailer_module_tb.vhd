@@ -62,9 +62,9 @@ architecture tb of trailer_module_tb is
   signal tx_ready  : std_logic;
   --! TX data and controls
   signal tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+
   --! Additional rx indicator if multiple interfaces are used
-  -- vsg_disable_next_line signal_007
-  signal tx_mux    : std_logic_vector(N_INTERFACES - 1 downto 0) := (others => '0');
+  constant TX_MUX : std_logic_vector(N_INTERFACES - 1 downto 0) := (others => '0');
 
   --! @}
 
@@ -76,8 +76,7 @@ architecture tb of trailer_module_tb is
   --! RX data and controls
   signal rx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
   --! Additional tx indicator if multiple interfaces are used
-  -- vsg_disable_next_line signal_007
-  signal rx_mux    : std_logic_vector(N_INTERFACES - 1 downto 0) := (others => '0');
+  signal rx_mux    : std_logic_vector(N_INTERFACES - 1 downto 0);
 
   --! @}
 
@@ -96,7 +95,7 @@ begin
 
     rx_ready_o  => tx_ready,
     rx_packet_i => tx_packet,
-    rx_mux_i    => tx_mux,
+    rx_mux_i    => TX_MUX,
 
     rx_count_o => open,
 

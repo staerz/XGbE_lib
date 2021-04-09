@@ -188,12 +188,12 @@ begin
   -- Transmitter part
   blk_make_tx_interface : block
     --! @brief State definition for the TX FSM
-
     --! @details
     --! State definition for the TX FSM
     --! - IDLE:          no transmission running
     --! - ARP_RESPONSE:  ARP response is being sent
     --! - ARP_REQUEST:   ARP request is being sent
+
     type t_tx_state is (IDLE, ARP_RESPONSE, ARP_REQUEST);
 
     --! State of the TX FSM
@@ -220,6 +220,7 @@ begin
     type t_fifo_state is (IDLE, PRE_READ, READ, HOLD);
 
     --! State of the FIFO FSM
+
     -- vsg_disable_next_line signal_007
     signal fifo_state : t_fifo_state := IDLE;
   begin
@@ -454,12 +455,12 @@ begin
   -- Receiver part
   blk_make_rx_interface : block
     --! @brief State definition for the RX FSM
-
     --! @details
     --! State definition for the RX FSM
     --! - HEADER: checks all requirement of the incoming ARP packet
     --! - SKIP: skips all frames until EOF (if header is wrong)
     --! - STORING_TG: indicates successful extraction of ARP target MAC and IP
+
     type   t_rx_state is (HEADER, SKIP, STORING_TG);
     --! States of the RX FSM
     signal rx_state : t_rx_state;

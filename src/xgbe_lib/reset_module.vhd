@@ -141,6 +141,7 @@ begin
   -- Transmitter part
   blk_make_tx_interface : block
     --! Counter for outgoing response frame
+
     -- vsg_disable_next_line signal_007
     signal tx_count : unsigned(4 downto 0) := (others => '1');
   begin
@@ -312,6 +313,7 @@ begin
     --! @{
 
     --! Counter enable
+
     -- vsg_disable_next_line signal_007
     signal cnt_en   : std_logic := '0';
     --! Counter end
@@ -366,6 +368,7 @@ begin
     type t_rx_state is (IDLE, HEADER, SKIP, RESETTING);
 
     --! State of the RX FSM
+
     -- vsg_disable_next_line signal_007
     signal rx_state : t_rx_state := IDLE;
 
@@ -375,6 +378,7 @@ begin
     signal rx_valid_d : std_logic;
 
     --! Counter for incoming frame
+
     -- vsg_disable_next_line signal_007
     signal rx_count     : unsigned(7 downto 0) := to_unsigned(0, 8);
     --! @names Registers for receiving data

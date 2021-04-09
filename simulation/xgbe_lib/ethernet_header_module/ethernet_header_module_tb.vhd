@@ -82,8 +82,7 @@ architecture tb of ethernet_header_module_tb is
   --! @}
 
   --! MAC address
-  -- vsg_disable_next_line signal_007
-  signal my_mac : std_logic_vector(47 downto 0) := x"00_22_8F_02_41_EE";
+  constant MY_MAC : std_logic_vector(47 downto 0) := x"00_22_8F_02_41_EE";
 
   --! Clock cycle when 1 millisecond is passed
   signal one_ms_tick : std_logic;
@@ -116,7 +115,7 @@ begin
     reco_done_i => reco_done,
 
     -- Configuration of the module
-    my_mac_i => my_mac,
+    my_mac_i => MY_MAC,
 
     one_ms_tick_i => one_ms_tick,
 
@@ -128,8 +127,7 @@ begin
   -- generating stimuli based on counter
   blk_simulation : block
     --! @cond
-    -- vsg_disable_next_line signal_007
-    signal counter : integer := 0;
+    signal counter : integer;
     signal sim_rst : std_logic;
     signal mnl_rst : std_logic;
     --! @endcond

@@ -95,6 +95,7 @@ architecture behavioral of interface_merger is
   type t_tx_state is (IDLE, AVST1, AVST2, INTERRUPT, IGAP, FGAP);
 
   --! State of the TX FSM
+
   -- vsg_disable_next_line signal_007
   signal tx_state : t_tx_state := IDLE;
 

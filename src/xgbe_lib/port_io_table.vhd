@@ -81,6 +81,7 @@ architecture behavioral of port_io_table is
   type t_port_io_table_data is array(TABLE_DEPTH downto 1) of std_logic_vector((PORT_I_W + PORT_O_W - 1) downto 0);
 
   --! Table to store port pair in one entry
+
   -- vsg_disable_next_line signal_007
   signal port_io_table_data : t_port_io_table_data := (others => (others => '0'));
 
@@ -107,6 +108,7 @@ begin
 --------------------------------------------------------------------------------
   blk_write : block
     --! Internal pointer of current write address of table
+
     -- vsg_disable_next_line signal_007
     signal write_address : integer range 1 to TABLE_DEPTH := 1;
     --! Internal pointer to entry with pin to discover
