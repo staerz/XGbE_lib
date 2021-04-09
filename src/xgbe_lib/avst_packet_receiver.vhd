@@ -56,9 +56,9 @@ library sim;
 architecture emulational of avst_packet_receiver is
 
   --! Write enable
-  signal wren       : std_logic := '0';
+  signal wren       : std_logic;
   --! Not RX ready as read from file
-  signal rx_ready_n : std_logic := '0';
+  signal rx_ready_n : std_logic;
 
 begin
 

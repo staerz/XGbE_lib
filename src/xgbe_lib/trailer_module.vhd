@@ -91,19 +91,21 @@ architecture behavioral of trailer_module is
   --! - 9, 4: eof (now, next)
   --! - 8, 3: error (now, next)
   --! - 7 downto 5, 2 downto 0: empty (now, next)
+  -- vsg_disable_next_line signal_007
   signal ctrl    : std_logic_vector(11 downto 0) := (others => '0');
   --! Data register
   signal rx_dreg : std_logic_vector(63 downto 0);
 
   --! Valid register
-  signal valid_reg  : std_logic := '0';
+  signal valid_reg  : std_logic;
   --! Eof register
-  signal rx_eof_reg : std_logic := '0';
+  signal rx_eof_reg : std_logic;
 
   --! Overflow indicator
+  -- vsg_disable_next_line signal_007
   signal rx_overflow : std_logic := '0';
   --! Overflow register
-  signal rx_of_reg   : std_logic := '0';
+  signal rx_of_reg   : std_logic;
 
   --! Multiplex registers
   signal tx_mux_reg  : std_logic_vector(N_INTERFACES - 1 downto 0);

@@ -81,6 +81,7 @@ architecture behavioral of port_io_table is
   type t_port_io_table_data is array(TABLE_DEPTH downto 1) of std_logic_vector((PORT_I_W + PORT_O_W - 1) downto 0);
 
   --! Table to store port pair in one entry
+  -- vsg_disable_next_line signal_007
   signal port_io_table_data : t_port_io_table_data := (others => (others => '0'));
 
   --! Recovery function to find pout in #port_io_table_data
@@ -106,9 +107,10 @@ begin
 --------------------------------------------------------------------------------
   blk_write : block
     --! Internal pointer of current write address of table
+    -- vsg_disable_next_line signal_007
     signal write_address : integer range 1 to TABLE_DEPTH := 1;
     --! Internal pointer to entry with pin to discover
-    signal old_address   : integer range 0 to TABLE_DEPTH := 1;
+    signal old_address   : integer range 0 to TABLE_DEPTH;
   begin
 
     -- check if discovered pin is already stored in table
@@ -148,7 +150,7 @@ begin
 
   --! Handling of port recovery: find corresponding out port to requested in port
   proc_table_read : process (clk)
-    variable read_address : natural range 0 to TABLE_DEPTH := 1;
+    variable read_address : natural range 0 to TABLE_DEPTH;
   begin
     if rising_edge(clk) then
       if rst = '1' then

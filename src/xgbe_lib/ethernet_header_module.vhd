@@ -184,7 +184,7 @@ begin
     signal tx_data_sr : t_tx_data_sr;
     signal tx_ctrl_sr : t_tx_ctrl_sr;
 
-    signal tx_valid : std_logic_vector(0 to SR_DEPTH) := (others => '0');
+    signal tx_valid : std_logic_vector(0 to SR_DEPTH);
   begin
 
     blk_make_tx_done : block
@@ -343,6 +343,7 @@ begin
 
     type t_request_state is (IDLE, WAITING);
 
+    -- vsg_disable_next_line signal_007
     signal request_state : t_request_state := IDLE;
 
     signal request_cnt_rst : std_logic;

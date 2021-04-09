@@ -220,6 +220,7 @@ begin
     type t_fifo_state is (IDLE, PRE_READ, READ, HOLD);
 
     --! State of the FIFO FSM
+    -- vsg_disable_next_line signal_007
     signal fifo_state : t_fifo_state := IDLE;
   begin
 
@@ -464,7 +465,7 @@ begin
     signal rx_state : t_rx_state;
 
     --! ARP RX type: '0': response, '1': request
-    signal rx_type : std_logic := '0';
+    signal rx_type : std_logic;
 
     --! Internal ready signal
     signal arp_rx_ready_r : std_logic;

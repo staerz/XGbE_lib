@@ -143,12 +143,13 @@ architecture behavioral of rx_fifo_module is
   type t_fifo_state is (IDLE, WRITE, LOCK);
 
   --! State of the RX FSM
+  -- vsg_disable_next_line signal_007
   signal fifo_state : t_fifo_state := LOCK;
 
   --! FIFO reset
-  signal fifo_rst        : std_logic := '0';
+  signal fifo_rst        : std_logic;
   --! FIFO read enable permit
-  signal fifo_ren_permit : std_logic := '0';
+  signal fifo_ren_permit : std_logic;
 
 begin
 
@@ -298,7 +299,7 @@ begin
 
   gen_lock_fifo_out_off : if not LOCK_FIFO_OUT generate
     -- still need at least one clk delay to guarantee continuous data out flow
-    signal ren_delay : std_logic_vector(2 downto 0) := (others => '0');
+    signal ren_delay : std_logic_vector(2 downto 0);
   begin
 
     --! FIFO is not read locked: It can be read as soon as it's not empty (with a little delay)
@@ -321,7 +322,7 @@ begin
   -- else
 
   gen_lock_fifo_out_on : if LOCK_FIFO_OUT generate
-    signal read_ready : std_logic := '0';
+    signal read_ready : std_logic;
   begin
 
     --! FIFO is read locked: It can only be read as soon as having detected the eof in the incoming frame
