@@ -173,12 +173,12 @@ begin
       COUNTER_FLAG => COUNTER_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      tx_ready  => udp_tx_ready,
-      tx_packet => udp_tx_packet
+      tx_ready_i  => udp_tx_ready,
+      tx_packet_o => udp_tx_packet
     );
 
     --! Instantiate avst_packet_receiver to write ip_rx to IP_TXD_FILE
@@ -189,12 +189,12 @@ begin
       COMMENT_FLAG => COMMENT_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      rx_ready  => ip_rx_ready,
-      rx_packet => ip_rx_packet
+      rx_ready_o  => ip_rx_ready,
+      rx_packet_i => ip_rx_packet
     );
 
   end block blk_simulation;

@@ -141,12 +141,12 @@ begin
       COUNTER_FLAG => COUNTER_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      tx_ready  => ip_tx_ready,
-      tx_packet => ip_tx_packet
+      tx_ready_i  => ip_tx_ready,
+      tx_packet_o => ip_tx_packet
     );
 
     --! Instantiate avst_packet_receiver to write icmp_rx to ICMP_TXD_FILE
@@ -157,12 +157,12 @@ begin
       COMMENT_FLAG => COMMENT_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      rx_ready  => icmp_rx_ready,
-      rx_packet => icmp_rx_packet
+      rx_ready_o  => icmp_rx_ready,
+      rx_packet_i => icmp_rx_packet
     );
 
     -- mark any frame as valid icmp frame

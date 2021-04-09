@@ -244,12 +244,12 @@ begin
       COUNTER_FLAG => COUNTER_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      tx_ready  => eth_tx_ready,
-      tx_packet => eth_tx_packet
+      tx_ready_i  => eth_tx_ready,
+      tx_packet_o => eth_tx_packet
     );
 
     --! Instantiate av_st_sender to read arp_tx from ARP_RXD_FILE
@@ -260,12 +260,12 @@ begin
       COUNTER_FLAG => COUNTER_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      tx_ready  => arp_tx_ready,
-      tx_packet => arp_tx_packet
+      tx_ready_i  => arp_tx_ready,
+      tx_packet_o => arp_tx_packet
     );
 
     --! Instantiate avst_packet_sender to read ip_tx from IP_RXD_FILE
@@ -276,12 +276,12 @@ begin
       COUNTER_FLAG => COUNTER_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      tx_ready  => ip_tx_ready,
-      tx_packet => ip_tx_packet
+      tx_ready_i  => ip_tx_ready,
+      tx_packet_o => ip_tx_packet
     );
 
     --! Instantiate avst_packet_receiver to write eth_rx to ETH_TXD_FILE
@@ -292,12 +292,12 @@ begin
       COMMENT_FLAG => COMMENT_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      rx_ready  => eth_rx_ready,
-      rx_packet => eth_rx_packet
+      rx_ready_o  => eth_rx_ready,
+      rx_packet_i => eth_rx_packet
     );
 
     --! Instantiate av_st_receiver to write arp_rx to ARP_TXD_FILE
@@ -308,12 +308,12 @@ begin
       COMMENT_FLAG => COMMENT_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      rx_ready  => arp_rx_ready,
-      rx_packet => arp_rx_packet
+      rx_ready_o  => arp_rx_ready,
+      rx_packet_i => arp_rx_packet
     );
 
     --! Instantiate avst_packet_receiver to write ip_rx to IP_TXD_FILE
@@ -324,12 +324,12 @@ begin
       COMMENT_FLAG => COMMENT_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      rx_ready  => ip_rx_ready,
-      rx_packet => ip_rx_packet
+      rx_ready_o  => ip_rx_ready,
+      rx_packet_i => ip_rx_packet
     );
 
   end block blk_simulation;

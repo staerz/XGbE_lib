@@ -366,7 +366,7 @@ begin
           arp_data_loaded <= '0';
 
           case fifo_state is
-          
+
             when IDLE =>
               if arp_fifo_empty = '0' then
                 arp_fifo_ren <= '1';
@@ -397,7 +397,7 @@ begin
               end if;
 
           end case;
-          
+
         end if;
       end process proc_fifo_reader;
 
@@ -411,7 +411,7 @@ begin
           else
 
             case tx_state is
-            
+
               when IDLE =>
                 if arp_data_loaded = '1' then
                   tx_state <= ARP_RESPONSE;
@@ -442,13 +442,13 @@ begin
                 end if;
 
             end case;
-            
+
           end if;
         end if;
       end process proc_tx_state;
 
     end block blk_gen_tx_data;
-    
+
   end block blk_make_tx_interface;
 
   -- Receiver part
@@ -599,12 +599,12 @@ begin
         elsif arp_rx_ready_r = '1' then
 
           case rx_state is
-          
+
             -- check header data
             when HEADER =>
 
               case rx_count is
-              
+
                 when 0 =>
                   rx_state <= HEADER;
                 when 1 =>
@@ -619,7 +619,7 @@ begin
                     -- check whether ARP request or response
 
                     case rx_data_reg(15 downto 0) is
-                    
+
                       -- Operation: ARP request
                       when x"0001" =>
                         rx_state <= HEADER;
@@ -628,9 +628,9 @@ begin
                         rx_state <= HEADER;
                       when others =>
                         rx_state <= SKIP;
-                        
+
                     end case;
-                    
+
                   end if;
                 when 4 =>
                   -- requested IP address must match and it mustn't be an error frame
@@ -661,7 +661,7 @@ begin
         end if;
       end if;
     end process proc_rx_state;
-    
+
   end block blk_make_rx_interface;
 
   -- Handling of ARP requests to the ARP table:
@@ -705,7 +705,7 @@ begin
     --! Broadcast MAC address for ARP request
     constant MAC_BROADCAST_ADDR : std_logic_vector(47 downto 0) := (others => '1');
   begin
-  
+
     status_vector_o(4 downto 3) <= arptbl_status_vector;
 
     --! FSM to request MAC address.
@@ -726,7 +726,7 @@ begin
           reco_done_o <= '0';
 
           case request_state is
-          
+
             when IDLE =>
               request_en <= '0';
               if reco_en_i = '1' then
@@ -777,7 +777,7 @@ begin
               end if;
 
           end case;
-          
+
         end if;
       end if;
     end process proc_mac_address_request;
@@ -792,7 +792,7 @@ begin
       signal cnt_en  : std_logic;
       --! @}
     begin
-    
+
       cnt_rst <= '1' when request_state = ARP_TABLE_READ else '0';
       cnt_en  <= '1' when one_ms_tick_i = '1' and request_state = ARP_WAIT_RESPONSE else '0';
 
@@ -808,7 +808,7 @@ begin
 
         cycle_done => request_timeout
       );
-      
+
     end block blk_request_timout;
 
     --! Instantiate port_io_table as ARP table

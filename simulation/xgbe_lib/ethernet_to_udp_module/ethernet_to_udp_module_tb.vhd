@@ -227,12 +227,12 @@ begin
       COUNTER_FLAG => COUNTER_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      tx_ready  => eth_tx_ready,
-      tx_packet => eth_tx_packet
+      tx_ready_i  => eth_tx_ready,
+      tx_packet_o => eth_tx_packet
     );
 
     --! Instantiate avst_packet_receiver to write eth_rx to ETH_TXD_FILE
@@ -243,12 +243,12 @@ begin
       COMMENT_FLAG => COMMENT_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      rx_ready  => eth_rx_ready,
-      rx_packet => eth_rx_packet
+      rx_ready_o  => eth_rx_ready,
+      rx_packet_i => eth_rx_packet
     );
 
     --! Instantiate avst_packet_sender to read udp_tx from UDP_RXD_FILE
@@ -259,12 +259,12 @@ begin
       COUNTER_FLAG => COUNTER_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      tx_ready  => udp_tx_ready,
-      tx_packet => udp_tx_packet
+      tx_ready_i  => udp_tx_ready,
+      tx_packet_o => udp_tx_packet
     );
 
     --! Instantiate avst_packet_receiver to write udp_rx to UDP_TXD_FILE
@@ -275,12 +275,12 @@ begin
       COMMENT_FLAG => COMMENT_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      rx_ready  => udp_rx_ready,
-      rx_packet => udp_rx_packet
+      rx_ready_o  => udp_rx_ready,
+      rx_packet_i => udp_rx_packet
     );
 
     --! Generate an ID for each new UDP packet

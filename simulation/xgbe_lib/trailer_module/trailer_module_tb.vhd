@@ -128,12 +128,12 @@ begin
       COUNTER_FLAG => COUNTER_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      tx_ready  => tx_ready,
-      tx_packet => tx_packet
+      tx_ready_i  => tx_ready,
+      tx_packet_o => tx_packet
     );
 
     --! Instantiate avst_packet_receiver to write rx to AVST_TXD_FILE
@@ -144,12 +144,12 @@ begin
       COMMENT_FLAG => COMMENT_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      rx_ready  => rx_ready,
-      rx_packet => rx_packet
+      rx_ready_o  => rx_ready,
+      rx_packet_i => rx_packet
     );
 
   end block blk_simulation;
