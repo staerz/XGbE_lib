@@ -1,16 +1,16 @@
 -- EMACS settings: -*- tab-width: 2; indent-tabs-mode: nil -*-
 -- vim: tabstop=2:shiftwidth=2:expandtab
 -- kate: tab-width 2; replace-tabs on; indent-width 2;
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 --! @file
 --! @brief Testbench for port_io_table.vhd
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 --! @details Generates the environment for the port_io_table.vhd.
 --! Different pairs of addresses are first written to the port_io_table.
 --! Then some requests are sent to see the response of the port_io_table.
 --! The example is written as an ARP table: MAC and IP addresses are used.
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 --! @cond
 library IEEE;
@@ -27,7 +27,7 @@ entity port_io_table_tb is
     --! Depth of the table
     TABLE_DEPTH : integer range 1 to 1024 := 3
   );
-end port_io_table_tb;
+end entity port_io_table_tb;
 
 --! @cond
 library xgbe_lib;
@@ -38,44 +38,45 @@ library sim;
 architecture tb of port_io_table_tb is
 
   --! Clock
-  signal clk             : std_logic;
+  signal clk : std_logic;
   --! Reset, sync with #clk
-  signal rst             : std_logic;
+  signal rst : std_logic;
 
   --! @name Discovery interface for writing pair of associated addresses/ports
   --! @{
 
   --! Discovery write enable
-  signal disco_wren_i    : std_logic;
+  signal disco_wren_i : std_logic;
   --! Discovery input port
-  signal disco_port_i    : std_logic_vector(PORT_I_W-1 downto 0);
+  signal disco_port_i : std_logic_vector(PORT_I_W - 1 downto 0);
   --! Discovery output port
-  signal disco_port_o    : std_logic_vector(PORT_O_W-1 downto 0);
+  signal disco_port_o : std_logic_vector(PORT_O_W - 1 downto 0);
   --! @}
 
   --! @name Recovery interface for reading pair of associated addresses/ports
   --! @{
 
   --! Recovery read enable
-  signal reco_en_i       : std_logic;
+  signal reco_en_i    : std_logic;
   --! Recovery input port
-  signal reco_port_i     : std_logic_vector(PORT_I_W-1 downto 0);
+  signal reco_port_i  : std_logic_vector(PORT_I_W - 1 downto 0);
   --! Recovery output port (response next clk cycle)
-  signal reco_port_o     : std_logic_vector(PORT_O_W-1 downto 0);
+  signal reco_port_o  : std_logic_vector(PORT_O_W - 1 downto 0);
   --! Recovery success indicator
-  signal reco_found_o    : std_logic;
+  signal reco_found_o : std_logic;
   --! @}
 
   --! Status of the module
   signal status_vector_o : std_logic_vector(1 downto 0);
 
   --! Counter for simulation
-  signal counter         : integer := 0;
+  -- vsg_disable_next_line signal_007
+  signal counter : integer := 0;
 
 begin
 
   --! Instantiate simulation_basics to start
-  sim_basics : entity sim.simulation_basics
+  inst_sim_basics : entity sim.simulation_basics
   port map (
     clk => clk,
     rst => rst,
@@ -85,25 +86,25 @@ begin
   --! Instantiate the Unit Under Test (UUT)
   uut : entity xgbe_lib.port_io_table
   generic map (
-    PORT_I_W        => PORT_I_W,
-    PORT_O_W        => PORT_O_W,
-    TABLE_DEPTH     => TABLE_DEPTH
+    PORT_I_W    => PORT_I_W,
+    PORT_O_W    => PORT_O_W,
+    TABLE_DEPTH => TABLE_DEPTH
   )
   port map (
-    clk             => clk,
-    rst             => rst,
+    clk => clk,
+    rst => rst,
 
     -- interface for writing new discovered MAC and IP to ARP table
-    disco_wren_i    => disco_wren_i,
-    disco_port_i    => disco_port_i,
-    disco_port_o    => disco_port_o,
+    disco_wren_i => disco_wren_i,
+    disco_port_i => disco_port_i,
+    disco_port_o => disco_port_o,
 
     -- interface for recovered MAC address from given IP address
-    reco_en_i       => reco_en_i,
-    reco_port_i     => reco_port_i,
+    reco_en_i    => reco_en_i,
+    reco_port_i  => reco_port_i,
     -- response (next clk)
-    reco_found_o    => reco_found_o,
-    reco_port_o     => reco_port_o,
+    reco_found_o => reco_found_o,
+    reco_port_o  => reco_port_o,
 
     -- status of the ARP table, see definitions below
     status_vector_o => status_vector_o
@@ -113,7 +114,6 @@ begin
 
   --  generate 4 ARP entries in a table with 3 spaces:
   --  last one to overwrite first
-  -- vsg_off
   with counter select disco_wren_i <=
     '1' when 4 | 8 | 16 | 40,
     '0' when others;
@@ -147,6 +147,5 @@ begin
     x"22_33_cd_02" when 55, -- second again: should be found
     x"ff_aa_bb_cc" when 60, -- unknown address: should not be found
     (others => '0') when others;
-  -- vsg_on
 
-end tb;
+end architecture tb;

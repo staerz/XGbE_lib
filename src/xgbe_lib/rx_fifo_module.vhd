@@ -1,11 +1,11 @@
 -- EMACS settings: -*- tab-width: 2; indent-tabs-mode: nil -*-
 -- vim: tabstop=2:shiftwidth=2:expandtab
 -- kate: tab-width 2; replace-tabs on; indent-width 2;
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 --! @file
 --! @brief RX FIFO module to buffer packet and decouple from rx_ready.
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 --! @details
 --! Buffers incoming packets in a FIFO to guaranty a stable "rx_ready = '1'"
 --! during a frame reception for the connected outer module.
@@ -17,7 +17,7 @@
 --! the frame might be dropped whilst writing into FIFO...
 --! @todo Rename rx_fifo_in_* to FIFO_RX_*, rx_fifo_out_* to FIFO_TX_*
 --! @todo Rename module to avst_fifo_module
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 --! @cond
 library fpga;
@@ -46,7 +46,7 @@ entity rx_fifo_module is
     --! Nevertheless, upon a filled FIFO, rx_ready will return to '1'.
     --! If still data is forced in, it is lost.
     --! @todo Rename to LOCK_FIFO_RX
-    LOCK_FIFO      : boolean := true;
+    LOCK_FIFO     : boolean := true;
     --! @brief Locking the FIFO on the reading side
     --! @details
     --! LOCK_FIFO_OUT = true:
@@ -59,10 +59,10 @@ entity rx_fifo_module is
     --! Reading of the FIFO may start as soon as there are enough words in the
     --! FIFO to start sending of the data.
     --! @todo Rename to LOCK_FIFO_TX
-    LOCK_FIFO_OUT  : boolean := false;
+    LOCK_FIFO_OUT : boolean := false;
     --! @brief Enable true dual clock mode or not.
     --! @details if dual clock is enabled, clk_o must be provided.
-    DUAL_CLK       : boolean := false
+    DUAL_CLK      : boolean := false
   );
   port (
     --! Reset, sync with clk_i
@@ -100,7 +100,7 @@ entity rx_fifo_module is
     --! - 0: rx_fifo_wr_empty
     status_vector_o : out   std_logic_vector(4 downto 0)
   );
-end rx_fifo_module;
+end entity rx_fifo_module;
 
 --! @cond
 library xgbe_lib;
@@ -115,23 +115,23 @@ architecture behavioral of rx_fifo_module is
   --! @{
 
   --! Reset
-  signal rx_fifo_rst        : std_logic;
+  signal rx_fifo_rst      : std_logic;
   --! Data in
-  signal rx_fifo_din        : std_logic_vector(7 + 63 downto 0);
+  signal rx_fifo_din      : std_logic_vector(7 + 63 downto 0);
   --! Write enable
-  signal rx_fifo_wen        : std_logic;
+  signal rx_fifo_wen      : std_logic;
   --! Read enable
-  signal rx_fifo_ren        : std_logic;
+  signal rx_fifo_ren      : std_logic;
   --! Data out
-  signal rx_fifo_dout       : std_logic_vector(7 + 63 downto 0);
+  signal rx_fifo_dout     : std_logic_vector(7 + 63 downto 0);
   --! Read full
-  signal rx_fifo_rd_full    : std_logic;
+  signal rx_fifo_rd_full  : std_logic;
   --! Read empty
   signal rx_fifo_rd_empty : std_logic;
   --! Write full
-  signal rx_fifo_wr_full    : std_logic;
+  signal rx_fifo_wr_full  : std_logic;
   --! Write empty
-  signal rx_fifo_wr_empty   : std_logic;
+  signal rx_fifo_wr_empty : std_logic;
   --! @}
 
   --! @brief State definition for the RX FSM
@@ -146,9 +146,9 @@ architecture behavioral of rx_fifo_module is
   signal fifo_state : t_fifo_state := LOCK;
 
   --! FIFO reset
-  signal fifo_rst         : std_logic := '0';
+  signal fifo_rst        : std_logic := '0';
   --! FIFO read enable permit
-  signal fifo_ren_permit  : std_logic := '0';
+  signal fifo_ren_permit : std_logic := '0';
 
 begin
 
@@ -163,30 +163,30 @@ begin
   --! Width: data width (64 bit) + width of all controls (7)
   inst_fifo : entity memory.generic_fifo
   generic map (
-    WR_D_WIDTH   => rx_fifo_din'length,
-    WR_D_DEPTH   => 256,
-    DUAL_CLK     => DUAL_CLK
+    WR_D_WIDTH => rx_fifo_din'length,
+    WR_D_DEPTH => 256,
+    DUAL_CLK   => DUAL_CLK
   )
   port map (
-    rst       => rx_fifo_rst,
+    rst => rx_fifo_rst,
 
-    wr_clk    => clk_i,
-    wr_en     => rx_fifo_wen,
-    wr_data   => rx_fifo_din,
-    wr_empty  => rx_fifo_wr_empty,
-    wr_full   => rx_fifo_wr_full,
+    wr_clk   => clk_i,
+    wr_en    => rx_fifo_wen,
+    wr_data  => rx_fifo_din,
+    wr_empty => rx_fifo_wr_empty,
+    wr_full  => rx_fifo_wr_full,
 
-    rd_clk    => clk_o,
-    rd_en     => rx_fifo_ren,
-    rd_data   => rx_fifo_dout,
-    rd_empty  => rx_fifo_rd_empty,
-    rd_full   => rx_fifo_rd_full
+    rd_clk   => clk_o,
+    rd_en    => rx_fifo_ren,
+    rd_data  => rx_fifo_dout,
+    rd_empty => rx_fifo_rd_empty,
+    rd_full  => rx_fifo_rd_full
   );
 
   --! Derive fifo_rst from rst_i using hilo_detect
   inst_fifo_rst_hilo : entity misc.hilo_detect
   generic map (
-    LOHI  => false
+    LOHI => false
   )
   port map (
     clk     => clk_i,
@@ -196,7 +196,7 @@ begin
 
   --! @brief Reset FIFO from rst_i
   --! @todo Why is that not done simply via a simply assignment?
-  proc_fifo_rst : process (clk_i) is
+  proc_fifo_rst : process (clk_i)
   begin
     if rising_edge(clk_i) then
       if (rst_i = '1') then
@@ -205,15 +205,16 @@ begin
         rx_fifo_rst <= '0';
       end if;
     end if;
-  end process;
+  end process proc_fifo_rst;
 
   --! Handling the writing of input data into the FIFO
-  proc_fifo_writer : process (clk_i) is
+  proc_fifo_writer : process (clk_i)
   begin
     if rising_edge(clk_i) then
       if rst_i = '1' then
         rx_fifo_din <= (others => '-');
         rx_fifo_wen <= '0';
+      -- vsg_off if_035 if_009
       elsif
         -- insert one empty word into the FIFO
         -- upon reset to have clear zero output
@@ -228,6 +229,7 @@ begin
         (rx_fifo_wr_full = '0') and
         ((fifo_state = IDLE and rx_packet_i.sop = '1') or fifo_state = WRITE)
       then
+      -- vsg_on if_035 if_009
         rx_fifo_din <= avst_ctrl(rx_packet_i) & rx_packet_i.data;
         rx_fifo_wen <= rx_packet_i.valid;
       else
@@ -236,10 +238,10 @@ begin
         rx_fifo_wen <= '0';
       end if;
     end if;
-  end process;
+  end process proc_fifo_writer;
 
   --! FIFO RX FSM
-  proc_fifo_locker : process (clk_i) is
+  proc_fifo_locker : process (clk_i)
   begin
     if rising_edge(clk_i) then
       if rst_i = '1' then
@@ -286,20 +288,19 @@ begin
 
       end if;
     end if;
-  end process;
+  end process proc_fifo_locker;
 
-  -- vsg_off
   with fifo_state select rx_ready_o <=
     '0' when LOCK,
     not rx_fifo_wr_full when others;
 
-  -- vsg_on
   -- Generating FIFO read permit depending on LOCK_FIFO_OUT
 
   gen_lock_fifo_out_off : if not LOCK_FIFO_OUT generate
     -- still need at least one clk delay to guarantee continuous data out flow
-    signal ren_delay  : std_logic_vector(2 downto 0) := (others => '0');
+    signal ren_delay : std_logic_vector(2 downto 0) := (others => '0');
   begin
+
     --! FIFO is not read locked: It can be read as soon as it's not empty (with a little delay)
     proc_ren_delay : process (clk_o)
     begin
@@ -307,21 +308,22 @@ begin
         if rx_fifo_rd_empty = '1' then
           ren_delay <= (others => '0');
         elsif tx_ready_i = '1' then
-          ren_delay <= ren_delay(ren_delay'left-1 downto 0) & not rx_fifo_rd_empty;
+          ren_delay <= ren_delay(ren_delay'left - 1 downto 0) & not rx_fifo_rd_empty;
         else
           ren_delay <= ren_delay;
         end if;
       end if;
-    end process;
+    end process proc_ren_delay;
 
     fifo_ren_permit <= ren_delay(ren_delay'left);
-  end generate;
+  end generate gen_lock_fifo_out_off;
 
   -- else
 
   gen_lock_fifo_out_on : if LOCK_FIFO_OUT generate
     signal read_ready : std_logic := '0';
   begin
+
     --! FIFO is read locked: It can only be read as soon as having detected the eof in the incoming frame
     proc_fifo_out_locker : process (clk_i)
     begin
@@ -334,17 +336,17 @@ begin
           read_ready <= '0';
         end if;
       end if;
-    end process;
+    end process proc_fifo_out_locker;
 
     --! Give read permit on output clock domain
-    proc_fifo_out_reader : process (clk_o) is
+    proc_fifo_out_reader : process (clk_o)
     begin
       if rising_edge(clk_o) then
         fifo_ren_permit <= read_ready;
       end if;
-    end process;
+    end process proc_fifo_out_reader;
 
-  end generate;
+  end generate gen_lock_fifo_out_on;
 
   -- read FIFO when destination is ready and data is available and read is permitted
   rx_fifo_ren <= tx_ready_i and not rx_fifo_rd_empty and fifo_ren_permit;
@@ -356,15 +358,16 @@ begin
     constant EMPTY_W : integer range 1 to 128 := 3;
   begin
 
-    tx_packet_o <= (
-      data  => rx_fifo_dout(DATA_W-1 downto 0),
-      valid => rx_fifo_dout(EMPTY_W-1+DATA_W+4),
-      sop   => rx_fifo_dout(EMPTY_W-1+DATA_W+3),
-      eop   => rx_fifo_dout(EMPTY_W-1+DATA_W+2),
-      error => rx_fifo_dout(EMPTY_W-1+DATA_W+1 downto EMPTY_W-1+DATA_W+1),
-      empty => rx_fifo_dout(EMPTY_W-1+DATA_W downto DATA_W)
+    tx_packet_o <=
+    (
+      data  => rx_fifo_dout(DATA_W - 1 downto 0),
+      valid => rx_fifo_dout(EMPTY_W - 1 + DATA_W + 4),
+      sop   => rx_fifo_dout(EMPTY_W - 1 + DATA_W + 3),
+      eop   => rx_fifo_dout(EMPTY_W - 1 + DATA_W + 2),
+      error => rx_fifo_dout(EMPTY_W - 1 + DATA_W + 1 downto EMPTY_W - 1 + DATA_W + 1),
+      empty => rx_fifo_dout(EMPTY_W - 1 + DATA_W downto DATA_W)
     );
 
-  end block;
+  end block blk_tx;
 
-end behavioral;
+end architecture behavioral;

@@ -1,11 +1,11 @@
 -- EMACS settings: -*- tab-width: 2; indent-tabs-mode: nil -*-
 -- vim: tabstop=2:shiftwidth=2:expandtab
 -- kate: tab-width 2; replace-tabs on; indent-width 2;
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 --! @file
 --! @brief IP header module
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 --! @details
 --! Constructs the IP header from an incoming (UDP) packet
 --! and forwards the enclosed (UDP) frames with re-arranged eof flags.
@@ -23,16 +23,16 @@ entity ip_header_module is
     --! @brief End of frame check:
     --! @details If enabled, the module counter checks the UDP length indication and
     --! raises the error indicator upon eof if not matching
-    EOF_CHECK_EN  : std_logic             := '1';
+    EOF_CHECK_EN : std_logic             := '1';
     --! @brief Post-UDP-module UDP CRC calculation
     --! @details If enabled, the UDP check sum will be (re)calculated from the pseudo
     --! header.
     --! This requires the check sum over the UDP data already being present in the
     --! UDP CRC field.
     --! If disabled, the check sum is omitted and set to x"0000".
-    UDP_CRC_EN    : boolean               := true;
+    UDP_CRC_EN   : boolean               := true;
     --! The minimal number of clock cycles between two outgoing frames.
-    PAUSE_LENGTH  : integer range 0 to 10 := 2
+    PAUSE_LENGTH : integer range 0 to 10 := 2
   );
   port (
     --! Clock
@@ -84,7 +84,7 @@ entity ip_header_module is
     --! - 0: TX FSM in IDLE (transmission may still be fading out)
     status_vector_o : out   std_logic_vector(1 downto 0)
   );
-end ip_header_module;
+end entity ip_header_module;
 
 --! @cond
 library misc;
@@ -94,7 +94,7 @@ library misc;
 architecture behavioral of ip_header_module is
 
   --! Broadcast IP address
-  signal ip_broadcast_addr  : std_logic_vector(31 downto 0);
+  signal ip_broadcast_addr : std_logic_vector(31 downto 0);
 
   --! @brief State definition for the TX FSM
   --! @details
@@ -106,24 +106,24 @@ architecture behavioral of ip_header_module is
   type t_tx_state is (IDLE, UDP, TRAILER, ABORT);
 
   --! State of the TX FSM
-  signal tx_state   : t_tx_state := IDLE;
+  signal tx_state : t_tx_state;
 
   --! Indicate if transmission is done
-  signal tx_done    : std_logic;
+  signal tx_done : std_logic;
 
   --! @name IP header information
   --! @{
 
   --! Destination IP address
-  signal ip_dst_addr  : std_logic_vector(31 downto 0);
+  signal ip_dst_addr : std_logic_vector(31 downto 0);
   --! IP length
-  signal ip_length    : unsigned(15 downto 0);
+  signal ip_length   : unsigned(15 downto 0);
   --! Unique ID of the packet (simple 16 bit counter)
-  signal ip_id        : unsigned(15 downto 0);
+  signal ip_id       : unsigned(15 downto 0);
   --! @}
 
   --! Counter for outgoing packet
-  signal tx_count     : integer range 0 to 511 := 0;
+  signal tx_count : integer range 0 to 511;
   --! @name Avalon-ST rx controls (for better readability)
   --! @{
 
@@ -139,10 +139,10 @@ architecture behavioral of ip_header_module is
 
 begin
 
-  udp_rx_sof    <= udp_rx_packet_i.sop;
-  udp_rx_eof    <= udp_rx_packet_i.eop;
-  udp_rx_error  <= udp_rx_packet_i.error(0);
-  udp_rx_empty  <= udp_rx_packet_i.empty(2 downto 0);
+  udp_rx_sof   <= udp_rx_packet_i.sop;
+  udp_rx_eof   <= udp_rx_packet_i.eop;
+  udp_rx_error <= udp_rx_packet_i.error(0);
+  udp_rx_empty <= udp_rx_packet_i.empty(2 downto 0);
 
   --  broadcast address calculated from self configuration and IP_netmask
   --  used in TX if destination cannot be resolved
@@ -153,9 +153,9 @@ begin
   status_vector_o(1) <= '1' when tx_state = UDP else '0';
 
   --! FSM to handle data forwarding of the interfaces
-  proc_tx_state : process (clk) is
+  proc_tx_state : process (clk)
     --! Indicator if package is too long
-    variable overflow : std_logic := '0';
+    variable overflow : std_logic;
   begin
     if rising_edge(clk) then
       if (rst = '1') then
@@ -204,14 +204,14 @@ begin
         end if;
       end if;
     end if;
-  end process;
+  end process proc_tx_state;
 
-  request_ip : block
-    signal request : std_logic_vector(1 downto 0) := "00";
+  blk_request_ip : block
+    signal request : std_logic_vector(1 downto 0);
   begin
 
     --! Process to set the IP destination address
-    proc_set_ip_dst_addr : process (clk) is
+    proc_set_ip_dst_addr : process (clk)
     begin
       if rising_edge(clk) then
         if (rst = '1') then
@@ -255,12 +255,12 @@ begin
 
         end if;
       end if;
-    end process;
+    end process proc_set_ip_dst_addr;
 
-  end block;
+  end block blk_request_ip;
 
   --! Set IP length field from UDP length field and know IP header length
-  proc_set_ip_length : process (clk) is
+  proc_set_ip_length : process (clk)
   begin
     if rising_edge(clk) then
       if (rst = '1') then
@@ -271,10 +271,10 @@ begin
         end if;
       end if;
     end if;
-  end process;
+  end process proc_set_ip_length;
 
   --! Set IP ID field from counter
-  proc_set_ip_id : process (clk) is
+  proc_set_ip_id : process (clk)
   begin
     if rising_edge(clk) then
       if (rst = '1') then
@@ -285,54 +285,54 @@ begin
         end if;
       end if;
     end if;
-  end process;
+  end process proc_set_ip_id;
 
-  make_tx_interface : block
+  blk_make_tx_interface : block
     signal ip_header_before_crc : std_logic_vector(63 downto 0);
     signal ip_crc_out           : std_logic_vector(15 downto 0);
     signal udp_crc_out          : std_logic_vector(15 downto 0);
   begin
 
-    udp_data_transport : block
-
+    blk_udp_data_transport : block
       constant SR_DEPTH : integer := 6;
 
       type t_tx_data_sr is array(1 to SR_DEPTH) of std_logic_vector(63 downto 0);
+
       type t_tx_ctrl_sr is array(1 to SR_DEPTH) of std_logic_vector(4 downto 0);
 
-      signal tx_data_sr : t_tx_data_sr := (others => (others => '0'));
+      signal tx_data_sr : t_tx_data_sr;
       -- controls for end of frame: eof & error & empty
-      signal tx_ctrl_sr : t_tx_ctrl_sr := (others => (others => '0'));
+      signal tx_ctrl_sr : t_tx_ctrl_sr;
 
-      signal tx_valid : std_logic_vector(0 to SR_DEPTH) := (others => '0');
-
+      signal tx_valid : std_logic_vector(0 to SR_DEPTH);
     begin
 
       -- instantiate counting to generate artificial gap between packets
-      make_tx_done : block
-        signal cnt_rst  : std_logic := '0';
-        signal tx_next  : std_logic := '0';
+      blk_make_tx_done : block
+        signal cnt_rst : std_logic := '0';
+        signal tx_next : std_logic := '0';
       begin
+
         cnt_rst <= '1' when tx_state /= TRAILER else tx_valid(3);
 
         -- Instantiate non-cyclic counter to generate requested gap
-        trailer_counter : entity misc.counting
+        inst_trailer_counter : entity misc.counting
         generic map (
           COUNTER_MAX_VALUE => PAUSE_LENGTH,
           CYCLIC            => false
         )
         port map (
-          clk         => clk,
-          rst         => cnt_rst,
-          en          => ip_tx_ready_i,
+          clk => clk,
+          rst => cnt_rst,
+          en  => ip_tx_ready_i,
 
-          cycle_done  => tx_next
+          cycle_done => tx_next
         );
 
         -- make sure that there's only 1 tick of done using hilo_detect
         inst_tx_done : entity misc.hilo_detect
         generic map (
-          LOHI    => true
+          LOHI => true
         )
         port map (
           clk     => clk,
@@ -340,13 +340,13 @@ begin
           sig_out => tx_done
         );
 
-      end block;
+      end block blk_make_tx_done;
 
       --! @brief Main process to assemble output packet from incoming UDP data stream
       --! @details
       --! Does the multiplexing in dependence of tx_count and also sets control signals
       --! of the interface properly.
-      proc_make_data_and_controls : process (clk) is
+      proc_make_data_and_controls : process (clk)
         variable byte_count : unsigned(15 downto 0);
         variable empty      : unsigned(3 downto 0);
         variable error      : std_logic;
@@ -355,6 +355,7 @@ begin
           if (rst = '1') then
             tx_data_sr <= (others => (others => '0'));
             tx_ctrl_sr <= (others => (others => '0'));
+            tx_valid   <= (others => '0');
           elsif ip_tx_ready_i = '1' then
             -- take care of the data first: shift UDP data into register
             -- with proper re-alignment for the insertion of 20 bytes of IP header
@@ -362,7 +363,7 @@ begin
             tx_data_sr(2) <= tx_data_sr(1)(63 downto 32) & udp_rx_packet_i.data(63 downto 32);
 
             -- default: shift
-            tx_data_sr(3 to SR_DEPTH) <= tx_data_sr(2 to SR_DEPTH-1);
+            tx_data_sr(3 to SR_DEPTH) <= tx_data_sr(2 to SR_DEPTH - 1);
 
             -- insert IP header (without CRC calculated)
             -- important here: all header data have to be calculated at the given tx_count
@@ -382,7 +383,7 @@ begin
             -- now take care of the controls
             -- default: shift UDP controls into register,
             -- depending on conditions (abort or eof) that may change
-            tx_ctrl_sr(2 to SR_DEPTH) <= tx_ctrl_sr(1 to SR_DEPTH-1);
+            tx_ctrl_sr(2 to SR_DEPTH) <= tx_ctrl_sr(1 to SR_DEPTH - 1);
 
             -- default for valid: also just shift, but conditions (later) apply
             tx_valid(1) <= tx_valid(0);
@@ -403,11 +404,11 @@ begin
 
               -- do length check on the packet and set error, eventually
               if EOF_CHECK_EN = '1' then
-                if (ip_length < 64-4-14) and (tx_count = 3) and (udp_rx_empty = "110") then
+                if (ip_length < 64 - 4 - 14) and (tx_count = 3) and (udp_rx_empty = "110") then
                   -- ... but only if it is not padded:
                   -- signature is maximum 49 data bytes but still 6 empty bytes in the eof frame due to padding
                   error := '0';
-                elsif (to_unsigned(tx_count+4, 13) & "000") /= byte_count then
+                elsif (to_unsigned(tx_count + 4, 13) & "000") /= byte_count then
                   error := '1';
                 else
                   error := udp_rx_error;
@@ -416,7 +417,7 @@ begin
                 error := '0';
               end if;
 
-              if unsigned(udp_rx_empty) >= 8-4 then
+              if unsigned(udp_rx_empty) >= 8 - 4 then
                 -- skip one register due to IP-header insertion
                 tx_ctrl_sr(1) <= (others => '0');
                 tx_ctrl_sr(2) <= udp_rx_eof & error & std_logic_vector(empty(2 downto 0));
@@ -447,13 +448,12 @@ begin
               tx_valid(3 to SR_DEPTH) <= (others => '1');
             else
               -- default: shift and let bits 1 and 2 be decided from above
-              tx_valid(3 to SR_DEPTH) <= tx_valid(2 to SR_DEPTH-1);
+              tx_valid(3 to SR_DEPTH) <= tx_valid(2 to SR_DEPTH - 1);
             end if;
           end if;
         end if;
-      end process;
+      end process proc_make_data_and_controls;
 
-      -- vsg_off
       -- finally compose data output stream from registers and IP_CRC that has been
       -- computed in the meantime
       with tx_count select ip_tx_packet_o.data <=
@@ -464,7 +464,6 @@ begin
         -- or just attach (UDP) data from the register
         tx_data_sr(SR_DEPTH) when others;
 
-      -- vsg_on
       -- set valid
       ip_tx_packet_o.valid <= tx_valid(SR_DEPTH);
 
@@ -472,17 +471,16 @@ begin
       ip_tx_packet_o.sop <= '1' when tx_count = 3 else '0';
 
       -- set eof indicators from shift register
-      ip_tx_packet_o.eop <= tx_ctrl_sr(SR_DEPTH)(4);
+      ip_tx_packet_o.eop   <= tx_ctrl_sr(SR_DEPTH)(4);
       ip_tx_packet_o.error <= tx_ctrl_sr(SR_DEPTH)(3 downto 3);
       ip_tx_packet_o.empty <= tx_ctrl_sr(SR_DEPTH)(2 downto 0);
 
-    end block;
+    end block blk_udp_data_transport;
 
-    calculate_ip_header_crc : block
+    blk_calculate_ip_header_crc : block
       signal ip_crc_rst : std_logic;
     begin
 
-      -- vsg_off
       with tx_count select ip_header_before_crc <=
         x"4500" & std_logic_vector(ip_length) & std_logic_vector(ip_id) & x"0000" when 1,
         x"4011" & x"0000" & my_ip_i when 2,
@@ -493,9 +491,8 @@ begin
         '1' when 0,
         '0' when others;
 
-      -- vsg_on
       --! Instantiate checksum_calc to calculate IP CRC
-      crc_calc : entity misc.checksum_calc
+      inst_crc_calc : entity misc.checksum_calc
       generic map (
         I_WIDTH => 64,
         O_WIDTH => 16
@@ -507,16 +504,17 @@ begin
         data_in => ip_header_before_crc,
         sum_out => ip_crc_out
       );
-    end block;
 
-    calculate_udp_header_crc : if UDP_CRC_EN generate
+    end block blk_calculate_ip_header_crc;
+
+    gen_calculate_udp_header_crc : if UDP_CRC_EN generate
       signal udp_crc_rst  : std_logic;
       signal udp_crc_data : std_logic_vector(31 downto 0);
       signal udp_header   : std_logic_vector(63 downto 0);
       signal udp_crc_r    : std_logic_vector(15 downto 0);
     begin
 
-      proc_set_udp_header : process (clk) is
+      proc_set_udp_header : process (clk)
       begin
         if rising_edge(clk) then
           if (rst = '1') then
@@ -527,9 +525,8 @@ begin
             end if;
           end if;
         end if;
-      end process;
+      end process proc_set_udp_header;
 
-      -- vsg_off
       with tx_count select udp_crc_data <=
         -- src and dst port
         udp_header(63 downto 32) when 1,
@@ -550,8 +547,7 @@ begin
         '1' when 0,
         '0' when others;
 
-      -- vsg_on
-      crc_calc : entity misc.checksum_calc
+      inst_crc_calc : entity misc.checksum_calc
       generic map (
         I_WIDTH => 32,
         O_WIDTH => 16
@@ -563,15 +559,16 @@ begin
         data_in => udp_crc_data,
         sum_out => udp_crc_r
       );
-    end generate;
+
+    end generate gen_calculate_udp_header_crc;
 
     -- else
 
-    dont_calculate_udp_header_crc : if not UDP_CRC_EN generate
+    gen_dont_calculate_udp_header_crc : if not UDP_CRC_EN generate
     begin
 
       --! Process to set the CRC in the UPD header
-      proc_set_udp_header : process (clk) is
+      proc_set_udp_header : process (clk)
       begin
         if rising_edge(clk) then
           if (rst = '1') then
@@ -582,12 +579,11 @@ begin
             end if;
           end if;
         end if;
-      end process;
+      end process proc_set_udp_header;
 
-    end generate;
+    end generate gen_dont_calculate_udp_header_crc;
 
-  end block;
-  -- vsg_off
+  end block blk_make_tx_interface;
 
   -- Receive part for the UDP interfaces
   --
@@ -597,6 +593,5 @@ begin
   with tx_state select udp_rx_ready_o <=
     ip_tx_ready_i when IDLE | UDP,
     '0' when others;
-  -- vsg_on
 
-end behavioral;
+end architecture behavioral;

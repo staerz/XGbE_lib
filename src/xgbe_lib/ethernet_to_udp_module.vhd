@@ -1,18 +1,18 @@
 -- EMACS settings: -*- tab-width: 2; indent-tabs-mode: nil -*-
 -- vim: tabstop=2:shiftwidth=2:expandtab
 -- kate: tab-width 2; replace-tabs on; indent-width 2;
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 --! @file
 --! @brief Ethernet to UPD module
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 --! @details
 --! Watches out for incoming Ethernet frames on the ETH interface, removes
 --! Ethernet and IP layer and forwards blank UDP frames to enclosed module.
 --! Watches out for incoming UDP frames on the UDP interface, adds
 --! Ethernet and IP layer and forwards full Ethernet frames to enclosed module.
 --! Incorporates ARP and ICMP functionality as internal modules.
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 --! @cond
 library fpga;
@@ -30,13 +30,13 @@ entity ethernet_to_udp_module is
     --! raises the error indicator upon eof if not matching.
     --!
     --! Also used in the ip_module.
-    EOF_CHECK_EN  : std_logic                := '1';
+    EOF_CHECK_EN      : std_logic                := '1';
     --! @brief The minimal number of clock cycles between two outgoing frames.
     --! @ details
     --! Also used in the ip_module.
-    PAUSE_LENGTH  : integer range 0 to 10    := 0;
+    PAUSE_LENGTH      : integer range 0 to 10    := 0;
     --! Timeout to reconstruct MAC from IP in milliseconds
-    MAC_TIMEOUT   : integer range 1 to 10000 := 1000;
+    MAC_TIMEOUT       : integer range 1 to 10000 := 1000;
     --! @}
 
     --! @name Configuration of the internal ip_module
@@ -48,13 +48,13 @@ entity ethernet_to_udp_module is
     --! This requires the check sum over the UDP data already being present in the
     --! UDP CRC field.
     --! If disabled, the check sum is omitted and set to x"0000".
-    UDP_CRC_EN     : boolean                 := true;
+    UDP_CRC_EN        : boolean                 := true;
     --! @brief Enable IP address filtering
     --! @details If enabled, only packets arriving from IP addresses of the same
     --! network (specified by ip_netmask_i) as ip_scr_addr are accepted.
-    IP_FILTER_EN   : std_logic               := '1';
+    IP_FILTER_EN      : std_logic               := '1';
     --! Depth of table (number of stored connections)
-    ID_TABLE_DEPTH : integer range 1 to 1024 := 4;
+    ID_TABLE_DEPTH    : integer range 1 to 1024 := 4;
     --! @}
 
     --! @name Configuration of the internal arp_module
@@ -69,7 +69,7 @@ entity ethernet_to_udp_module is
     --! @}
 
     --! Duration of a millisecond (ms) in clock cycles of clk
-    ONE_MILLISECOND  : integer := 156250
+    ONE_MILLISECOND   : integer := 156250
   );
   port (
     --! Clock
@@ -157,9 +157,9 @@ entity ethernet_to_udp_module is
     --! - 2: IP module: RX FSM: UDP frame is being received
     --! - 1: IP module: RX FSM: ICMP frame is being received
     --! - 0: IP module: RX FSM: IDLE mode
-    status_vector_o    : out   std_logic_vector(26 downto 0)
+    status_vector_o : out   std_logic_vector(26 downto 0)
   );
-end ethernet_to_udp_module;
+end entity ethernet_to_udp_module;
 
 --! @cond
 library xgbe_lib;
@@ -193,9 +193,9 @@ architecture behavioral of ethernet_to_udp_module is
   --! @{
 
   --! TX ready
-  signal eth_to_ip_ready   : std_logic;
+  signal eth_to_ip_ready  : std_logic;
   --! TX data and controls
-  signal eth_to_ip_packet  : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal eth_to_ip_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
 
   --! @}
 
@@ -203,9 +203,9 @@ architecture behavioral of ethernet_to_udp_module is
   --! @{
 
   --! RX ready
-  signal ip_to_eth_ready   : std_logic;
+  signal ip_to_eth_ready  : std_logic;
   --! RX data and controls
-  signal ip_to_eth_packet  : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal ip_to_eth_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
 
   --! @}
 
@@ -213,17 +213,17 @@ architecture behavioral of ethernet_to_udp_module is
   --! @{
 
   --! Recovery enable
-  signal reco_en           : std_logic;
+  signal reco_en   : std_logic;
   --! IP address to recover
-  signal reco_ip           : std_logic_vector(31 downto 0);
+  signal reco_ip   : std_logic_vector(31 downto 0);
   --! Recovered MAX address
-  signal reco_mac          : std_logic_vector(47 downto 0);
+  signal reco_mac  : std_logic_vector(47 downto 0);
   --! recovery success: 1 = found, 0 = not found (time out)
-  signal reco_done         : std_logic;
+  signal reco_done : std_logic;
   --! @}
 
   --! Clock cycle when 1 millisecond is passed
-  signal one_ms_tick       : std_logic;
+  signal one_ms_tick : std_logic;
 
   --! @name Status vectors of the internal modules
   --! @{
@@ -243,13 +243,13 @@ begin
   --! Instantiate the ethernet_module
   inst_ethernet_module : entity xgbe_lib.ethernet_module
   generic map (
-    EOF_CHECK_EN    => EOF_CHECK_EN,
-    PAUSE_LENGTH    => PAUSE_LENGTH,
-    MAC_TIMEOUT     => MAC_TIMEOUT
+    EOF_CHECK_EN => EOF_CHECK_EN,
+    PAUSE_LENGTH => PAUSE_LENGTH,
+    MAC_TIMEOUT  => MAC_TIMEOUT
   )
   port map (
-    clk             => clk,
-    rst             => rst,
+    clk => clk,
+    rst => rst,
 
     eth_rx_ready_o  => eth_rx_ready_o,
     eth_rx_packet_i => eth_rx_packet_i,
@@ -263,20 +263,20 @@ begin
     arp_tx_ready_i  => eth_to_arp_ready,
     arp_tx_packet_o => eth_to_arp_packet,
 
-    ip_rx_ready_o   => ip_to_eth_ready,
-    ip_rx_packet_i  => ip_to_eth_packet,
+    ip_rx_ready_o  => ip_to_eth_ready,
+    ip_rx_packet_i => ip_to_eth_packet,
 
-    ip_tx_ready_i   => eth_to_ip_ready,
-    ip_tx_packet_o  => eth_to_ip_packet,
+    ip_tx_ready_i  => eth_to_ip_ready,
+    ip_tx_packet_o => eth_to_ip_packet,
 
-    reco_en_o       => reco_en,
-    reco_ip_o       => reco_ip,
-    reco_mac_i      => reco_mac,
-    reco_done_i     => reco_done,
+    reco_en_o   => reco_en,
+    reco_ip_o   => reco_ip,
+    reco_mac_i  => reco_mac,
+    reco_done_i => reco_done,
 
-    my_mac_i        => my_mac_i,
+    my_mac_i => my_mac_i,
 
-    one_ms_tick_i   => one_ms_tick,
+    one_ms_tick_i => one_ms_tick,
 
     status_vector_o => eth_status_vector
   );
@@ -289,8 +289,8 @@ begin
     ARP_TABLE_DEPTH   => ARP_TABLE_DEPTH
   )
   port map (
-    clk             => clk,
-    rst             => rst,
+    clk => clk,
+    rst => rst,
 
     -- signals from arp requester
     arp_rx_ready_o  => eth_to_arp_ready,
@@ -301,15 +301,15 @@ begin
     arp_tx_packet_o => arp_to_eth_packet,
 
     -- interface for recovering mac address from given ip address
-    reco_en_i       => reco_en,
-    reco_ip_i       => reco_ip,
-    reco_mac_o      => reco_mac,
-    reco_done_o     => reco_done,
+    reco_en_i   => reco_en,
+    reco_ip_i   => reco_ip,
+    reco_mac_o  => reco_mac,
+    reco_done_o => reco_done,
 
-    my_mac_i        => my_mac_i,
-    my_ip_i         => my_ip_i,
+    my_mac_i => my_mac_i,
+    my_ip_i  => my_ip_i,
 
-    one_ms_tick_i   => one_ms_tick,
+    one_ms_tick_i => one_ms_tick,
 
     status_vector_o => arp_status_vector
   );
@@ -317,21 +317,21 @@ begin
   --! Instantiate the ip_module
   inst_ip_module : entity xgbe_lib.ip_module
   generic map (
-    EOF_CHECK_EN    => EOF_CHECK_EN,
-    UDP_CRC_EN      => UDP_CRC_EN,
-    IP_FILTER_EN    => IP_FILTER_EN,
-    ID_TABLE_DEPTH  => ID_TABLE_DEPTH,
-    PAUSE_LENGTH    => PAUSE_LENGTH
+    EOF_CHECK_EN   => EOF_CHECK_EN,
+    UDP_CRC_EN     => UDP_CRC_EN,
+    IP_FILTER_EN   => IP_FILTER_EN,
+    ID_TABLE_DEPTH => ID_TABLE_DEPTH,
+    PAUSE_LENGTH   => PAUSE_LENGTH
   )
   port map (
-    clk             => clk,
-    rst             => rst,
+    clk => clk,
+    rst => rst,
 
-    ip_rx_ready_o   => eth_to_ip_ready,
-    ip_rx_packet_i  => eth_to_ip_packet,
+    ip_rx_ready_o  => eth_to_ip_ready,
+    ip_rx_packet_i => eth_to_ip_packet,
 
-    ip_tx_ready_i   => ip_to_eth_ready,
-    ip_tx_packet_o  => ip_to_eth_packet,
+    ip_tx_ready_i  => ip_to_eth_ready,
+    ip_tx_packet_o => ip_to_eth_packet,
 
     udp_rx_ready_o  => udp_rx_ready_o,
     udp_rx_packet_i => udp_rx_packet_i,
@@ -341,23 +341,23 @@ begin
     udp_tx_packet_o => udp_tx_packet_o,
     udp_tx_id_o     => udp_tx_id_o,
 
-    my_ip_i         => my_ip_i,
-    ip_netmask_i    => ip_netmask_i,
+    my_ip_i      => my_ip_i,
+    ip_netmask_i => ip_netmask_i,
 
     status_vector_o => ip_status_vector
   );
 
   --! Instantiate cyclic counting to generate a tick each millisecond
-  inst_ms_counter: entity misc.counting
+  inst_ms_counter : entity misc.counting
   generic map (
     COUNTER_MAX_VALUE => ONE_MILLISECOND
   )
   port map (
-    clk     => clk,
-    rst     => rst,
-    en      => '1',
+    clk => clk,
+    rst => rst,
+    en  => '1',
 
-    cycle_done  => one_ms_tick
+    cycle_done => one_ms_tick
   );
 
-end behavioral;
+end architecture behavioral;
