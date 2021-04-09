@@ -224,7 +224,7 @@ begin
   end block blk_ip_tx;
 
   -- receive part - IP interface
-  
+
   blk_stripoff_header : block
     --! @brief State definition for the RX FSM
 
@@ -340,8 +340,8 @@ begin
 
                 when 2 =>
                   -- apply IP address filter
-                  if (ip_rx_packet_i.data(63 downto 32) = my_ip_i or 
-                      ip_rx_packet_i.data(63 downto 32) = ip_broadcast_addr) and src_ip_accept = '1' 
+                  if (ip_rx_packet_i.data(63 downto 32) = my_ip_i or
+                      ip_rx_packet_i.data(63 downto 32) = ip_broadcast_addr) and src_ip_accept = '1'
                      then
 
                     case protocol is
@@ -428,8 +428,8 @@ begin
         tx_packet when tx_mux = "10" and src_ip_accept = '1' else
         (data => (others => '-'), error => (others => '0'), empty => (others => '0'), others => '0');
 
-      udp_tx_id_o <= 
-        std_logic_vector(udp_tx_id_r) when tx_mux = "10" and src_ip_accept = '1' and tx_packet.valid = '1' else 
+      udp_tx_id_o <=
+        std_logic_vector(udp_tx_id_r) when tx_mux = "10" and src_ip_accept = '1' and tx_packet.valid = '1' else
         (others => '0');
 
       --! Instantiate trailer_module to make tx controls right

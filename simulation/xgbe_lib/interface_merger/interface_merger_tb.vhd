@@ -170,12 +170,12 @@ begin
       COUNTER_FLAG => COUNTER_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      tx_ready  => avst1_tx_ready,
-      tx_packet => avst1_tx_packet
+      tx_ready_i  => avst1_tx_ready,
+      tx_packet_o => avst1_tx_packet
     );
 
     --! Instantiate avst_packet_sender to read avst2_tx from AVST2_RXD_FILE
@@ -186,12 +186,12 @@ begin
       COUNTER_FLAG => COUNTER_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      tx_ready  => avst2_tx_ready,
-      tx_packet => avst2_tx_packet
+      tx_ready_i  => avst2_tx_ready,
+      tx_packet_o => avst2_tx_packet
     );
 
     --! Instantiate avst_packet_receiver to write eth_rx to ETH_TXD_FILE
@@ -202,12 +202,12 @@ begin
       COMMENT_FLAG => COMMENT_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      rx_ready  => avst_rx_ready,
-      rx_packet => avst_rx_packet
+      rx_ready_o  => avst_rx_ready,
+      rx_packet_i => avst_rx_packet
     );
 
   end block blk_simulation;

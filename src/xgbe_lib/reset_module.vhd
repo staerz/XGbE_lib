@@ -420,7 +420,7 @@ begin
           init_reset         <= '0';
           tg_mac             <= (others => '0');
           tg_ip              <= (others => '0');
-          tg_upd             <= (others => '0');
+          tg_udp             <= (others => '0');
           ipbus_packet_id    <= (others => '0');
           ipbus_trans_id     <= (others => '0');
           ipbus_number_words <= (others => '0');

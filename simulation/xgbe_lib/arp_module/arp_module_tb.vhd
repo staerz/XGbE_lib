@@ -185,12 +185,12 @@ begin
       COUNTER_FLAG => COUNTER_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      tx_ready  => arp_tx_ready,
-      tx_packet => arp_tx_packet
+      tx_ready_i  => arp_tx_ready,
+      tx_packet_o => arp_tx_packet
     );
 
     --! Instantiate av_st_receiver to write arp_rx to ARP_TXD_FILE
@@ -201,12 +201,12 @@ begin
       COMMENT_FLAG => COMMENT_FLAG
     )
     port map (
-      clk => clk,
-      rst => rst,
-      cnt => counter,
+      clk   => clk,
+      rst   => rst,
+      cnt_i => counter,
 
-      rx_ready  => arp_rx_ready,
-      rx_packet => arp_rx_packet
+      rx_ready_o  => arp_rx_ready,
+      rx_packet_i => arp_rx_packet
     );
 
     with counter mod 5 select one_ms_tick <=

@@ -207,7 +207,7 @@ begin
   end block blk_eth_tx;
 
   -- receive part - ETH interface
-  
+
   blk_stripoff_header : block
     --! @brief State definition for the RX FSM
 
@@ -280,8 +280,8 @@ begin
                   if eth_rx_packet_i.sop = '1' then
                     -- vsg_off if_035 if_009
                     -- my or broadcast mac address
-                    if eth_rx_packet_i.data(63 downto 16) = my_mac_i or 
-                       eth_rx_packet_i.data(63 downto 16) = MAC_BROADCAST_ADDR 
+                    if eth_rx_packet_i.data(63 downto 16) = my_mac_i or
+                       eth_rx_packet_i.data(63 downto 16) = MAC_BROADCAST_ADDR
                     then
                     -- vsg_off if_035 if_009
                       rx_state <= HEADER;
