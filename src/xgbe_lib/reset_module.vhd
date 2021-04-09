@@ -1,11 +1,11 @@
 -- EMACS settings: -*- tab-width: 2; indent-tabs-mode: nil -*-
 -- vim: tabstop=2:shiftwidth=2:expandtab
 -- kate: tab-width 2; replace-tabs on; indent-width 2;
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 --! @file
 --! @brief IPbus reset responder
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 --! @details
 --! Watches out for a reset request being sent via IPbus and generates a
 --! response.
@@ -21,7 +21,7 @@
 --!   - my_mac_i: Ethernet MAC address
 --!   - my_ip_i: IP address
 --!   - my_udp_port_i: UDP port
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 --! @cond
 library fpga;
@@ -32,11 +32,11 @@ library fpga;
 entity reset_module is
   generic (
     --! Reset duration for rst_o in clk cycles
-    RESET_DURATION      : positive               := 10;
+    RESET_DURATION     : positive               := 10;
     --! Width of rst_o
-    RESET_WIDTH         : positive range 1 to 32 := 1;
+    RESET_WIDTH        : positive range 1 to 32 := 1;
     --! IPbus address of the reset register
-    RESET_REGISTER_ADD  : std_logic_vector(31 downto 0)
+    RESET_REGISTER_ADD : std_logic_vector(31 downto 0)
   );
   port (
     --! Clock
@@ -74,7 +74,7 @@ entity reset_module is
     --! @}
 
     --! Reset output
-    rst_o           : out   std_logic_vector(RESET_WIDTH-1 downto 0);
+    rst_o           : out   std_logic_vector(RESET_WIDTH - 1 downto 0);
 
     --! @brief Status of the module
     --! @details Status of the module
@@ -83,7 +83,7 @@ entity reset_module is
     --! - 0: Reset receiver is not ready
     status_vector_o : out   std_logic_vector(2 downto 0)
   );
-end reset_module;
+end entity reset_module;
 
 --! @cond
 library ieee;
@@ -93,21 +93,20 @@ library misc;
 --! @endcond
 
 --! Implementation of the IPbus reset responder
-
 architecture behavioral of reset_module is
 
   --! Reset initiation once a reset request has been recovered
-  signal init_reset     : std_logic := '0';
+  signal init_reset : std_logic := '0';
 
   --! @name Ethernet configuration of the reset requester
   --! @{
 
   --! MAC address
-  signal tg_mac       : std_logic_vector(47 downto 0) := (others => '0');
+  signal tg_mac : std_logic_vector(47 downto 0) := (others => '0');
   --! IP address
-  signal tg_ip        : std_logic_vector(31 downto 0) := (others => '0');
+  signal tg_ip  : std_logic_vector(31 downto 0) := (others => '0');
   --! UDP port
-  signal tg_udp       : std_logic_vector(15 downto 0) := (others => '0');
+  signal tg_udp : std_logic_vector(15 downto 0) := (others => '0');
   --! @}
 
   --! @name Information on the requesting IPbus packet
@@ -124,7 +123,7 @@ architecture behavioral of reset_module is
   --! @}
 
   --! Decoded soft resets from reset request
-  signal soft_resets      : std_logic_vector(31 downto 0);
+  signal soft_resets : std_logic_vector(31 downto 0);
 
   --! function to swap bytes from little to big endian (used for IPbus)
 
@@ -140,11 +139,11 @@ architecture behavioral of reset_module is
 begin
 
   -- Transmitter part
-  make_tx_interface : block
+  blk_make_tx_interface : block
     --! Counter for outgoing response frame
-    signal tx_count       : unsigned(4 downto 0) := (others => '1');
-
+    signal tx_count : unsigned(4 downto 0) := (others => '1');
   begin
+
     status_vector_o(0) <= '1' when tx_ready_i = '0' else '0';
     status_vector_o(1) <= '1' when to_integer(tx_count) >= 1 and to_integer(tx_count) <= 7 else '0';
 
@@ -155,16 +154,14 @@ begin
     tx_packet_o.eop   <= '1' when to_integer(tx_count) = 7 else '0';
     tx_packet_o.error <= "0";
 
-    -- vsg_off
     with to_integer(tx_count) select tx_packet_o.empty <=
       "000" when 1 to 6,
       "010" when 7,
       "000" when others;
 
-    -- vsg_on
     --! @brief Counting the clock cycles being in the sending mode
     --! (the frames of 8 bytes to be sent)
-    proc_cnt : process (clk) is
+    proc_cnt : process (clk)
     begin
       if rising_edge(clk) then
         if init_reset = '1' then
@@ -176,9 +173,9 @@ begin
           tx_count <= tx_count;
         end if;
       end if;
-    end process;
+    end process proc_cnt;
 
-    gen_tx_data : block
+    blk_gen_tx_data : block
       --! @name Protocol internals of the IPbus
       --! @{
 
@@ -191,7 +188,7 @@ begin
       --! @}
 
       --! IPbus CRC
-      signal ip_crc_out   : std_logic_vector(15 downto 0) := (others => '0');
+      signal ip_crc_out : std_logic_vector(15 downto 0) := (others => '0');
 
       --! @name Intermediate data words
       --! @{
@@ -203,9 +200,8 @@ begin
       --! IPbus word 3
       signal ipbus_word_3 : std_logic_vector(31 downto 0) := (others => '0');
       --! @}
-
     begin
-      -- vsg_off
+
       -- Create reset response packet as the complete Ethernet frame
       with to_integer(tx_count) select tx_packet_o.data <=
         -- destination mac (6 bytes)
@@ -213,7 +209,6 @@ begin
         -- + first 2 bytes source mac
         my_mac_i(47 downto 32)
           when 1,
-
         -- last 4 bytes source mac
         my_mac_i(31 downto 0) &
         -- packet type: ip = x"0800"
@@ -221,7 +216,6 @@ begin
         -- type of service
         x"4500"
           when 2,
-
         -- length ... is constant as write is only confirmed
         IP_LENGTH &
         -- id
@@ -231,7 +225,6 @@ begin
         -- ttl and protocol
         IP_TTLPROT
           when 3,
-
         -- IP CRC
         ip_crc_out &
         -- source IP address
@@ -239,7 +232,6 @@ begin
         -- destination IP address (upper part)
         tg_ip(31 downto 16)
           when 4,
-
         -- destination IP address (lower part)
         tg_ip(15 downto 0) &
         -- source UDP port
@@ -249,7 +241,6 @@ begin
         -- UDP length ... is constant as write is only confirmed
         x"0010"
           when 5,
-
         -- optional UDP CRC
         x"0000" &
         -- 1st IPbus word
@@ -257,18 +248,15 @@ begin
         -- 2nd IPbus word (upper part)
         ipbus_word_2(31 downto 16)
           when 6,
-
         -- 2nd IPbus word (lower part)
         ipbus_word_2(15 downto 0) &
         -- 3rd IPbus word
         ipbus_word_3 &
         x"0000"
           when 7,
-
         (others => '0')
           when others;
 
-      -- vsg_on
       -- actually setting the IPbus data to be transmitted according to endianness
       -- IPbus packet header
       ipbus_word_1 <= twist32(x"20" & ipbus_packet_id & x"f0", ipbus_big_endian);
@@ -278,14 +266,13 @@ begin
       ipbus_word_3 <= twist32(RESET_REGISTER_ADD, ipbus_big_endian);
 
       -- main code taken from ip_header_module, but be aware of data shift
-      calculate_ip_header_crc: block
+      blk_calculate_ip_header_crc : block
         --! Cumulative IP CRCn (data flowing in)
         signal ip_header_before_crc : std_logic_vector(63 downto 0);
         --! Reset of CRC calculation
-        signal ip_crc_rst : std_logic;
+        signal ip_crc_rst           : std_logic;
       begin
 
-        -- vsg_off
         -- Consider the IP header when creating the packet
         with to_integer(tx_count) select ip_header_before_crc <=
           x"4500" & IP_LENGTH & IP_ID & x"0000" when 1,
@@ -298,9 +285,8 @@ begin
           '1' when 0,
           '0' when others;
 
-        -- vsg_on
         --! Instantiate checksum_calc to calculate IP CRC
-        crc_calc: entity misc.checksum_calc
+        inst_crc_calc : entity misc.checksum_calc
         generic map (
           I_WIDTH => 64,
           O_WIDTH => 16
@@ -313,14 +299,14 @@ begin
           sum_out => ip_crc_out
         );
 
-      end block;
+      end block blk_calculate_ip_header_crc;
 
-    end block;
+    end block blk_gen_tx_data;
 
-  end block;
+  end block blk_make_tx_interface;
 
   -- once recovered, generate the reset output signal
-  make_reset : block
+  blk_make_reset : block
     --! @name Signals to create the reset for a given RESET_DURATION
     --! @{
 
@@ -332,7 +318,7 @@ begin
   begin
 
     --! Create cnt_en
-    proc_cnt_en : process (clk) is
+    proc_cnt_en : process (clk)
     begin
       if rising_edge(clk) then
         if init_reset = '1' then
@@ -346,26 +332,28 @@ begin
           cnt_en <= cnt_en;
         end if;
       end if;
-    end process;
+    end process proc_cnt_en;
 
     --! Instantiate counting to generate reset of duration RESET_DURATION
-    reset_cnt : entity misc.counting
+    inst_reset_cnt : entity misc.counting
     generic map (
-      counter_max_value => RESET_DURATION
+      COUNTER_MAX_VALUE => RESET_DURATION
     )
     port map (
-      clk         => clk,
-      rst         => init_reset,
-      en          => cnt_en,
+      clk => clk,
+      rst => init_reset,
+      en  => cnt_en,
 
-      cycle_done  => cnt_done
+      cycle_done => cnt_done
     );
 
-    rst_o <= soft_resets(RESET_WIDTH-1 downto 0) when cnt_en = '1' else (others => '0');
-  end block;
+    rst_o <= soft_resets(RESET_WIDTH - 1 downto 0) when cnt_en = '1' else (others => '0');
+
+  end block blk_make_reset;
 
   -- Receiver part
-  make_rx_interface : block
+  blk_make_rx_interface : block
+
     --! @brief State definition for the RX FSM
     --! @details
     --! State definition for the RX FSM
@@ -376,43 +364,43 @@ begin
     type t_rx_state is (IDLE, HEADER, SKIP, RESETTING);
 
     --! State of the RX FSM
-    signal rx_state       : t_rx_state := IDLE;
+    signal rx_state : t_rx_state := IDLE;
 
     --! Internal ready
-    signal rx_ready         : std_logic := '1';
+    signal rx_ready   : std_logic := '1';
     --! Internal valid (delayed)
-    signal rx_valid_d       : std_logic := '0';
+    signal rx_valid_d : std_logic := '0';
 
     --! Counter for incoming frame
-    signal rx_count         : unsigned(7 downto 0) := to_unsigned(0, 8);
+    signal rx_count     : unsigned(7 downto 0) := to_unsigned(0, 8);
     --! @names Registers for receiving data
     --! @{
-    signal rx_data_reg      : std_logic_vector(63 downto 0) := (others => '0');
-    signal rx_data_reg1     : std_logic_vector(63 downto 0) := (others => '0');
-    signal rx_data_reg2     : std_logic_vector(63 downto 0) := (others => '0');
+    signal rx_data_reg  : std_logic_vector(63 downto 0) := (others => '0');
+    signal rx_data_reg1 : std_logic_vector(63 downto 0) := (others => '0');
+    signal rx_data_reg2 : std_logic_vector(63 downto 0) := (others => '0');
     --! @}
     --! RX control signals
-    signal rx_ctrl_reg      : std_logic_vector(6 downto 0) := (others => '0');
+    signal rx_ctrl_reg  : std_logic_vector(6 downto 0) := (others => '0');
 
     --! @name Registers to extract relevant data from incoming (reset) packets
     --! these signals serve the tx path and are extracted blindly
     --! @{
 
     --! Target MAC address
-    signal rx_data_copy_tg_mac        : std_logic_vector(47 downto 0) := (others => '0');
+    signal rx_data_copy_tg_mac       : std_logic_vector(47 downto 0) := (others => '0');
     --! Target IP address
-    signal rx_data_copy_tg_ip         : std_logic_vector(31 downto 0) := (others => '0');
+    signal rx_data_copy_tg_ip        : std_logic_vector(31 downto 0) := (others => '0');
     --! Target UDP port
-    signal rx_data_copy_tg_udp        : std_logic_vector(15 downto 0) := (others => '0');
+    signal rx_data_copy_tg_udp       : std_logic_vector(15 downto 0) := (others => '0');
     --! Target IPbus packet ID
-    signal rx_data_copy_packet_id     : std_logic_vector(15 downto 0) := (others => '0');
+    signal rx_data_copy_packet_id    : std_logic_vector(15 downto 0) := (others => '0');
     --! Target IPbus transaction ID
-    signal rx_data_copy_trans_id      : std_logic_vector(11 downto 0) := (others => '0');
+    signal rx_data_copy_trans_id     : std_logic_vector(11 downto 0) := (others => '0');
     --! Target IPbus number of words
-    signal rx_data_copy_number_words  : std_logic_vector(7 downto 0) := (others => '0');
+    signal rx_data_copy_number_words : std_logic_vector(7 downto 0) := (others => '0');
     --! @}
-
   begin
+
     status_vector_o(2) <= '1' when rx_state = RESETTING else '0';
 
     -- receiver is always ready
@@ -422,7 +410,7 @@ begin
 
     --! @brief Transfer of recovered IDs to signals for TX FSM
     --! @todo rst should actually reset all signals here - and default values should be removed
-    proc_initiate_reset : process (clk) is
+    proc_initiate_reset : process (clk)
     begin
       if rising_edge(clk) then
         if (rst = '1') then
@@ -446,10 +434,10 @@ begin
           end if;
         end if;
       end if;
-    end process;
+    end process proc_initiate_reset;
 
     --! Introduce delay of rx_packet_i.valid to keep counting one frame after the packet
-    proc_rx_valid_d : process (clk) is
+    proc_rx_valid_d : process (clk)
     begin
       if rising_edge(clk) then
         if (rst = '1') then
@@ -458,10 +446,10 @@ begin
           rx_valid_d <= rx_packet_i.valid;
         end if;
       end if;
-    end process;
+    end process proc_rx_valid_d;
 
     --! Counting the frames of 8 bytes received
-    proc_manage_rx_count_from_rx_sof : process (clk) is
+    proc_manage_rx_count_from_rx_sof : process (clk)
     begin
       if rising_edge(clk) then
         -- reset counter
@@ -489,11 +477,11 @@ begin
             -- IPbus protocol version 2
             -- endianness and control packet
             if rx_packet_i.data(47 downto 40) = x"20" and
-              rx_packet_i.data(23 downto 16) = x"f0" then
+               rx_packet_i.data(23 downto 16) = x"f0" then
               ipbus_big_endian <= '0';
             elsif rx_packet_i.data(47 downto 40) = x"f0" and
-              -- or in big-endian
-              rx_packet_i.data(23 downto 16) = x"20" then
+                  -- or in big-endian
+                  rx_packet_i.data(23 downto 16) = x"20" then
               ipbus_big_endian <= '1';
             end if;
           end if;
@@ -520,11 +508,11 @@ begin
           end if;
         end if;
       end if;
-    end process;
+    end process proc_manage_rx_count_from_rx_sof;
 
     --! @brief Retrieve relevant data from the reset packet blindly.
     --! @details Data will be applied only if it actually was a reset request.
-    proc_extract_rx_data_copy : process (clk) is
+    proc_extract_rx_data_copy : process (clk)
     begin
       if rising_edge(clk) then
         -- check whether request or response
@@ -560,11 +548,11 @@ begin
         end case;
 
       end if;
-    end process;
+    end process proc_extract_rx_data_copy;
 
     --! @brief RX FSM to handle reset requests
     --! @details Analyses incoming data packets and checks them for reset content.
-    proc_rx_fsm : process (clk) is
+    proc_rx_fsm : process (clk)
     begin
 
       if rising_edge(clk) then
@@ -606,9 +594,9 @@ begin
                 when 3 =>
                   -- no more fragments,
                   if rx_data_reg(29) /= '0' or
-                    -- udp
-                    rx_data_reg(7 downto 0) /= x"11"
-                  then
+                     -- udp
+                     rx_data_reg(7 downto 0) /= x"11"
+                     then
                     rx_state <= SKIP;
                   end if;
                 when 4 =>
@@ -617,28 +605,28 @@ begin
                   end if;
                 when 5 =>
                   if rx_data_reg(63 downto 48) /= my_ip_i(15 downto 0) or
-                    rx_data_reg(31 downto 16) /= my_udp_port_i
-                  then
+                     rx_data_reg(31 downto 16) /= my_udp_port_i
+                     then
                     rx_state <= SKIP;
                   end if;
                 when 6 =>
                   -- IPbus packet header
                   -- IPbus protocol version 2 (big or little endian)
                   if rx_data_reg(47 downto 40) /= x"20" or
-                    rx_data_reg(23 downto 16) /= x"f0" or
-                    -- IPbus protocol version 2
-                    rx_data_reg(15 downto 12) /= x"2"
-                  then
+                     rx_data_reg(23 downto 16) /= x"f0" or
+                     -- IPbus protocol version 2
+                     rx_data_reg(15 downto 12) /= x"2"
+                     then
                     rx_state <= SKIP;
                   end if;
                 when 7 =>
                   -- write_size = 1 -> number_words
                   if rx_data_reg(63 downto 56) /= x"01" or
-                    -- type id = 1 (write), infocode = x"f"
-                    rx_data_reg(55 downto 48) /= x"1f" or
-                    -- IPbus base_address
-                    rx_data_reg(47 downto 16) /= RESET_REGISTER_ADD
-                  then
+                     -- type id = 1 (write), infocode = x"f"
+                     rx_data_reg(55 downto 48) /= x"1f" or
+                     -- IPbus base_address
+                     rx_data_reg(47 downto 16) /= RESET_REGISTER_ADD
+                     then
                     rx_state <= SKIP;
                   else
                     -- error indication
@@ -674,8 +662,8 @@ begin
 
         end if;
       end if;
-    end process;
+    end process proc_rx_fsm;
 
-  end block;
+  end block blk_make_rx_interface;
 
-end behavioral;
+end architecture behavioral;

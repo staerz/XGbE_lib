@@ -1,18 +1,18 @@
 -- EMACS settings: -*- tab-width: 2; indent-tabs-mode: nil -*-
 -- vim: tabstop=2:shiftwidth=2:expandtab
 -- kate: tab-width 2; replace-tabs on; indent-width 2;
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 --! @file
 --! @brief Port I/O Table (storing pairs of associated ports)
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 --! @details
 --! Stores entries as a pair of two ports to a table via a 'disco' interface.
 --! Existing entries are updated.
 --!
 --! Provides the corresponding output port to a given input port
 --! using the 'reco' interface with confirmation.
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 --! @cond
 library IEEE;
@@ -41,9 +41,9 @@ entity port_io_table is
     --! Discovery write enable
     disco_wren_i    : in    std_logic;
     --! Discovery input port
-    disco_port_i    : in    std_logic_vector(PORT_I_W-1 downto 0);
+    disco_port_i    : in    std_logic_vector(PORT_I_W - 1 downto 0);
     --! Discovery output port
-    disco_port_o    : in    std_logic_vector(PORT_O_W-1 downto 0);
+    disco_port_o    : in    std_logic_vector(PORT_O_W - 1 downto 0);
     --! @}
 
     --! @name Recovery interface for reading pair of associated addresses/ports
@@ -52,9 +52,9 @@ entity port_io_table is
     --! Recovery read enable
     reco_en_i       : in    std_logic;
     --! Recovery input port
-    reco_port_i     : in    std_logic_vector(PORT_I_W-1 downto 0);
+    reco_port_i     : in    std_logic_vector(PORT_I_W - 1 downto 0);
     --! Recovery output port (response next clk cycle)
-    reco_port_o     : out   std_logic_vector(PORT_O_W-1 downto 0);
+    reco_port_o     : out   std_logic_vector(PORT_O_W - 1 downto 0);
     --! Recovery success indicator
     reco_found_o    : out   std_logic;
     --! @}
@@ -67,7 +67,7 @@ entity port_io_table is
     --! That would make #status_vector_o a #TABLE_DEPTH-dependent length vector.
     status_vector_o : out   std_logic_vector(1 downto 0)
   );
-end port_io_table;
+end entity port_io_table;
 
 --! @cond
 library IEEE;
@@ -78,20 +78,20 @@ library IEEE;
 architecture behavioral of port_io_table is
 
   --! Type definition for table to store port pair in one entry
-  type port_io_table_data_t is array(TABLE_DEPTH downto 1) of std_logic_vector((PORT_I_W+PORT_O_W-1) downto 0);
+  type t_port_io_table_data is array(TABLE_DEPTH downto 1) of std_logic_vector((PORT_I_W + PORT_O_W - 1) downto 0);
 
   --! Table to store port pair in one entry
-  signal port_io_table_data : port_io_table_data_t := (others => (others => '0'));
+  signal port_io_table_data : t_port_io_table_data := (others => (others => '0'));
 
   --! Recovery function to find pout in #port_io_table_data
 
-  impure function find_pout_in_port_io_table(inport : std_logic_vector(PORT_I_W-1 downto 0)) return natural is
+  impure function find_pout_in_port_io_table (inport : std_logic_vector(PORT_I_W - 1 downto 0)) return natural is
   begin
     if unsigned('0' & inport) = 0 then
       return 0;
     end if;
     for i in port_io_table_data'range loop
-      if port_io_table_data(i)(PORT_I_W-1 downto 0) = inport then
+      if port_io_table_data(i)(PORT_I_W - 1 downto 0) = inport then
         return i;
       end if;
     end loop;
@@ -101,7 +101,7 @@ architecture behavioral of port_io_table is
 
 begin
 
-------------------------------  <-  80 chars  ->  ------------------------------
+------------------------------<-    80 chars    ->------------------------------
 --! Handling of incoming data
 --------------------------------------------------------------------------------
   blk_write : block
@@ -110,10 +110,11 @@ begin
     --! Internal pointer to entry with pin to discover
     signal old_address   : integer range 0 to TABLE_DEPTH := 1;
   begin
+
     -- check if discovered pin is already stored in table
     old_address <= find_pout_in_port_io_table(disco_port_i);
 
-    proc_table_fill : process (clk) is
+    proc_table_fill : process (clk)
     begin
       if rising_edge(clk) then
         if (rst = '1') then
@@ -141,12 +142,12 @@ begin
           end if;
         end if;
       end if;
-    end process;
+    end process proc_table_fill;
 
-  end block;
+  end block blk_write;
 
   --! Handling of port recovery: find corresponding out port to requested in port
-  proc_table_read : process (clk) is
+  proc_table_read : process (clk)
     variable read_address : natural range 0 to TABLE_DEPTH := 1;
   begin
     if rising_edge(clk) then
@@ -161,12 +162,12 @@ begin
         reco_found_o <= '0';
         if reco_en_i = '1' then
           if read_address /= 0 then
-            reco_port_o  <= port_io_table_data(read_address)(PORT_I_W+PORT_O_W-1 downto PORT_I_W);
+            reco_port_o  <= port_io_table_data(read_address)(PORT_I_W + PORT_O_W - 1 downto PORT_I_W);
             reco_found_o <= '1';
           end if;
         end if;
       end if;
     end if;
-  end process;
+  end process proc_table_read;
 
-end behavioral;
+end architecture behavioral;

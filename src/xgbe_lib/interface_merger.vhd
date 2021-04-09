@@ -1,17 +1,17 @@
 -- EMACS settings: -*- tab-width: 2; indent-tabs-mode: nil -*-
 -- vim: tabstop=2:shiftwidth=2:expandtab
 -- kate: tab-width 2; replace-tabs on; indent-width 2;
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 --! @file
 --! @brief Interface merger for the Avalon streaming interface
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 --! @details
 --! Generates one output interface from two input interfaces.
 --!
 --! @todo Derive width of ctrl signals from DATA_W - depends on how many
 --! symbols per words there are in the data interface.
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 --! @cond
 library fpga;
@@ -47,7 +47,7 @@ entity interface_merger is
     --! RX ready
     avst1_rx_ready_o  : out   std_logic;
     --! RX data and controls
-    avst1_rx_packet_i : in    t_avst_packet(data(DATA_W-1 downto 0), empty(EMPTY_W-1 downto 0), error(0 downto 0));
+    avst1_rx_packet_i : in    t_avst_packet(data(DATA_W - 1 downto 0), empty(EMPTY_W - 1 downto 0), error(0 downto 0));
     --! @}
 
     --! @name Avalon-ST from second priority interface (possibly interrupted)
@@ -56,7 +56,7 @@ entity interface_merger is
     --! RX ready
     avst2_rx_ready_o  : out   std_logic;
     --! RX data and controls
-    avst2_rx_packet_i : in    t_avst_packet(data(DATA_W-1 downto 0), empty(EMPTY_W-1 downto 0), error(0 downto 0));
+    avst2_rx_packet_i : in    t_avst_packet(data(DATA_W - 1 downto 0), empty(EMPTY_W - 1 downto 0), error(0 downto 0));
     --! @}
 
     --! @name Avalon-ST output interface
@@ -65,7 +65,7 @@ entity interface_merger is
     --! TX ready
     avst_tx_ready_i   : in    std_logic;
     --! TX data and controls
-    avst_tx_packet_o  : out   t_avst_packet(data(DATA_W-1 downto 0), empty(EMPTY_W-1 downto 0), error(0 downto 0));
+    avst_tx_packet_o  : out   t_avst_packet(data(DATA_W - 1 downto 0), empty(EMPTY_W - 1 downto 0), error(0 downto 0));
     --! @}
 
     --! @brief Status of the module
@@ -75,7 +75,7 @@ entity interface_merger is
     --! - 0: module in idle
     status_vector_o   : out   std_logic_vector(2 downto 0)
   );
-end interface_merger;
+end entity interface_merger;
 
 --! Implementation of the interface merger
 architecture behavioral of interface_merger is
@@ -98,9 +98,9 @@ architecture behavioral of interface_merger is
   signal tx_state : t_tx_state := IDLE;
 
   --! AVST end of frame
-  signal avst_tx_eof  : std_logic := '0';
+  signal avst_tx_eof : std_logic := '0';
   --! Indicator if avst2 wants to send a packet next
-  signal avst2_next   : std_logic := '0';
+  signal avst2_next  : std_logic := '0';
 
 begin
 
@@ -110,7 +110,7 @@ begin
   status_vector_o(2) <= '1' when tx_state = avst2 else '0';
 
   --! TX FSM to handle merging of interfaces
-  proc_tx_fsm : process (clk) is
+  proc_tx_fsm : process (clk)
   begin
     if rising_edge(clk) then
       if (rst = '1') then
@@ -151,7 +151,7 @@ begin
               end if;
 
             when AVST2 =>
-              if interrupt_enable then
+              if INTERRUPT_ENABLE then
                 -- if interrupt_enable is active:
                 -- watch out for first interface and interrupt second if required,
                 -- otherwise watch out for end_of_frame of second interface
@@ -190,25 +190,25 @@ begin
         end if;
       end if;
     end if;
-  end process;
+  end process proc_tx_fsm;
 
-------------------------------  <-  80 chars  ->  ------------------------------
+------------------------------<-    80 chars    ->------------------------------
 -- choose upon state machine which interface to be forwarded, based on the
 -- registered first words of the rx interfaces
 -- also generate the rx_ready signals for the two receiving interfaces
 --------------------------------------------------------------------------------
-  merge_interfaces : block
+  blk_merge_interfaces : block
     --! Buffer for first word of avst1 interface
-    signal avst1_rx_dnc_reg : std_logic_vector(EMPTY_W+3+DATA_W downto 0);
+    signal avst1_rx_dnc_reg : std_logic_vector(EMPTY_W + 3 + DATA_W downto 0);
     --! Buffer for first word of avst2 interface
-    signal avst2_rx_dnc_reg : std_logic_vector(EMPTY_W+3+DATA_W downto 0);
+    signal avst2_rx_dnc_reg : std_logic_vector(EMPTY_W + 3 + DATA_W downto 0);
 
     --! Data word to inject when interrupting a transmission (don't care)
-    constant DONTCARE_DATA  : std_logic_vector(DATA_W-1 downto 0) := (others => '-');
+    constant DONTCARE_DATA  : std_logic_vector(DATA_W - 1 downto 0) := (others => '-');
     --! Data word controls to inject when interrupting a transmission (eof with error)
-    constant INTERRUPT_CTRL : std_logic_vector(EMPTY_W+3 downto 0) := "1011" & (EMPTY_W-1 downto 0 => '0');
+    constant INTERRUPT_CTRL : std_logic_vector(EMPTY_W + 3 downto 0) := "1011" & (EMPTY_W - 1 downto 0 => '0');
     --! Data word controls when output interface inactive
-    constant IDLE_CTRL      : std_logic_vector(EMPTY_W+3 downto 0) := (others => '0');
+    constant IDLE_CTRL      : std_logic_vector(EMPTY_W + 3 downto 0) := (others => '0');
 
     --! Internal ready signal for avst1
     signal avst1_rx_ready_r : std_logic := '0';
@@ -217,7 +217,7 @@ begin
   begin
 
     --! Buffer first word that each interface wants to transmit
-    proc_save_first_words : process (clk) is
+    proc_save_first_words : process (clk)
     begin
       if rising_edge(clk) then
         if (rst = '1') then
@@ -237,73 +237,67 @@ begin
           end if;
         end if;
       end if;
-    end process;
+    end process proc_save_first_words;
 
     -- sop decides if there's AVST2 to follow next
-    avst2_next <= avst2_rx_dnc_reg(EMPTY_W+2+DATA_W) or avst2_rx_packet_i.sop;
+    avst2_next <= avst2_rx_dnc_reg(EMPTY_W + 2 + DATA_W) or avst2_rx_packet_i.sop;
 
     -- if interrupt is disabled, first interface only ready if selected so by TX FSM
 
     gen_interrupt_off : if not INTERRUPT_ENABLE generate
     begin
-      -- vsg_off
       with tx_state select avst1_rx_ready_r <=
         avst_tx_ready_i when IDLE | AVST1,
         '0' when others;
-      -- vsg_on
-    end generate;
+    end generate gen_interrupt_off;
 
     -- else
     -- if interrupt is enabled, first interface is (almost) always ready
 
     gen_interrupt_on : if INTERRUPT_ENABLE generate
     begin
-      -- vsg_off
       with tx_state select avst1_rx_ready_r <=
         '0' when INTERRUPT | IGAP,
         avst_tx_ready_i when others;
-      -- vsg_on
-    end generate;
+    end generate gen_interrupt_on;
 
     avst1_rx_ready_o <= avst1_rx_ready_r;
 
-    -- vsg_off
     -- second interface is only ready if selected so by TX FSM
     with tx_state select avst2_rx_ready_r <=
       avst_tx_ready_i when IDLE | AVST2,
       '0' when others;
 
-    -- vsg_on
     avst2_rx_ready_o <= avst2_rx_ready_r;
 
     -- finally create the tx interface from previously set signals
     blk_avst_tx_interface : block
       --! Combination of controls and data to be sent out
-      signal avst_tx_dnc : std_logic_vector(EMPTY_W+3+DATA_W downto 0);
+      signal avst_tx_dnc : std_logic_vector(EMPTY_W + 3 + DATA_W downto 0);
     begin
-      -- vsg_off
+
       -- mux the data and control:
       with tx_state select avst_tx_dnc <=
         avst1_rx_dnc_reg when AVST1,
         avst2_rx_dnc_reg when AVST2,
         INTERRUPT_CTRL & DONTCARE_DATA when INTERRUPT,
         IDLE_CTRL & DONTCARE_DATA when others;
-      -- vsg_on
 
-      avst_tx_packet_o <= (
-        data  => avst_tx_dnc(DATA_W-1 downto 0),
-        valid => avst_tx_dnc(EMPTY_W-1+DATA_W+4),
-        sop   => avst_tx_dnc(EMPTY_W-1+DATA_W+3),
-        eop   => avst_tx_dnc(EMPTY_W-1+DATA_W+2),
-        error => avst_tx_dnc(EMPTY_W-1+DATA_W+1 downto EMPTY_W-1+DATA_W+1),
-        empty => avst_tx_dnc(EMPTY_W-1+DATA_W downto DATA_W)
+      avst_tx_packet_o <=
+      (
+        data  => avst_tx_dnc(DATA_W - 1 downto 0),
+        valid => avst_tx_dnc(EMPTY_W - 1 + DATA_W + 4),
+        sop   => avst_tx_dnc(EMPTY_W - 1 + DATA_W + 3),
+        eop   => avst_tx_dnc(EMPTY_W - 1 + DATA_W + 2),
+        error => avst_tx_dnc(EMPTY_W - 1 + DATA_W + 1 downto EMPTY_W - 1 + DATA_W + 1),
+        empty => avst_tx_dnc(EMPTY_W - 1 + DATA_W downto DATA_W)
       );
 
       -- extract the eof (used in the TX FSM)
-      avst_tx_eof <= avst_tx_dnc(EMPTY_W-1+DATA_W+2);
+      avst_tx_eof <= avst_tx_dnc(EMPTY_W - 1 + DATA_W + 2);
 
-    end block;
+    end block blk_avst_tx_interface;
 
-  end block;
+  end block blk_merge_interfaces;
 
-end behavioral;
+end architecture behavioral;

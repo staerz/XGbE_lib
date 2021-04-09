@@ -1,18 +1,18 @@
 -- EMACS settings: -*- tab-width: 2; indent-tabs-mode: nil -*-
 -- vim: tabstop=2:shiftwidth=2:expandtab
 -- kate: tab-width 2; replace-tabs on; indent-width 2;
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 --! @file
 --! @brief IP module
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 --! @details
 --! Creates/descrambles the IP header from/to a UDP frame.
 --!
 --! Only IPv4 with header length of 20 bytes is supported.
 --! @todo Introduce a packet_null constant that sets data to don't care,
 --! controls to all zero.
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 --! @cond
 library fpga;
@@ -114,7 +114,7 @@ entity ip_module is
     --! - 0: RX FSM: IDLE mode
     status_vector_o : out   std_logic_vector(12 downto 0)
   );
-end ip_module;
+end entity ip_module;
 
 --! @cond
 library xgbe_lib;
@@ -124,19 +124,19 @@ library xgbe_lib;
 architecture behavioral of ip_module is
 
   --! Broadcast IP address
-  signal ip_broadcast_addr  : std_logic_vector(31 downto 0);
+  signal ip_broadcast_addr : std_logic_vector(31 downto 0);
   --! Flag if incoming IP packet is an ICMP request
-  signal icmp_request       : std_logic;
+  signal icmp_request      : std_logic;
 
   --! @name Signals treating the udp id/ip table
   --! @{
 
   --! Recovery enable
-  signal reco_en        : std_logic;
+  signal reco_en       : std_logic;
   --! Recovery success indicator
-  signal reco_ip_found  : std_logic;
+  signal reco_ip_found : std_logic;
   --! Recovered IP address
-  signal reco_ip        : std_logic_vector(31 downto 0);
+  signal reco_ip       : std_logic_vector(31 downto 0);
   --! @}
 
   --! @name Avalon-ST for ICMP module
@@ -169,21 +169,21 @@ begin
     --! Instantiate the ip_header_module to generate header for incoming UPD frames
     inst_ip_header_module : entity xgbe_lib.ip_header_module
     generic map (
-      EOF_CHECK_EN  => EOF_CHECK_EN,
-      UDP_CRC_EN    => UDP_CRC_EN,
-      PAUSE_LENGTH  => PAUSE_LENGTH
+      EOF_CHECK_EN => EOF_CHECK_EN,
+      UDP_CRC_EN   => UDP_CRC_EN,
+      PAUSE_LENGTH => PAUSE_LENGTH
     )
     port map (
-      clk           => clk,
-      rst           => rst,
+      clk => clk,
+      rst => rst,
 
       -- avalon-st from udp module
       udp_rx_ready_o  => udp_rx_ready_o,
       udp_rx_packet_i => udp_rx_packet_i,
 
       -- avalon-st to ip module
-      ip_tx_ready_i   => ip_tx_ready_r,
-      ip_tx_packet_o  => ip_tx_packet_r,
+      ip_tx_ready_i  => ip_tx_ready_r,
+      ip_tx_packet_o => ip_tx_packet_r,
 
       -- signals for building the header
       reco_en_o       => reco_en,
@@ -191,19 +191,19 @@ begin
       reco_ip_i       => reco_ip,
 
       -- configuration of the module
-      my_ip_i         => my_ip_i,
-      ip_netmask_i    => ip_netmask_i,
+      my_ip_i      => my_ip_i,
+      ip_netmask_i => ip_netmask_i,
 
       -- status of the module
       status_vector_o => status_vector_o(4 downto 3)
     );
 
     --! Instantiate the interface_merger to merge TX of ip_header_module and icmp_module
-    inst_interface_merger: entity xgbe_lib.interface_merger
+    inst_interface_merger : entity xgbe_lib.interface_merger
     port map (
       -- clk (synch reset with clk)
-      clk             => clk,
-      rst             => rst,
+      clk => clk,
+      rst => rst,
 
       -- avalon-st from first priority module
       avst1_rx_ready_o  => ip_tx_ready_r,
@@ -214,18 +214,20 @@ begin
       avst2_rx_packet_i => icmp_tx_packet,
 
       -- avalon-st to outer module
-      avst_tx_ready_i   => ip_tx_ready_i,
-      avst_tx_packet_o  => ip_tx_packet_o,
+      avst_tx_ready_i  => ip_tx_ready_i,
+      avst_tx_packet_o => ip_tx_packet_o,
 
       -- status of the module, see definitions below
-      status_vector_o   => status_vector_o(7 downto 5)
+      status_vector_o => status_vector_o(7 downto 5)
     );
 
-  end block;
+  end block blk_ip_tx;
 
   -- receive part - IP interface
+  
   blk_stripoff_header : block
     --! @brief State definition for the RX FSM
+
     --! @details
     --! State definition for the RX FSM
     --! - HEADER: Expecting IP header
@@ -237,13 +239,13 @@ begin
     signal rx_state : t_rx_state := HEADER;
 
     --! Ready
-    signal rx_ready     : std_logic;
+    signal rx_ready : std_logic;
 
     --! Counter for incoming packets
-    signal rx_count     : integer range 0 to 1500 := 0;
+    signal rx_count : integer range 0 to 1500;
 
     --! Indicator if source IP address is accepted (passing netmask filter)
-    signal src_ip_accept    : std_logic;
+    signal src_ip_accept : std_logic;
 
     --! @brief Enclosed protocol
     --! @details
@@ -257,31 +259,29 @@ begin
     signal protocol : t_protocol := NOTSUPPORTED;
 
     --! Ready signal of the icmp_module
-    signal icmp_in_ready    : std_logic;
+    signal icmp_in_ready : std_logic;
 
     --! Number of interfaces (for trailer_module)
     constant N_INTERFACES : positive := 2;
 
     --! RX interface selection
-    signal rx_mux         : std_logic_vector(N_INTERFACES-1 downto 0);
+    signal rx_mux : std_logic_vector(N_INTERFACES - 1 downto 0);
     --! TX interface selection
-    signal tx_mux         : std_logic_vector(N_INTERFACES-1 downto 0);
+    signal tx_mux : std_logic_vector(N_INTERFACES - 1 downto 0);
 
     --! ID for storing in the UDP-ID/IP table
-    signal udp_tx_id_r    : unsigned(15 downto 0);
-
+    signal udp_tx_id_r : unsigned(15 downto 0);
   begin
+
     -- mapping of module dependent to block specific signals
     ip_rx_ready_o <= rx_ready;
 
-    -- vsg_off
     -- receiver is ready when data can be forwarded to the consecutive modules
     with tx_mux select rx_ready <=
       udp_tx_ready_i  when "10",
       icmp_in_ready when "01",
       '1' when others;
 
-    -- vsg_on
     status_vector_o(2 downto 1) <= rx_mux;
     status_vector_o(0)          <= '1' when rx_state = HEADER else '0';
 
@@ -292,7 +292,7 @@ begin
     --! That would require the trailer module to be configurable on the fly
     --! and is hence a new approach!
     --! An option would be to have a second trailer modules instantiated for IPv6.
-    proc_analyse_header : process (clk) is
+    proc_analyse_header : process (clk)
     begin
       if rising_edge(clk) then
         if (rst = '1') then
@@ -338,7 +338,9 @@ begin
 
                 when 2 =>
                   -- apply IP address filter
-                  if (ip_rx_packet_i.data(63 downto 32) = my_ip_i or ip_rx_packet_i.data(63 downto 32) = ip_broadcast_addr) and src_ip_accept = '1' then
+                  if (ip_rx_packet_i.data(63 downto 32) = my_ip_i or 
+                      ip_rx_packet_i.data(63 downto 32) = ip_broadcast_addr) and src_ip_accept = '1' 
+                     then
 
                     case protocol is
 
@@ -387,45 +389,46 @@ begin
 
         end if;
       end if;
-    end process;
+    end process proc_analyse_header;
 
-    -- vsg_off
     with protocol select rx_mux <=
       "10" when UDP,
       "01" when ICMP,
       "00" when NOTSUPPORTED;
 
-    -- vsg_on
     --! Instantiate the icmp_module to treat ICMP requests
     inst_icmp : entity xgbe_lib.icmp_module
     port map (
       -- clk
-      clk               => clk,
-      rst               => rst,
+      clk => clk,
+      rst => rst,
 
       -- avalon-st to fill fifo
-      ip_rx_ready_o     => icmp_in_ready,
-      ip_rx_packet_i    => ip_rx_packet_i,
+      ip_rx_ready_o  => icmp_in_ready,
+      ip_rx_packet_i => ip_rx_packet_i,
 
       -- indication of being ICMP request
       is_icmp_request_i => icmp_request,
 
       -- avalon-st to empty FIFO
-      icmp_tx_ready_i   => icmp_tx_ready,
-      icmp_tx_packet_o  => icmp_tx_packet,
+      icmp_tx_ready_i  => icmp_tx_ready,
+      icmp_tx_packet_o => icmp_tx_packet,
 
-      status_vector_o   => status_vector_o(10 downto 8)
+      status_vector_o => status_vector_o(10 downto 8)
     );
 
     blk_make_trailer : block
       --! TX data and controls for trailer_module
       signal tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     begin
+
       udp_tx_packet_o <=
         tx_packet when tx_mux = "10" and src_ip_accept = '1' else
         (data => (others => '-'), error => (others => '0'), empty => (others => '0'), others => '0');
 
-      udp_tx_id_o <= std_logic_vector(udp_tx_id_r) when tx_mux = "10" and src_ip_accept = '1' and tx_packet.valid = '1' else (others => '0');
+      udp_tx_id_o <= 
+        std_logic_vector(udp_tx_id_r) when tx_mux = "10" and src_ip_accept = '1' and tx_packet.valid = '1' else 
+        (others => '0');
 
       --! Instantiate trailer_module to make tx controls right
       inst_trailer : entity xgbe_lib.trailer_module
@@ -435,14 +438,14 @@ begin
       )
       port map (
         -- clk
-        clk         => clk,
-        rst         => rst,
+        clk => clk,
+        rst => rst,
 
         -- avalon-st from outer module
         rx_packet_i => ip_rx_packet_i,
         rx_mux_i    => rx_mux,
 
-        rx_count_o  => rx_count,
+        rx_count_o => rx_count,
 
         -- avalon-st to outer module
         tx_ready_i  => rx_ready,
@@ -450,7 +453,7 @@ begin
         tx_mux_o    => tx_mux
       );
 
-    end block;
+    end block blk_make_trailer;
 
     blk_make_ip_udp_table : block
       --! @name Signals for the discovery interface of the udp/ip table
@@ -465,7 +468,6 @@ begin
       --! Discovery IP address
       signal disco_ip   : std_logic_vector(31 downto 0);
       --! @}
-
     begin
 
       gen_without_ip_filter : if IP_FILTER_EN = '0' generate
@@ -474,7 +476,7 @@ begin
         src_ip_accept <= '1';
 
         --! Store source IP address as disco_ip independently of IP filter
-        proc_disco_ip_no_filter : process (clk) is
+        proc_disco_ip_no_filter : process (clk)
         begin
           if rising_edge(clk) then
             -- Default: just keep storing the discovered IP address
@@ -487,16 +489,16 @@ begin
               end if;
             end if;
           end if;
-        end process;
+        end process proc_disco_ip_no_filter;
 
-      end generate;
+      end generate gen_without_ip_filter;
 
       -- else:
 
       gen_with_ip_filter : if IP_FILTER_EN = '1' generate
 
         --! Store source IP address as disco_ip only if IP filter passed
-        proc_disco_ip_filter : process (clk) is
+        proc_disco_ip_filter : process (clk)
         begin
           if rising_edge(clk) then
             -- Defaults: keep storing recovered info
@@ -519,16 +521,16 @@ begin
               end if;
             end if;
           end if;
-        end process;
+        end process proc_disco_ip_filter;
 
-      end generate;
+      end generate gen_with_ip_filter;
 
       --! @brief Generate an ID counter for each incoming package
       --! @details For each package the ID is increased with each start of frame.
       --! The ID is used for port_io_table and forwarded to the udp_module.
       --! @todo Test if the overflow is needed/useful: It looks like we could simply always
       --! increase, udp_tx_id_r'left seems to actually half the available addresses.
-      proc_gen_id_counter : process (clk) is
+      proc_gen_id_counter : process (clk)
       begin
         if rising_edge(clk) then
           -- Default: keep current id in memory, nothing to discover
@@ -552,12 +554,12 @@ begin
             make_disco <= '1';
           end if;
         end if;
-      end process;
+      end process proc_gen_id_counter;
 
       --! @brief Store pair of the ID and IP address
       --! @details Storage of discovered IP and ID is indicated by by make_disco
       --! @todo Can't this be combined with proc_gen_id_counter?
-      proc_store_ip_id_relation : process (clk) is
+      proc_store_ip_id_relation : process (clk)
       begin
         if rising_edge(clk) then
           -- default: don't care for disco_id and don't write
@@ -569,36 +571,36 @@ begin
             disco_wren <= '1';
           end if;
         end if;
-      end process;
+      end process proc_store_ip_id_relation;
 
       --! Instantiate port_io_table to store pair of discovered IP and package ID
       inst_id_ip_table : entity xgbe_lib.port_io_table
       generic map (
-        PORT_I_W      => 16,
-        PORT_O_W      => 32,
-        TABLE_DEPTH   => ID_TABLE_DEPTH
+        PORT_I_W    => 16,
+        PORT_O_W    => 32,
+        TABLE_DEPTH => ID_TABLE_DEPTH
       )
       port map (
-        clk             => clk,
-        rst             => rst,
+        clk => clk,
+        rst => rst,
 
         -- Discovery interface for writing pair of associated addresses/ports
-        disco_wren_i    => disco_wren,
-        disco_port_i    => disco_id,
-        disco_port_o    => disco_ip,
+        disco_wren_i => disco_wren,
+        disco_port_i => disco_id,
+        disco_port_o => disco_ip,
 
         -- Recovery interface for reading pair of associated addresses/ports
-        reco_en_i       => reco_en,
-        reco_port_i     => udp_rx_id_i,
-        reco_found_o    => reco_ip_found,
-        reco_port_o     => reco_ip,
+        reco_en_i    => reco_en,
+        reco_port_i  => udp_rx_id_i,
+        reco_found_o => reco_ip_found,
+        reco_port_o  => reco_ip,
 
         -- Status of the module
         status_vector_o => status_vector_o(12 downto 11)
       );
 
-    end block;
+    end block blk_make_ip_udp_table;
 
-  end block;
+  end block blk_stripoff_header;
 
-end behavioral;
+end architecture behavioral;

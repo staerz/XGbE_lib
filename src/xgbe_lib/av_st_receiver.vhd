@@ -1,13 +1,13 @@
 -- EMACS settings: -*- tab-width: 2; indent-tabs-mode: nil -*-
 -- vim: tabstop=2:shiftwidth=2:expandtab
 -- kate: tab-width 2; replace-tabs on; indent-width 2;
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 --! @file
 --! @brief Packet writer for the AVALON-ST interface, writes data to file.
 --! @details Uses the file_writer_hex to write data. See the file_writer_hex for
 --! the description of the expected file format.
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 --! @cond
 library IEEE;
@@ -35,20 +35,20 @@ entity av_st_receiver is
   );
   port (
     --! Clock
-    clk      : in    std_logic;
+    clk        : in    std_logic;
     --! Reset, sync with #clk
-    rst      : in    std_logic;
+    rst        : in    std_logic;
     --! Counter
-    cnt      : in    natural;
+    cnt_i      : in    natural;
 
     --! AVST RX ready
-    rx_ready : out   std_logic;
+    rx_ready_o : out   std_logic;
     --! AVST RX data
-    rx_data  : in    std_logic_vector(63 downto 0);
+    rx_data_i  : in    std_logic_vector(63 downto 0);
     --! AVST RX controls
-    rx_ctrl  : in    std_logic_vector(6 downto 0)
+    rx_ctrl_i  : in    std_logic_vector(6 downto 0)
   );
-end av_st_receiver;
+end entity av_st_receiver;
 
 --! @cond
 library sim;
@@ -67,20 +67,20 @@ begin
   --! Instantiate counter_matcher to generate rx_ready_n
   inst_rx_ready : entity sim.counter_matcher
   generic map (
-    FILENAME      => READY_FILE,
-    COMMENT_FLAG  => COMMENT_FLAG
+    FILENAME     => READY_FILE,
+    COMMENT_FLAG => COMMENT_FLAG
   )
   port map (
-    clk       => clk,
-    rst       => rst,
-    cnt       => cnt,
-    stimulus  => rx_ready_n
+    clk      => clk,
+    rst      => rst,
+    cnt      => cnt_i,
+    stimulus => rx_ready_n
   );
 
-  rx_ready <= not rx_ready_n;
+  rx_ready_o <= not rx_ready_n;
 
   -- logging block for RX interface
-  wren <= rx_ctrl(6) and not rx_ready_n;
+  wren <= rx_ctrl_i(6) and not rx_ready_n;
 
   --! Instantiate file_writer_hex to write ip_tx_data
   inst_rx_log : entity sim.file_writer_hex
@@ -92,15 +92,15 @@ begin
     BITSPERSYMBOL => BITSPERSYMBOL
   )
   port map (
-    clk       => clk,
-    rst       => rst,
-    wren      => wren,
+    clk  => clk,
+    rst  => rst,
+    wren => wren,
 
-    empty     => rx_ctrl(2 downto 0),
-    eop       => rx_ctrl(4),
-    err       => rx_ctrl(3),
+    empty => rx_ctrl_i(2 downto 0),
+    eop   => rx_ctrl_i(4),
+    err   => rx_ctrl_i(3),
 
-    din       => rx_data
+    din => rx_data_i
   );
 
-end emulational;
+end architecture emulational;
