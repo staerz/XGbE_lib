@@ -29,8 +29,8 @@ add wave -noupdate -expand -group port_io_table -color Gold -radix hexadecimal /
 add wave -noupdate -expand -group port_io_table -color Gold /ip_module_tb/uut/reco_ip_found
 add wave -noupdate -expand -group port_io_table -color Gold -radix hexadecimal /ip_module_tb/uut/reco_ip
 add wave -noupdate -expand -group port_io_table -color Gold /ip_module_tb/uut/blk_stripoff_header/blk_make_ip_udp_table/inst_id_ip_table/port_io_table_data
-add wave -noupdate -expand -group {ICMP Module} -group Internals /ip_module_tb/uut/blk_stripoff_header/inst_icmp/calculate_icmp_crc/crc_rst
-add wave -noupdate -expand -group {ICMP Module} -group Internals -radix hexadecimal -radixshowbase 0 /ip_module_tb/uut/blk_stripoff_header/inst_icmp/calculate_icmp_crc/crc_in
+add wave -noupdate -expand -group {ICMP Module} -group Internals /ip_module_tb/uut/blk_stripoff_header/inst_icmp/blk_calculate_icmp_crc/crc_rst
+add wave -noupdate -expand -group {ICMP Module} -group Internals -radix hexadecimal -radixshowbase 0 /ip_module_tb/uut/blk_stripoff_header/inst_icmp/blk_calculate_icmp_crc/crc_in
 add wave -noupdate -expand -group {ICMP Module} -group Internals -radix hexadecimal -radixshowbase 0 /ip_module_tb/uut/blk_stripoff_header/inst_icmp/icmp_crc
 add wave -noupdate -expand -group {ICMP Module} /ip_module_tb/uut/blk_stripoff_header/inst_icmp/is_icmp_request_i
 add wave -noupdate -expand -group {ICMP Module} -color Thistle /ip_module_tb/uut/blk_stripoff_header/inst_icmp/icmp_tx_ready_i
@@ -41,9 +41,9 @@ add wave -noupdate -expand -group {UDP RX Data} -color White -radix hexadecimal 
 add wave -noupdate -radix decimal -radixshowbase 0 /ip_module_tb/blk_simulation/counter
 add wave -noupdate -group {Build header} -radixshowbase 0 /ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/tx_state
 add wave -noupdate -group {Build header} -radix decimal -radixshowbase 0 /ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/tx_count
-add wave -noupdate -group {Build header} -radix binary -childformat {{/ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/request_ip/request(1) -radix binary} {/ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/request_ip/request(0) -radix binary}} -radixshowbase 0 -subitemconfig {/ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/request_ip/request(1) {-height 18 -radix binary -radixshowbase 0} /ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/request_ip/request(0) {-height 18 -radix binary -radixshowbase 0}} /ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/request_ip/request
-add wave -noupdate -group {Build header} -group {CRC check} -radix hexadecimal -radixshowbase 0 /ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/make_tx_interface/IP_header_before_CRC
-add wave -noupdate -group {Build header} -group {CRC check} -radix hexadecimal -radixshowbase 0 /ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/make_tx_interface/IP_CRC_out
+add wave -noupdate -group {Build header} -radix binary -childformat {{/ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/blk_request_ip/request(1) -radix binary} {/ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/blk_request_ip/request(0) -radix binary}} -radixshowbase 0 -subitemconfig {/ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/blk_request_ip/request(1) {-height 18 -radix binary -radixshowbase 0} /ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/blk_request_ip/request(0) {-height 18 -radix binary -radixshowbase 0}} /ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/blk_request_ip/request
+add wave -noupdate -group {Build header} -group {CRC check} -radix hexadecimal -radixshowbase 0 /ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/blk_make_tx_interface/IP_header_before_CRC
+add wave -noupdate -group {Build header} -group {CRC check} -radix hexadecimal -radixshowbase 0 /ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/blk_make_tx_interface/IP_CRC_out
 add wave -noupdate -group {Build header} -radix hexadecimal -radixshowbase 0 /ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/ip_tx_packet_o
 add wave -noupdate -expand -group {IP TX Data} -color Gray75 -radix binary -radixshowbase 0 /ip_module_tb/uut/ip_tx_ready_i
 add wave -noupdate -expand -group {IP TX Data} -color Gray75 -radix hexadecimal -radixshowbase 0 /ip_module_tb/uut/ip_tx_packet_o

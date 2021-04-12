@@ -17,9 +17,9 @@ add wave -noupdate /ip_header_module_tb/uut/ip_netmask_i
 add wave -noupdate /ip_header_module_tb/uut/ip_tx_ready_i
 add wave -noupdate /ip_header_module_tb/uut/ip_tx_packet_o
 add wave -noupdate /ip_header_module_tb/uut/status_vector_o
-add wave -noupdate -expand -group internals /ip_header_module_tb/uut/make_tx_interface/udp_data_transport/tx_data_sr
-add wave -noupdate -expand -group internals /ip_header_module_tb/uut/make_tx_interface/udp_data_transport/tx_ctrl_sr
-add wave -noupdate -expand -group internals /ip_header_module_tb/uut/make_tx_interface/udp_data_transport/tx_valid
+add wave -noupdate -expand -group internals /ip_header_module_tb/uut/blk_make_tx_interface/blk_udp_data_transport/tx_data_sr
+add wave -noupdate -expand -group internals /ip_header_module_tb/uut/blk_make_tx_interface/blk_udp_data_transport/tx_ctrl_sr
+add wave -noupdate -expand -group internals /ip_header_module_tb/uut/blk_make_tx_interface/blk_udp_data_transport/tx_valid
 add wave -noupdate -expand -group internals /ip_header_module_tb/uut/ip_broadcast_addr
 add wave -noupdate -expand -group internals /ip_header_module_tb/uut/ip_dst_addr
 add wave -noupdate -expand -group internals /ip_header_module_tb/uut/ip_id
@@ -27,8 +27,8 @@ add wave -noupdate -expand -group internals /ip_header_module_tb/uut/ip_length
 add wave -noupdate -expand -group internals /ip_header_module_tb/uut/tx_count
 add wave -noupdate -expand -group internals /ip_header_module_tb/uut/tx_done
 add wave -noupdate -expand -group internals /ip_header_module_tb/uut/tx_state
-add wave -noupdate -expand -group internals /ip_header_module_tb/uut/make_tx_interface/udp_data_transport/make_tx_done/cnt_rst
-add wave -noupdate -expand -group internals /ip_header_module_tb/uut/make_tx_interface/udp_data_transport/make_tx_done/tx_next
+add wave -noupdate -expand -group internals /ip_header_module_tb/uut/blk_make_tx_interface/blk_udp_data_transport/blk_make_tx_done/cnt_rst
+add wave -noupdate -expand -group internals /ip_header_module_tb/uut/blk_make_tx_interface/blk_udp_data_transport/blk_make_tx_done/tx_next
 TreeUpdate [SetDefaultTree]
 WaveRestoreCursors {{Cursor 1} {390400 ps} 0}
 quietly wave cursor active 1

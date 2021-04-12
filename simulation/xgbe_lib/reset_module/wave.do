@@ -14,15 +14,15 @@ add wave -noupdate /reset_module_tb/uut/rx_ready_o
 add wave -noupdate -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/rx_packet_i
 add wave -noupdate /reset_module_tb/uut/tx_ready_i
 add wave -noupdate -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/tx_packet_o
-add wave -noupdate -expand -group Internals /reset_module_tb/uut/make_RX_interface/rx_valid_d
-add wave -noupdate -expand -group Internals /reset_module_tb/uut/make_rx_interface/rx_state
+add wave -noupdate -expand -group Internals /reset_module_tb/uut/blk_make_rx_interface/rx_valid_d
+add wave -noupdate -expand -group Internals /reset_module_tb/uut/blk_make_rx_interface/rx_state
 add wave -noupdate -color Yellow -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/rst_o
-add wave -noupdate -expand -group Internals -radix decimal -radixshowbase 0 /reset_module_tb/uut/make_RX_interface/rx_count
+add wave -noupdate -expand -group Internals -radix decimal -radixshowbase 0 /reset_module_tb/uut/blk_make_rx_interface/rx_count
 add wave -noupdate -expand -group Internals -radix hexadecimal /reset_module_tb/uut/soft_resets
-add wave -noupdate -expand -group Internals -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/make_rx_interface/rx_ready
-add wave -noupdate -expand -group Internals -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/make_RX_interface/rx_data_reg1
-add wave -noupdate -expand -group Internals -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/make_RX_interface/rx_data_reg2
-add wave -noupdate -expand -group Internals -color Plum -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/make_RX_interface/rx_data_reg
+add wave -noupdate -expand -group Internals -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/blk_make_rx_interface/rx_ready
+add wave -noupdate -expand -group Internals -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/blk_make_rx_interface/rx_data_reg1
+add wave -noupdate -expand -group Internals -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/blk_make_rx_interface/rx_data_reg2
+add wave -noupdate -expand -group Internals -color Plum -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/blk_make_rx_interface/rx_data_reg
 add wave -noupdate -expand -group Internals /reset_module_tb/uut/ipbus_big_endian
 add wave -noupdate -expand -group Internals -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/ipbus_packet_id
 add wave -noupdate -expand -group Internals -radix hexadecimal -radixshowbase 0 /reset_module_tb/uut/ipbus_trans_id
