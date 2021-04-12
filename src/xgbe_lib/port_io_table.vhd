@@ -89,7 +89,10 @@ architecture behavioral of port_io_table is
 
   impure function find_pout_in_port_io_table (inport : std_logic_vector(PORT_I_W - 1 downto 0)) return natural is
   begin
-    if unsigned('0' & inport) = 0 then
+    -- we must catch the Is_X in a stand-alone if statement
+    if Is_X(inport) then
+      return 0;
+    elsif unsigned('0' & inport) = 0 then
       return 0;
     end if;
     for i in port_io_table_data'range loop
