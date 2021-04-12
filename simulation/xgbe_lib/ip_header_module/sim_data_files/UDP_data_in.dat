@@ -93,11 +93,11 @@ a189 0002 0040 0000
 % - it's Ethernet data content (including header) is less than 60 bytes
 % - supposing 6+6+2 bytes Ethernet header, it's IPv4 frame length is less than 46 bytes
 % - supposing 14+20 bytes Eth+IP header, it's UDPv4 frame length is less than 26 bytes
-% The very shortest IPbus packet is chosen: only one word, 0x1000_0001. the xxxx_xxx is part of the incoming data,
+% The very shortest IPbus packet is chosen: only one word, 0x1000_0001. the XXXX_XXXX is part of the incoming data,
 % but should not be transferred to the FPGA2
 @ 120
 04d2 0002 000c 96de
-1000 0001 xxxx xxxx
+1000 0001 XXXX XXXX
 0000 0000 0000 0000
 0000 0000 FC52 1234 100 0
 
