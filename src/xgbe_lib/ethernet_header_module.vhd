@@ -1,14 +1,14 @@
 -- EMACS settings: -*- tab-width: 2; indent-tabs-mode: nil -*-
 -- vim: tabstop=2:shiftwidth=2:expandtab
 -- kate: tab-width 2; replace-tabs on; indent-width 2;
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 --! @file
 --! @brief Ethernet header module
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 --! @details
 --! Constructs the Ethernet header from an incoming (IPv4) packet.
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 --! @cond
 library fpga;
@@ -21,11 +21,11 @@ entity ethernet_header_module is
     --! @brief End of frame check
     --! @details If enabled, the module counter checks the IP length indication and
     --! raises the error indicator upon eof if not matching.
-    EOF_CHECK_EN  : std_logic                := '1';
+    EOF_CHECK_EN : std_logic                := '1';
     --! The minimal number of clock cycles between two outgoing frames.
-    PAUSE_LENGTH  : integer range 0 to 10    := 0;
+    PAUSE_LENGTH : integer range 0 to 10    := 0;
     --! Timeout to reconstruct MAC from IP in milliseconds
-    MAC_TIMEOUT   : integer range 1 to 10000 := 1000
+    MAC_TIMEOUT  : integer range 1 to 10000 := 1000
   );
   port (
     --! Clock
@@ -77,7 +77,7 @@ entity ethernet_header_module is
     --! - 0: IDLE mode
     status_vector_o : out   std_logic_vector(2 downto 0)
   );
-end ethernet_header_module;
+end entity ethernet_header_module;
 
 --! @cond
 library misc;
@@ -94,7 +94,7 @@ architecture behavioral of ethernet_header_module is
   --! success of the retrieval of the requested MAC address:
   --! While the IP is looked up (inducing ARP request), IP data transfer is
   --! paused.
-  signal ip_tx_ready_r  : std_logic;
+  signal ip_tx_ready_r : std_logic;
 
   --! @brief State definition for the TX FSM
   --! @details
@@ -105,30 +105,28 @@ architecture behavioral of ethernet_header_module is
   type t_tx_state is (IDLE, IP, TRAILER);
 
   --! State of the TX FSM
-  signal tx_state  : t_tx_state := IDLE;
+  signal tx_state : t_tx_state;
 
   --! Indicate if transmission is done
-  signal tx_done    : std_logic := '0';
+  signal tx_done : std_logic;
 
   --! Destination MAC address
   signal mac_dst_addr : std_logic_vector(47 downto 0);
 
   --! Counter for outgoing packet
-  signal tx_count     : integer range 0 to 511 := 0;
+  signal tx_count : integer range 0 to 511;
 
 begin
 
   status_vector_o(1) <= '1' when tx_state = IP else '0';
   status_vector_o(0) <= '1' when tx_state = IDLE else '0';
 
-  -- vsg_off
   with tx_state select ip_rx_ready_o <=
     ip_tx_ready_r when IDLE | IP,
     '0' when others;
 
-  -- vsg_on
   --! FSM to handle data forwarding of the interfaces
-  proc_tx_state : process (clk) is
+  proc_tx_state : process (clk)
   begin
     if rising_edge(clk) then
       if (rst = '1') then
@@ -172,25 +170,27 @@ begin
         end if;
       end if;
     end if;
-  end process;
+  end process proc_tx_state;
 
   blk_make_tx_interface : block
-    signal eth_frame_length  : unsigned(15 downto 0);
+    signal eth_frame_length : unsigned(15 downto 0);
 
     constant SR_DEPTH : integer := 7;
 
-    type tx_data_sr_t is array(1 to SR_DEPTH) of std_logic_vector(63 downto 0);
-    type tx_ctrl_sr_t is array(1 to SR_DEPTH) of std_logic_vector(4 downto 0);
+    type t_tx_data_sr is array(1 to SR_DEPTH) of std_logic_vector(63 downto 0);
 
-    signal tx_data_sr : tx_data_sr_t := (others => (others => '0'));
-    signal tx_ctrl_sr : tx_ctrl_sr_t := (others => (others => '0'));
+    type t_tx_ctrl_sr is array(1 to SR_DEPTH) of std_logic_vector(4 downto 0);
 
-    signal tx_valid : std_logic_vector(0 to SR_DEPTH) := (others => '0');
+    signal tx_data_sr : t_tx_data_sr;
+    signal tx_ctrl_sr : t_tx_ctrl_sr;
+
+    signal tx_valid : std_logic_vector(0 to SR_DEPTH);
   begin
 
     blk_make_tx_done : block
       signal cnt_rst : std_logic;
     begin
+
       cnt_rst <= '1' when tx_state /= trailer else tx_valid(2);
 
       --! Instantiate counter to generate requested gap
@@ -199,17 +199,17 @@ begin
         COUNTER_MAX_VALUE => PAUSE_LENGTH
       )
       port map (
-        clk         => clk,
-        rst         => cnt_rst,
-        en          => ip_tx_ready_r,
+        clk => clk,
+        rst => cnt_rst,
+        en  => ip_tx_ready_r,
 
-        cycle_done  => tx_done
+        cycle_done => tx_done
       );
 
-    end block;
+    end block blk_make_tx_done;
 
     --! Set ETH frame length from IP length indication
-    proc_set_eth_frame_length : process (clk) is
+    proc_set_eth_frame_length : process (clk)
     begin
       if rising_edge(clk) then
         if (rst = '1') then
@@ -220,7 +220,7 @@ begin
           end if;
         end if;
       end if;
-    end process;
+    end process proc_set_eth_frame_length;
 
     --! @brief Main process to assemble output packet from incoming IP data stream
     --! @details
@@ -228,7 +228,7 @@ begin
     --! then (in block "request_mac") look up corresponding MAC address for
     --! finally starting the transmission of the packet on the eth_tx interface.
     --! Also set control signals of the interface properly.
-    proc_make_data_and_controls : process (clk) is
+    proc_make_data_and_controls : process (clk)
       variable byte_count : unsigned(15 downto 0);
       variable empty      : unsigned(3 downto 0);
       variable error      : std_logic;
@@ -244,8 +244,8 @@ begin
           tx_data_sr(2) <= tx_data_sr(1)(63 downto 16) & ip_rx_packet_i.data(63 downto 48);
 
           -- default: shift
-          tx_data_sr(3 to SR_DEPTH) <= tx_data_sr(2 to SR_DEPTH-1);
-          tx_ctrl_sr(3 to SR_DEPTH) <= tx_ctrl_sr(2 to SR_DEPTH-1);
+          tx_data_sr(3 to SR_DEPTH) <= tx_data_sr(2 to SR_DEPTH - 1);
+          tx_ctrl_sr(3 to SR_DEPTH) <= tx_ctrl_sr(2 to SR_DEPTH - 1);
 
           -- now take care of the controls
           -- shift IP controls into register
@@ -258,12 +258,12 @@ begin
             byte_count := eth_frame_length + empty;
 
             -- do length check on the packet and set error, eventually
-            if eof_check_en = '1' then
-              if (eth_frame_length < 64-4) and (tx_count = 5) and (ip_rx_packet_i.empty = "010") then
+            if EOF_CHECK_EN = '1' then
+              if (eth_frame_length < 64 - 4) and (tx_count = 5) and (ip_rx_packet_i.empty = "010") then
                 -- ... but only if it is not padded:
                 -- signature is maximum 49 data bytes but still 6 empty bytes in the eof frame due to padding
                 error := '0';
-              elsif (to_unsigned(tx_count+3, 13) & "000") /= byte_count then
+              elsif (to_unsigned(tx_count + 3, 13) & "000") /= byte_count then
                 error := '1';
               else
                 error := ip_rx_packet_i.error(0);
@@ -272,7 +272,7 @@ begin
               error := '0';
             end if;
 
-            if unsigned(ip_rx_packet_i.empty) >= 8-2 then
+            if unsigned(ip_rx_packet_i.empty) >= 8 - 2 then
               -- skip one register due to ip-header insertion
               tx_ctrl_sr(1) <= (others => '0');
               tx_ctrl_sr(2) <= ip_rx_packet_i.eop & error & std_logic_vector(empty(2 downto 0));
@@ -308,13 +308,12 @@ begin
             tx_valid(3 to SR_DEPTH) <= (others => '1');
           else
             -- default: shift and let bits 1 and 2 be decided from above
-            tx_valid(3 to SR_DEPTH) <= tx_valid(2 to SR_DEPTH-1);
+            tx_valid(3 to SR_DEPTH) <= tx_valid(2 to SR_DEPTH - 1);
           end if;
         end if;
       end if;
-    end process;
+    end process proc_make_data_and_controls;
 
-    -- vsg_off
     -- finally compose ETH data output stream from registers and mac_dst_addr
     -- that has been retrieved in the meantime
     with tx_count select eth_tx_packet_o.data <=
@@ -325,7 +324,6 @@ begin
       -- or just attach (IP) data from the shift register
       tx_data_sr(SR_DEPTH) when others;
 
-    -- vsg_on
     -- set valid
     eth_tx_packet_o.valid <= tx_valid(SR_DEPTH);
 
@@ -337,19 +335,22 @@ begin
     eth_tx_packet_o.error <= tx_ctrl_sr(SR_DEPTH)(3 downto 3);
     eth_tx_packet_o.empty <= tx_ctrl_sr(SR_DEPTH)(2 downto 0);
 
-  end block;
+  end block blk_make_tx_interface;
 
   -- almost same behaviour as 'request_ip: block' in IP header module
   -- todo: make it some common module?
   blk_request_mac : block
+
     type t_request_state is (IDLE, WAITING);
 
-    signal request_state  : t_request_state := IDLE;
+    -- vsg_disable_next_line signal_007
+    signal request_state : t_request_state := IDLE;
 
     signal request_cnt_rst : std_logic;
     signal request_cnt_en  : std_logic;
     signal request_timeout : std_logic;
   begin
+
     status_vector_o(2) <= '1' when request_state = WAITING else '0';
 
     request_cnt_rst <= '1' when request_state = IDLE else '0';
@@ -361,20 +362,18 @@ begin
       CYCLIC            => false
     )
     port map (
-      clk         => clk,
-      rst         => request_cnt_rst,
-      en          => request_cnt_en,
+      clk => clk,
+      rst => request_cnt_rst,
+      en  => request_cnt_en,
 
-      cycle_done  => request_timeout
+      cycle_done => request_timeout
     );
 
-    -- vsg_off
     with request_state select ip_tx_ready_r <=
       '0' when WAITING,
       eth_tx_ready_i when others;
 
-    -- vsg_on
-    proc_set_mac_dst_addr : process (clk) is
+    proc_set_mac_dst_addr : process (clk)
     begin
       if rising_edge(clk) then
         if (rst = '1') then
@@ -415,8 +414,8 @@ begin
 
         end if;
       end if;
-    end process;
+    end process proc_set_mac_dst_addr;
 
-  end block;
+  end block blk_request_mac;
 
-end behavioral;
+end architecture behavioral;
