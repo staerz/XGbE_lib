@@ -29,5 +29,5 @@ files = [
 # Project configuration override
 configuration = {
   # select target device:
-  'G_FPGA_HW_NONE'      : {'value': 'True', 'description': 'No actual target, use default FPGA, no constraints, Default: False.'},
+  'G_BSP_NONE'      : {'value': 'True', 'description': 'No actual target, use default FPGA, no constraints, Default: False.'},
 }
