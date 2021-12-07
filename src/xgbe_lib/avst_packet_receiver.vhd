@@ -62,18 +62,24 @@ architecture emulational of avst_packet_receiver is
 
 begin
 
-  --! Instantiate counter_matcher to generate rx_ready_n
-  inst_rx_ready : entity sim.counter_matcher
-  generic map (
-    FILENAME     => READY_FILE,
-    COMMENT_FLAG => COMMENT_FLAG
-  )
-  port map (
-    clk      => clk,
-    rst      => rst,
-    cnt      => cnt_i,
-    stimulus => rx_ready_n
-  );
+  gen_rx_ready : if READY_FILE /= "" generate
+
+    --! Instantiate counter_matcher to generate rx_ready_n
+    inst_rx_ready : entity sim.counter_matcher
+    generic map (
+      FILENAME     => READY_FILE,
+      COMMENT_FLAG => COMMENT_FLAG
+    )
+    port map (
+      clk      => clk,
+      rst      => rst,
+      cnt      => cnt_i,
+      stimulus => rx_ready_n
+    );
+
+  else generate
+    rx_ready_n <= '0';
+  end generate gen_rx_ready;
 
   rx_ready_o <= not rx_ready_n;
 
