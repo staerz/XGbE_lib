@@ -4,7 +4,7 @@ add wave -noupdate /rx_fifo_module_tb/AVST_RXD_FILE
 add wave -noupdate /rx_fifo_module_tb/AVST_TXD_FILE
 add wave -noupdate /rx_fifo_module_tb/AVST_RDY_FILE
 add wave -noupdate /rx_fifo_module_tb/MNL_RST_FILE
-add wave -noupdate -radix decimal -radixshowbase 0 /rx_fifo_module_tb/blk_simulation/counter
+add wave -noupdate -radix decimal -radixshowbase 0 /rx_fifo_module_tb/cnt
 add wave -noupdate /rx_fifo_module_tb/clk
 add wave -noupdate /rx_fifo_module_tb/rst
 add wave -noupdate /rx_fifo_module_tb/uut/rx_ready_o
