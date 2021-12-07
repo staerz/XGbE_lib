@@ -15,6 +15,7 @@ modules = {
   "local" : [
     '$PROJECT_ROOT_PATH/fpga', # load central BSP of LASP (loads common/misc and common/sim as well)
     "../../../src/xgbe_lib",
+    '${TESTBENCH_PATH}',
   ],
 }
 
