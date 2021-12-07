@@ -4,7 +4,7 @@ add wave -noupdate /ip_header_module_tb/UDP_RXD_FILE
 add wave -noupdate /ip_header_module_tb/IP_RDY_FILE
 add wave -noupdate /ip_header_module_tb/IP_TXD_FILE
 add wave -noupdate /ip_header_module_tb/MNL_RST_FILE
-add wave -noupdate -radix decimal -radixshowbase 0 /ip_header_module_tb/blk_simulation/counter
+add wave -noupdate -radix decimal -radixshowbase 0 /ip_header_module_tb/cnt
 add wave -noupdate /ip_header_module_tb/clk
 add wave -noupdate /ip_header_module_tb/rst
 add wave -noupdate /ip_header_module_tb/uut/udp_rx_ready_o
