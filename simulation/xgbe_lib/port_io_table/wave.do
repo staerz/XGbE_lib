@@ -5,6 +5,7 @@ add wave -noupdate -radix decimal -radixshowbase 0 /port_io_table_tb/uut/PORT_O_
 add wave -noupdate -radix decimal -radixshowbase 0 /port_io_table_tb/uut/TABLE_DEPTH
 add wave -noupdate /port_io_table_tb/uut/clk
 add wave -noupdate /port_io_table_tb/uut/rst
+add wave -noupdate -radix decimal -radixshowbase 0 /port_io_table_tb/cnt
 add wave -noupdate /port_io_table_tb/uut/disco_wren_i
 add wave -noupdate -radix hexadecimal -radixshowbase 0 /port_io_table_tb/uut/disco_port_i
 add wave -noupdate -radix hexadecimal -radixshowbase 0 /port_io_table_tb/uut/disco_port_o

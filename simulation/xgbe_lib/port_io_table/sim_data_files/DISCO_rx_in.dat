@@ -1,0 +1,19 @@
+% File containing pairs of IP and MAC address
+% The first 2 words of 16 bits are the IP address
+% The third to 5th word are the MAC address
+% Packet end indicators (empty and error) are just here to make the reader happy
+
+@4
+1122 ab01 1122 3344 5566 000 0
+
+% then a reset nullifies everything
+
+@18
+2233 cd02 aabb ccdd eeff
+3344 ef03 abcd efab cdef 000 0
+
+@23
+1122 ab01 1122 3344 5566 000 0
+
+@40
+4455 0104 1234 5678 90ab 000 0
