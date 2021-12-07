@@ -15,7 +15,7 @@ add wave -noupdate /ethernet_to_udp_module_tb/uut/my_ip_i
 add wave -noupdate /ethernet_to_udp_module_tb/uut/ip_netmask_i
 add wave -noupdate /ethernet_to_udp_module_tb/clk
 add wave -noupdate /ethernet_to_udp_module_tb/rst
-add wave -noupdate -radix unsigned /ethernet_to_udp_module_tb/blk_simulation/counter
+add wave -noupdate -radix decimal -radixshowbase 0 /ethernet_to_udp_module_tb/cnt
 add wave -noupdate -color Yellow /ethernet_to_udp_module_tb/uut/eth_rx_ready_o
 add wave -noupdate -color Yellow /ethernet_to_udp_module_tb/uut/eth_rx_packet_i
 add wave -noupdate -color Orange /ethernet_to_udp_module_tb/uut/eth_tx_ready_i
@@ -44,7 +44,7 @@ add wave -noupdate -expand -group {arp table internals} /ethernet_to_udp_module_
 add wave -noupdate -expand -group {arp table internals} /ethernet_to_udp_module_tb/uut/inst_arp_module/blk_arp_table/inst_arp_table/reco_port_i
 add wave -noupdate -expand -group {arp table internals} /ethernet_to_udp_module_tb/uut/inst_arp_module/blk_arp_table/inst_arp_table/reco_port_o
 add wave -noupdate -expand -group {arp table internals} -color White -expand -subitemconfig {/ethernet_to_udp_module_tb/uut/inst_arp_module/blk_arp_table/inst_arp_table/port_io_table_data(4) {-color White -height 17} /ethernet_to_udp_module_tb/uut/inst_arp_module/blk_arp_table/inst_arp_table/port_io_table_data(3) {-color White -height 17} /ethernet_to_udp_module_tb/uut/inst_arp_module/blk_arp_table/inst_arp_table/port_io_table_data(2) {-color White -height 17} /ethernet_to_udp_module_tb/uut/inst_arp_module/blk_arp_table/inst_arp_table/port_io_table_data(1) {-color White -height 17}} /ethernet_to_udp_module_tb/uut/inst_arp_module/blk_arp_table/inst_arp_table/port_io_table_data
-add wave -noupdate -radix unsigned /ethernet_to_udp_module_tb/blk_simulation/counter
+add wave -noupdate -radix decimal -radixshowbase 0 /ethernet_to_udp_module_tb/cnt
 add wave -noupdate -group {ip module internals} /ethernet_to_udp_module_tb/uut/inst_ip_module/blk_stripoff_header/icmp_in_ready
 add wave -noupdate -group {ip module internals} /ethernet_to_udp_module_tb/uut/inst_ip_module/blk_stripoff_header/protocol
 add wave -noupdate -group {ip module internals} /ethernet_to_udp_module_tb/uut/inst_ip_module/blk_stripoff_header/rx_count
