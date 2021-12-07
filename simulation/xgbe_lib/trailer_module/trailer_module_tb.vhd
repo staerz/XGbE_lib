@@ -21,12 +21,16 @@ library fpga;
 --! Testbench for trailer_module.vhd
 entity trailer_module_tb is
   generic (
+    --! Clock period
+    CLK_PERIOD     : time   := 6.4 ns;
     --! File containing the AVST RX data
-    AVST_RXD_FILE  : string := "sim_data_files/AVST_data_in.dat";
-    --! File containing counters on which the RX interface is not ready
-    AVST_RDY_FILE  : string := "sim_data_files/AVST_rx_ready_in.dat";
+    AVST_RXD_FILE  : string := "sim_data_files/AVST_rx_in.dat";
+    --! File containing counters on which the TX interface is not ready
+    AVST_RDY_FILE  : string := "sim_data_files/AVST_tx_ready_in.dat";
     --! File to write out the response of the module
-    AVST_TXD_FILE  : string := "sim_data_files/AVST_data_out.dat";
+    AVST_TXD_FILE  : string := "sim_data_files/AVST_tx_out.dat";
+    --! File to read expected AVST response of the module
+    AVST_CHK_FILE  : string := "sim_data_files/AVST_tx_expect.dat";
 
     --! Flag to use to indicate comments
     COMMENT_FLAG   : character := '%';
@@ -42,6 +46,12 @@ end entity trailer_module_tb;
 --! @cond
 library sim;
 library xgbe_lib;
+
+library testbench;
+  use testbench.testbench_pkg.all;
+
+library uvvm_util;
+  context uvvm_util.uvvm_util_context;
 --! @endcond
 
 --! Implementation of trailer_module_tb
@@ -52,8 +62,12 @@ architecture tb of trailer_module_tb is
 
   --! Clock
   signal clk : std_logic;
-  --! reset, sync with #clk
+  --! Reset, sync with #clk
   signal rst : std_logic;
+  --! Counter for the simulation
+  signal cnt : integer;
+  --! End of File indicators of all readers (data sources and checkers)
+  signal eof : std_logic_vector(1 downto 0);
 
   --! @name Avalon-ST to module (read from file)
   --! @{
@@ -105,18 +119,19 @@ begin
   );
 
   -- Simulation part
-  -- generating stimuli based on counter
+  -- generating stimuli based on cnt
   blk_simulation : block
-    -- vsg_disable_next_line signal_007
-    signal counter : integer := 0;
   begin
 
     --! Instantiate simulation_basics to start
     inst_sim_basics : entity sim.simulation_basics
+    generic map (
+      CLK_PERIOD => CLK_PERIOD
+    )
     port map (
       clk => clk,
       rst => rst,
-      cnt => counter
+      cnt => cnt
     );
 
     --! Instantiate avst_packet_sender to read tx from AVST_RXD_FILE
@@ -129,10 +144,12 @@ begin
     port map (
       clk   => clk,
       rst   => rst,
-      cnt_i => counter,
+      cnt_i => cnt,
 
       tx_ready_i  => tx_ready,
-      tx_packet_o => tx_packet
+      tx_packet_o => tx_packet,
+
+      eof_o => eof(0)
     );
 
     --! Instantiate avst_packet_receiver to write rx to AVST_TXD_FILE
@@ -145,12 +162,69 @@ begin
     port map (
       clk   => clk,
       rst   => rst,
-      cnt_i => counter,
+      cnt_i => cnt,
 
       rx_ready_o  => rx_ready,
       rx_packet_i => rx_packet
     );
 
   end block blk_simulation;
+
+  blk_uvvm : block
+    --! Expected RX data and controls
+    signal rx_expect : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  begin
+
+    --! Use the avst_packet_sender to read expected data from an independent file
+    inst_tx_checker : entity xgbe_lib.avst_packet_sender
+    generic map (
+      FILENAME     => AVST_CHK_FILE,
+      COMMENT_FLAG => COMMENT_FLAG,
+      COUNTER_FLAG => COUNTER_FLAG
+    )
+    port map (
+      clk   => clk,
+      rst   => rst,
+      cnt_i => cnt,
+
+      tx_ready_i  => rx_ready,
+      tx_packet_o => rx_expect,
+
+      eof_o => eof(1)
+    );
+
+    --! UVVM check
+    proc_uvvm : process
+    begin
+      -- Wait a bit to let simulation settle
+      wait for CLK_PERIOD;
+      -- Wait for the reset to drop
+      await_value(rst, '0', 10 ns, 60 * CLK_PERIOD, ERROR, "Reset drop expected.");
+
+      note("The following acknowledge check messages are all suppressed.");
+      -- make sure to be slightly after the rising edge
+      wait for 1 ns;
+      -- Now we just compare expected data and valid to actual values as long as there's sth. to read from files
+      -- vsg_disable_next_line whitespace_013
+      while nand(eof) loop
+        check_value(rx_packet.valid, rx_expect.valid, ERROR, "Checking expected valid.", "", ID_NEVER);
+        check_value(rx_packet.sop, rx_expect.sop, ERROR, "Checking expected sop.", "", ID_NEVER);
+        check_value(rx_packet.eop, rx_expect.eop, ERROR, "Checking expected eop.", "", ID_NEVER);
+        -- only check the expected data when it's relevant: reader will hold data after packet while uut might not
+        if rx_expect.valid then
+          check_value(rx_packet.data, rx_expect.data, ERROR, "Checking expected data.", "", HEX, KEEP_LEADING_0, ID_NEVER);
+        end if;
+        wait for CLK_PERIOD;
+      end loop;
+      note("If until here no errors showed up, a gazillion of checks on rx_packet went fine.");
+
+      -- Grant an additional clock cycle in order for the avst_packet_receiver to finish writing
+      wait for CLK_PERIOD;
+
+      tb_end_simulation;
+
+    end process proc_uvvm;
+
+  end block blk_uvvm;
 
 end architecture tb;

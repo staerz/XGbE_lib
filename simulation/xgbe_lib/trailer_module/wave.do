@@ -3,6 +3,7 @@ quietly WaveActivateNextPane {} 0
 add wave -noupdate -radix decimal -radixshowbase 0 /trailer_module_tb/uut/header_length
 add wave -noupdate /trailer_module_tb/uut/clk
 add wave -noupdate /trailer_module_tb/uut/rst
+add wave -noupdate -radix decimal -radixshowbase 0 /trailer_module_tb/cnt
 add wave -noupdate /trailer_module_tb/uut/rx_ready_o
 add wave -noupdate -radix hexadecimal -radixshowbase 0 /trailer_module_tb/uut/rx_packet_i
 add wave -noupdate -radix binary -radixshowbase 0 /trailer_module_tb/uut/rx_mux_i
