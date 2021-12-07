@@ -15,6 +15,7 @@ add wave -noupdate -group {Constants and Config} /ethernet_module_tb/MAC_TIMEOUT
 add wave -noupdate -group {Constants and Config} /ethernet_module_tb/PAUSE_LENGTH
 add wave -noupdate -group {Constants and Config} -radix hexadecimal -radixshowbase 0 /ethernet_module_tb/my_mac
 add wave -noupdate -group {Constants and Config} -radix hexadecimal -radixshowbase 0 /ethernet_module_tb/uut/MAC_BROADCAST_ADDR
+add wave -noupdate -radix decimal -radixshowbase 0 /ethernet_module_tb/cnt
 add wave -noupdate /ethernet_module_tb/clk
 add wave -noupdate /ethernet_module_tb/rst
 add wave -noupdate -color Tan /ethernet_module_tb/uut/eth_rx_ready_o
