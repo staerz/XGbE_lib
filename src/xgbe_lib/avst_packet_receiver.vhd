@@ -4,8 +4,8 @@
 --------------------------------------------------------------------------------
 --! @file
 --! @brief Packet writer for AVALON-ST packet interface, writes data to file.
---! @details Uses the file_writer_hex to write data. See the file_writer_hex for
---! the description of the expected file format.
+--! @details Uses the file_writer_hex to write data.
+--! See the file_writer_hex for the description of the expected file format.
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
 --------------------------------------------------------------------------------
 

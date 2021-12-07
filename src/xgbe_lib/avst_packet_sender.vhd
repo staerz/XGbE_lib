@@ -4,8 +4,8 @@
 --------------------------------------------------------------------------------
 --! @file
 --! @brief Packet sender for AVALON-ST packet interface, reads data from file.
---! @details Uses the av_st_sender (which uses file_writer_hex) to write data.
---! See the file_writer_hex for the description of the expected file format.
+--! @details Uses the av_st_sender (which uses file_reader_hex) to read data.
+--! See the file_reader_hex for the description of the expected file format.
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
 --------------------------------------------------------------------------------
 
@@ -51,7 +51,8 @@ entity avst_packet_sender is
       data(BITSPERWORD * WORDSPERLINE - 1 downto 0),
       empty(log2ceil(div_ceil(BITSPERWORD * WORDSPERLINE, BITSPERSYMBOL)) - 1 downto 0),
       error(0 downto 0)
-    )
+    );
+    eof_o       : out   std_logic
   );
 end entity avst_packet_sender;
 
@@ -84,7 +85,8 @@ begin
 
     tx_ready => tx_ready_i,
     tx_data  => tx_packet_o.data,
-    tx_ctrl  => tx_ctrl
+    tx_ctrl  => tx_ctrl,
+    eof      => eof_o
   );
 
   -- conversion of controls
