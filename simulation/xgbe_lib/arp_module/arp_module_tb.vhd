@@ -203,7 +203,7 @@ begin
       tx_ready_i  => arp_tx_ready,
       tx_packet_o => arp_tx_packet,
 
-      eof => eof_data
+      eof_o => eof(0)
     );
 
     --! Instantiate avst_packet_receiver to write arp_rx to ARP_TXD_FILE
@@ -256,7 +256,7 @@ begin
       tx_ready_i  => arp_rx_ready,
       tx_packet_o => arp_rx_expect,
 
-      eof => eof_checker
+      eof_o => eof(1)
     );
 
     --! UVVM check
@@ -271,6 +271,7 @@ begin
       -- make sure to be slightly after the rising edge
       wait for 1 ns;
       -- Now we just compare expected data and valid to actual values as long as there's sth. to read from files
+      -- vsg_disable_next_line whitespace_013
       while nand(eof) loop
         check_value(arp_rx_packet.valid, arp_rx_expect.valid, ERROR, "Checking expected valid.", "", ID_NEVER);
         check_value(arp_rx_packet.sop, arp_rx_expect.sop, ERROR, "Checking expected sop.", "", ID_NEVER);

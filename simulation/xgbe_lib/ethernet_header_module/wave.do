@@ -4,7 +4,7 @@ add wave -noupdate /ethernet_header_module_tb/IP_RXD_FILE
 add wave -noupdate /ethernet_header_module_tb/ETH_RDY_FILE
 add wave -noupdate /ethernet_header_module_tb/ETH_TXD_FILE
 add wave -noupdate /ethernet_header_module_tb/MNL_RST_FILE
-add wave -noupdate -radix decimal -radixshowbase 0 /ethernet_header_module_tb/blk_simulation/counter
+add wave -noupdate -radix decimal -radixshowbase 0 /ethernet_header_module_tb/cnt
 add wave -noupdate /ethernet_header_module_tb/clk
 add wave -noupdate /ethernet_header_module_tb/rst
 add wave -noupdate /ethernet_header_module_tb/uut/ip_rx_ready_o
