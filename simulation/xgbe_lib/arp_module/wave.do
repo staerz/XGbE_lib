@@ -1,6 +1,6 @@
 onerror {resume}
 quietly WaveActivateNextPane {} 0
-add wave -noupdate -radix decimal -radixshowbase 0 /arp_module_tb/blk_simulation/counter
+add wave -noupdate -radix decimal -radixshowbase 0 /arp_module_tb/cnt
 add wave -noupdate /arp_module_tb/uut/clk
 add wave -noupdate /arp_module_tb/uut/rst
 add wave -noupdate /arp_module_tb/uut/arp_rx_ready_o

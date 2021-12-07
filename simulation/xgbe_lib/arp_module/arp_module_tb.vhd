@@ -20,12 +20,16 @@ library fpga;
 --! Testbench for arp_module.vhd
 entity arp_module_tb is
   generic (
+    --! Clock period
+    CLK_PERIOD        : time   := 6.4 ns;
     --! File containing the ARP RX data
-    ARP_RXD_FILE      : string := "sim_data_files/ARP_request_in.dat";
-    --! File containing counters on which the RX interface is not ready
-    ARP_RDY_FILE      : string := "sim_data_files/ARP_rx_ready_in.dat";
+    ARP_RXD_FILE      : string := "sim_data_files/ARP_rx_in.dat";
+    --! File containing counters on which the TX interface is not ready
+    ARP_RDY_FILE      : string := "sim_data_files/ARP_tx_ready_in.dat";
     --! File to write out the response of the module
-    ARP_TXD_FILE      : string := "sim_data_files/ARP_response_out.dat";
+    ARP_TXD_FILE      : string := "sim_data_files/ARP_tx_out.dat";
+    --! File to read expected response of the module
+    ARP_CHK_FILE      : string := "sim_data_files/ARP_tx_expect.dat";
     --! File containing counters on which a manual reset is carried out
     MNL_RST_FILE      : string := "sim_data_files/MNL_RST_in.dat";
 
@@ -53,8 +57,13 @@ end entity arp_module_tb;
 
 --! @cond
 library xgbe_lib;
-library misc;
 library sim;
+
+library testbench;
+  use testbench.testbench_pkg.all;
+
+library uvvm_util;
+  context uvvm_util.uvvm_util_context;
 --! @endcond
 
 --! Implementation of arp_module_tb
@@ -64,6 +73,10 @@ architecture tb of arp_module_tb is
   signal clk : std_logic;
   --! reset, sync with #clk
   signal rst : std_logic;
+  --! Counter for the simulation
+  signal cnt : integer;
+  --! End of File indicators of all readers (data sources and checkers)
+  signal eof : std_logic_vector(1 downto 0);
 
   --! @name Avalon-ST (ARP with Ethernet header) to module (read from file)
   --! @{
@@ -142,9 +155,8 @@ begin
   );
 
   -- Simulation part
-  -- generating stimuli based on counter
+  -- generating stimuli based on cnt
   blk_simulation : block
-    signal counter : integer;
     signal sim_rst : std_logic;
     signal mnl_rst : std_logic;
   begin
@@ -153,12 +165,12 @@ begin
     inst_sim_basics : entity sim.simulation_basics
     generic map (
       CLK_OFFSET => 0 ns,
-      CLK_PERIOD => 6.4 ns
+      CLK_PERIOD => CLK_PERIOD
     )
     port map (
       clk => clk,
       rst => sim_rst,
-      cnt => counter
+      cnt => cnt
     );
 
     --! Instantiate counter_matcher to read mnl_rst from MNL_RST_FILE
@@ -170,13 +182,13 @@ begin
     port map (
       clk      => clk,
       rst      => '0',
-      cnt      => counter,
+      cnt      => cnt,
       stimulus => mnl_rst
     );
 
     rst <= sim_rst or mnl_rst;
 
-    --! Instantiate av_st_sender to read arp_tx from ARP_RXD_FILE
+    --! Instantiate avst_packet_sender to read arp_tx from ARP_RXD_FILE
     inst_arp_tx : entity xgbe_lib.avst_packet_sender
     generic map (
       FILENAME     => ARP_RXD_FILE,
@@ -186,13 +198,15 @@ begin
     port map (
       clk   => clk,
       rst   => rst,
-      cnt_i => counter,
+      cnt_i => cnt,
 
       tx_ready_i  => arp_tx_ready,
-      tx_packet_o => arp_tx_packet
+      tx_packet_o => arp_tx_packet,
+
+      eof => eof_data
     );
 
-    --! Instantiate av_st_receiver to write arp_rx to ARP_TXD_FILE
+    --! Instantiate avst_packet_receiver to write arp_rx to ARP_TXD_FILE
     inst_arp_rx : entity xgbe_lib.avst_packet_receiver
     generic map (
       READY_FILE   => ARP_RDY_FILE,
@@ -202,24 +216,80 @@ begin
     port map (
       clk   => clk,
       rst   => rst,
-      cnt_i => counter,
+      cnt_i => cnt,
 
       rx_ready_o  => arp_rx_ready,
       rx_packet_i => arp_rx_packet
     );
 
-    with counter mod 5 select one_ms_tick <=
+    with cnt mod 5 select one_ms_tick <=
       '1' when 0,
       '0' when others;
 
-    with counter select reco_ip <=
+    with cnt select reco_ip <=
       x"C0_A8_00_23" when 100,
       (others => '0') when others;
 
-    with counter select reco_en <=
+    with cnt select reco_en <=
       '1' when 100,
       '0' when others;
 
   end block blk_simulation;
+
+  blk_uvvm : block
+    --! Expected RX data and controls
+    signal arp_rx_expect : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  begin
+
+    --! Use the avst_packet_sender to read expected data from an independent file
+    inst_arp_tx_checker : entity xgbe_lib.avst_packet_sender
+    generic map (
+      FILENAME     => ARP_CHK_FILE,
+      COMMENT_FLAG => COMMENT_FLAG,
+      COUNTER_FLAG => COUNTER_FLAG
+    )
+    port map (
+      clk   => clk,
+      rst   => rst,
+      cnt_i => cnt,
+
+      tx_ready_i  => arp_rx_ready,
+      tx_packet_o => arp_rx_expect,
+
+      eof => eof_checker
+    );
+
+    --! UVVM check
+    proc_uvvm : process
+    begin
+      -- Wait a bit to let simulation settle
+      wait for CLK_PERIOD;
+      -- Wait for the reset to drop
+      await_value(rst, '0', 0 ns, 60 * CLK_PERIOD, ERROR, "Reset drop expected.");
+
+      note("The following acknowledge check messages are all suppressed.");
+      -- make sure to be slightly after the rising edge
+      wait for 1 ns;
+      -- Now we just compare expected data and valid to actual values as long as there's sth. to read from files
+      while nand(eof) loop
+        check_value(arp_rx_packet.valid, arp_rx_expect.valid, ERROR, "Checking expected valid.", "", ID_NEVER);
+        check_value(arp_rx_packet.sop, arp_rx_expect.sop, ERROR, "Checking expected sop.", "", ID_NEVER);
+        check_value(arp_rx_packet.eop, arp_rx_expect.eop, ERROR, "Checking expected eop.", "", ID_NEVER);
+        -- only check the expected data when it's relevant: reader will hold data after packet while uut might not
+        if arp_rx_expect.valid then
+          check_value(arp_rx_packet.data, arp_rx_expect.data, ERROR, "Checking expected data.", "", HEX, KEEP_LEADING_0, ID_NEVER);
+        end if;
+        wait for CLK_PERIOD;
+      end loop;
+      note("If until here no errors showed up, a gazillion of checks on arp_rx_packet went fine.");
+
+      -- Grant an additional clock cycle in order for the avst_packet_receiver to finish writing
+      wait for CLK_PERIOD;
+
+      tb_end_simulation;
+
+    end process proc_uvvm;
+
+  end block blk_uvvm;
 
 end architecture tb;
