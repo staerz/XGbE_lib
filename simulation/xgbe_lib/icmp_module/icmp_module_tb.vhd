@@ -212,6 +212,9 @@ begin
 
     --! UVVM check
     proc_uvvm : process
+      -- since the rx fifo is involved, it will return Xes upon reset, and the version of UVVM we use cannot handle that comparison
+      -- so we explicitly catch those Xes and then override with 0s.
+      variable icmp_rx_packet_no_x : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     begin
       -- Wait a bit to let simulation settle
       wait for CLK_PERIOD;
@@ -226,12 +229,17 @@ begin
       -- Now we just compare expected data and valid to actual values as long as there's sth. to read from files
       -- vsg_disable_next_line whitespace_013
       while nand(eof) loop
-        check_value(icmp_rx_packet.valid, icmp_rx_expect.valid, ERROR, "Checking expected ICMP valid.", "", ID_NEVER);
-        check_value(icmp_rx_packet.sop, icmp_rx_expect.sop, ERROR, "Checking expected ICMP sop.", "", ID_NEVER);
-        check_value(icmp_rx_packet.eop, icmp_rx_expect.eop, ERROR, "Checking expected ICMP eop.", "", ID_NEVER);
+        if is_x(icmp_rx_packet.valid) then
+          icmp_rx_packet_no_x := (data => (others => '0'), empty => (others => '0'), error => (others => '0'), others => '0');
+        else
+          icmp_rx_packet_no_x := icmp_rx_packet;
+        end if;
+        check_value(icmp_rx_packet_no_x.valid, icmp_rx_expect.valid, ERROR, "Checking expected ICMP valid.", "", ID_NEVER);
+        check_value(icmp_rx_packet_no_x.sop, icmp_rx_expect.sop, ERROR, "Checking expected ICMP sop.", "", ID_NEVER);
+        check_value(icmp_rx_packet_no_x.eop, icmp_rx_expect.eop, ERROR, "Checking expected ICMP eop.", "", ID_NEVER);
         -- only check the expected data when it's relevant: reader will hold data after packet while uut might not
         if icmp_rx_expect.valid then
-          check_value(icmp_rx_packet.data, icmp_rx_expect.data, ERROR, "Checking expected ICMP data.", "", HEX, KEEP_LEADING_0, ID_NEVER);
+          check_value(icmp_rx_packet_no_x.data, icmp_rx_expect.data, ERROR, "Checking expected ICMP data.", "", HEX, KEEP_LEADING_0, ID_NEVER);
         end if;
         wait for CLK_PERIOD;
       end loop;
