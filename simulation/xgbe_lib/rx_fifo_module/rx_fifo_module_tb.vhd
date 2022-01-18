@@ -220,6 +220,9 @@ begin
 
     --! UVVM check
     proc_uvvm : process
+      -- since the rx fifo is involved, it will return Xes upon reset, and the version of UVVM we use cannot handle that comparison
+      -- so we explicitly catch those Xes and then override with 0s.
+      variable rx_packet_no_x : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     begin
       -- Wait a bit to let simulation settle
       wait for CLK_PERIOD;
@@ -232,12 +235,17 @@ begin
       -- Now we just compare expected data and valid to actual values as long as there's sth. to read from files
       -- vsg_disable_next_line whitespace_013
       while nand(eof) loop
-        check_value(rx_packet.valid, rx_expect.valid, ERROR, "Checking expected valid.", "", ID_NEVER);
-        check_value(rx_packet.sop, rx_expect.sop, ERROR, "Checking expected sop.", "", ID_NEVER);
-        check_value(rx_packet.eop, rx_expect.eop, ERROR, "Checking expected eop.", "", ID_NEVER);
+        if is_x(rx_packet.valid) then
+          rx_packet_no_x := (data => (others => '0'), empty => (others => '0'), error => (others => '0'), others => '0');
+        else
+          rx_packet_no_x := rx_packet;
+        end if;
+        check_value(rx_packet_no_x.valid, rx_expect.valid, ERROR, "Checking expected valid.", "", ID_NEVER);
+        check_value(rx_packet_no_x.sop, rx_expect.sop, ERROR, "Checking expected sop.", "", ID_NEVER);
+        check_value(rx_packet_no_x.eop, rx_expect.eop, ERROR, "Checking expected eop.", "", ID_NEVER);
         -- only check the expected data when it's relevant: reader will hold data after packet while uut might not
         if rx_expect.valid then
-          check_value(rx_packet.data, rx_expect.data, ERROR, "Checking expected data.", "", HEX, KEEP_LEADING_0, ID_NEVER);
+          check_value(rx_packet_no_x.data, rx_expect.data, ERROR, "Checking expected data.", "", HEX, KEEP_LEADING_0, ID_NEVER);
         end if;
         wait for CLK_PERIOD;
       end loop;
