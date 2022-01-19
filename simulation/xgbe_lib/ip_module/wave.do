@@ -19,7 +19,7 @@ add wave -noupdate -group {Check header} -radixshowbase 0 /ip_module_tb/uut/icmp
 add wave -noupdate -expand -group {UDP TX Data} -color Aquamarine -radix binary -radixshowbase 0 /ip_module_tb/uut/udp_tx_ready_i
 add wave -noupdate -expand -group {UDP TX Data} -color Aquamarine -radix hexadecimal -radixshowbase 0 /ip_module_tb/uut/udp_tx_packet_o
 add wave -noupdate -expand -group {UDP TX Data} -color Aquamarine -radix hexadecimal -radixshowbase 0 /ip_module_tb/uut/udp_tx_id_o
-add wave -noupdate -radix decimal -radixshowbase 0 /ip_module_tb/blk_simulation/counter
+add wave -noupdate -radix decimal -radixshowbase 0 /ip_module_tb/cnt
 add wave -noupdate -expand -group port_io_table /ip_module_tb/uut/blk_stripoff_header/udp_tx_id_r
 add wave -noupdate -expand -group port_io_table -color Gold /ip_module_tb/uut/blk_stripoff_header/blk_make_ip_udp_table/disco_wren
 add wave -noupdate -expand -group port_io_table -color Gold -radix hexadecimal /ip_module_tb/uut/blk_stripoff_header/blk_make_ip_udp_table/disco_id
@@ -38,7 +38,7 @@ add wave -noupdate -expand -group {ICMP Module} -color Thistle -radix hexadecima
 add wave -noupdate -expand -group {UDP RX Data} -color White -radix binary -radixshowbase 0 /ip_module_tb/uut/udp_rx_ready_o
 add wave -noupdate -expand -group {UDP RX Data} -color White -radix hexadecimal -radixshowbase 0 /ip_module_tb/uut/udp_rx_packet_i
 add wave -noupdate -expand -group {UDP RX Data} -color White -radix hexadecimal -radixshowbase 0 /ip_module_tb/uut/udp_rx_id_i
-add wave -noupdate -radix decimal -radixshowbase 0 /ip_module_tb/blk_simulation/counter
+add wave -noupdate -radix decimal -radixshowbase 0 /ip_module_tb/cnt
 add wave -noupdate -group {Build header} -radixshowbase 0 /ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/tx_state
 add wave -noupdate -group {Build header} -radix decimal -radixshowbase 0 /ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/tx_count
 add wave -noupdate -group {Build header} -radix binary -childformat {{/ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/blk_request_ip/request(1) -radix binary} {/ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/blk_request_ip/request(0) -radix binary}} -radixshowbase 0 -subitemconfig {/ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/blk_request_ip/request(1) {-height 18 -radix binary -radixshowbase 0} /ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/blk_request_ip/request(0) {-height 18 -radix binary -radixshowbase 0}} /ip_module_tb/uut/blk_ip_tx/inst_ip_header_module/blk_request_ip/request

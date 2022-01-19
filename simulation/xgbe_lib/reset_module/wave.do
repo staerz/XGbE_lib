@@ -7,7 +7,7 @@ add wave -noupdate /reset_module_tb/MNL_RST_FILE
 add wave -noupdate -radix hexadecimal -radixshowbase 0 /reset_module_tb/MY_MAC
 add wave -noupdate -radix hexadecimal -radixshowbase 0 /reset_module_tb/MY_IP
 add wave -noupdate -radix hexadecimal -radixshowbase 0 /reset_module_tb/MY_UDP_PORT
-add wave -noupdate -radix decimal -radixshowbase 0 /reset_module_tb/blk_simulation/counter
+add wave -noupdate -radix decimal -radixshowbase 0 /reset_module_tb/cnt
 add wave -noupdate /reset_module_tb/clk
 add wave -noupdate /reset_module_tb/rst
 add wave -noupdate /reset_module_tb/uut/rx_ready_o

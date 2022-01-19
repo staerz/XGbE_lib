@@ -2,7 +2,7 @@ onerror {resume}
 quietly WaveActivateNextPane {} 0
 add wave -noupdate /interface_merger_tb/clk
 add wave -noupdate /interface_merger_tb/rst
-add wave -noupdate -radix decimal -radixshowbase 0 /interface_merger_tb/blk_simulation/counter
+add wave -noupdate -radix decimal -radixshowbase 0 /interface_merger_tb/cnt
 add wave -noupdate -divider avst_tx_1
 add wave -noupdate /interface_merger_tb/AVST1_RXD_FILE
 add wave -noupdate /interface_merger_tb/avst1_tx_ready

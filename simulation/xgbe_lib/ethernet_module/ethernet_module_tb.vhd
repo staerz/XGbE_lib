@@ -19,24 +19,32 @@ library fpga;
 --! Testbench for ethernet_module.vhd
 entity ethernet_module_tb is
   generic (
+    --! Clock period
+    CLK_PERIOD   : time   := 6.4 ns;
     --! File containing the ETH RX data
-    ETH_RXD_FILE : string := "sim_data_files/ETH_data_in.dat";
-    --! File containing counters on which the ETH RX interface is not ready
-    ETH_RDY_FILE : string := "sim_data_files/ETH_rx_ready_in.dat";
+    ETH_RXD_FILE : string := "sim_data_files/ETH_rx_in.dat";
+    --! File containing counters on which the ETH TX interface is not ready
+    ETH_RDY_FILE : string := "sim_data_files/ETH_tx_ready_in.dat";
     --! File to write out the ETH response of the module
-    ETH_TXD_FILE : string := "sim_data_files/ETH_data_out.dat";
+    ETH_TXD_FILE : string := "sim_data_files/ETH_tx_out.dat";
+    --! File to read expected ETH response of the module
+    ETH_CHK_FILE : string := "sim_data_files/ETH_tx_expect.dat";
     --! File containing the ARP RX data
-    ARP_RXD_FILE : string := "sim_data_files/ARP_data_in.dat";
-    --! File containing counters on which the RX interface is not ready
-    ARP_RDY_FILE : string := "sim_data_files/ARP_rx_ready_in.dat";
+    ARP_RXD_FILE : string := "sim_data_files/ARP_rx_in.dat";
+    --! File containing counters on which the TX interface is not ready
+    ARP_RDY_FILE : string := "sim_data_files/ARP_tx_ready_in.dat";
     --! File to write out the response of the module
-    ARP_TXD_FILE : string := "sim_data_files/ARP_data_out.dat";
+    ARP_TXD_FILE : string := "sim_data_files/ARP_tx_out.dat";
+    --! File to read expected ARP response of the module
+    ARP_CHK_FILE : string := "sim_data_files/ARP_tx_expect.dat";
     --! File containing the IP RX data
-    IP_RXD_FILE  : string := "sim_data_files/IP_data_in.dat";
-    --! File containing counters on which the IP RX interface is not ready
-    IP_RDY_FILE  : string := "sim_data_files/IP_rx_ready_in.dat";
+    IP_RXD_FILE  : string := "sim_data_files/IP_rx_in.dat";
+    --! File containing counters on which the IP TX interface is not ready
+    IP_RDY_FILE  : string := "sim_data_files/IP_tx_ready_in.dat";
     --! File to write out the IP response of the module
-    IP_TXD_FILE  : string := "sim_data_files/IP_data_out.dat";
+    IP_TXD_FILE  : string := "sim_data_files/IP_tx_out.dat";
+    --! File to read expected IP response of the module
+    IP_CHK_FILE  : string := "sim_data_files/IP_tx_expect.dat";
     --! File containing counters on which a manual reset is carried out
     MNL_RST_FILE : string := "sim_data_files/MNL_RST_in.dat";
 
@@ -57,6 +65,12 @@ end entity ethernet_module_tb;
 --! @cond
 library xgbe_lib;
 library sim;
+
+library testbench;
+  use testbench.testbench_pkg.all;
+
+library uvvm_util;
+  context uvvm_util.uvvm_util_context;
 --! @endcond
 
 --! Implementation of ethernet_module_tb
@@ -66,6 +80,13 @@ architecture tb of ethernet_module_tb is
   signal clk : std_logic;
   --! Reset, sync with #clk
   signal rst : std_logic;
+  --! Counter for the simulation
+  signal cnt : integer;
+  --! End of File indicators of all readers (data sources and checkers)
+  signal eof : std_logic_vector(3 * 2 - 1 downto 0);
+
+  --! Reset of the simulation (only at start)
+  signal sim_rst : std_logic;
 
   --! @name Avalon-ST (ETH) to module (read from file)
   --! @{
@@ -193,11 +214,9 @@ begin
   );
 
   -- Simulation part
-  -- generating stimuli based on counter
+  -- generating stimuli based on cnt
   blk_simulation : block
     --! @cond
-    signal counter : integer;
-    signal sim_rst : std_logic;
     signal mnl_rst : std_logic;
     --! @endcond
   begin
@@ -207,12 +226,12 @@ begin
     generic map (
       RESET_DURATION => 5,
       CLK_OFFSET     => 0 ns,
-      CLK_PERIOD     => 6.4 ns
+      CLK_PERIOD     => CLK_PERIOD
     )
     port map (
       clk => clk,
       rst => sim_rst,
-      cnt => counter
+      cnt => cnt
     );
 
     --! Instantiate counter_matcher to read mnl_rst from MNL_RST_FILE
@@ -224,7 +243,7 @@ begin
     port map (
       clk      => clk,
       rst      => '0',
-      cnt      => counter,
+      cnt      => cnt,
       stimulus => mnl_rst
     );
 
@@ -244,10 +263,12 @@ begin
     port map (
       clk   => clk,
       rst   => rst,
-      cnt_i => counter,
+      cnt_i => cnt,
 
       tx_ready_i  => eth_tx_ready,
-      tx_packet_o => eth_tx_packet
+      tx_packet_o => eth_tx_packet,
+
+      eof_o => eof(0)
     );
 
     --! Instantiate av_st_sender to read arp_tx from ARP_RXD_FILE
@@ -260,10 +281,12 @@ begin
     port map (
       clk   => clk,
       rst   => rst,
-      cnt_i => counter,
+      cnt_i => cnt,
 
       tx_ready_i  => arp_tx_ready,
-      tx_packet_o => arp_tx_packet
+      tx_packet_o => arp_tx_packet,
+
+      eof_o => eof(1)
     );
 
     --! Instantiate avst_packet_sender to read ip_tx from IP_RXD_FILE
@@ -276,10 +299,12 @@ begin
     port map (
       clk   => clk,
       rst   => rst,
-      cnt_i => counter,
+      cnt_i => cnt,
 
       tx_ready_i  => ip_tx_ready,
-      tx_packet_o => ip_tx_packet
+      tx_packet_o => ip_tx_packet,
+
+      eof_o => eof(2)
     );
 
     --! Instantiate avst_packet_receiver to write eth_rx to ETH_TXD_FILE
@@ -292,13 +317,13 @@ begin
     port map (
       clk   => clk,
       rst   => rst,
-      cnt_i => counter,
+      cnt_i => cnt,
 
       rx_ready_o  => eth_rx_ready,
       rx_packet_i => eth_rx_packet
     );
 
-    --! Instantiate av_st_receiver to write arp_rx to ARP_TXD_FILE
+    --! Instantiate avst_packet_receiver to write arp_rx to ARP_TXD_FILE
     inst_arp_rx : entity xgbe_lib.avst_packet_receiver
     generic map (
       READY_FILE   => ARP_RDY_FILE,
@@ -308,7 +333,7 @@ begin
     port map (
       clk   => clk,
       rst   => rst,
-      cnt_i => counter,
+      cnt_i => cnt,
 
       rx_ready_o  => arp_rx_ready,
       rx_packet_i => arp_rx_packet
@@ -324,12 +349,123 @@ begin
     port map (
       clk   => clk,
       rst   => rst,
-      cnt_i => counter,
+      cnt_i => cnt,
 
       rx_ready_o  => ip_rx_ready,
       rx_packet_i => ip_rx_packet
     );
 
   end block blk_simulation;
+
+  blk_uvvm : block
+    --! Expected RX data and controls
+    signal eth_rx_expect : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+    signal arp_rx_expect : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+    signal ip_rx_expect  : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  begin
+
+    --! Use the avst_packet_sender to read expected ETH data from an independent file
+    inst_eth_tx_checker : entity xgbe_lib.avst_packet_sender
+    generic map (
+      FILENAME     => ETH_CHK_FILE,
+      COMMENT_FLAG => COMMENT_FLAG,
+      COUNTER_FLAG => COUNTER_FLAG
+    )
+    port map (
+      clk   => clk,
+      rst   => sim_rst,
+      cnt_i => cnt,
+
+      tx_ready_i  => eth_rx_ready,
+      tx_packet_o => eth_rx_expect,
+
+      eof_o => eof(3)
+    );
+
+    --! Use the avst_packet_sender to read expected ARP data from an independent file
+    inst_arp_tx_checker : entity xgbe_lib.avst_packet_sender
+    generic map (
+      FILENAME     => ARP_CHK_FILE,
+      COMMENT_FLAG => COMMENT_FLAG,
+      COUNTER_FLAG => COUNTER_FLAG
+    )
+    port map (
+      clk   => clk,
+      rst   => sim_rst,
+      cnt_i => cnt,
+
+      tx_ready_i  => arp_rx_ready,
+      tx_packet_o => arp_rx_expect,
+
+      eof_o => eof(4)
+    );
+
+    --! Use the avst_packet_sender to read expected IP data from an independent file
+    inst_ip_tx_checker : entity xgbe_lib.avst_packet_sender
+    generic map (
+      FILENAME     => IP_CHK_FILE,
+      COMMENT_FLAG => COMMENT_FLAG,
+      COUNTER_FLAG => COUNTER_FLAG
+    )
+    port map (
+      clk   => clk,
+      rst   => sim_rst,
+      cnt_i => cnt,
+
+      tx_ready_i  => ip_rx_ready,
+      tx_packet_o => ip_rx_expect,
+
+      eof_o => eof(5)
+    );
+
+    --! UVVM check
+    proc_uvvm : process
+    begin
+      -- Wait a bit to let simulation settle
+      wait for CLK_PERIOD;
+      -- Wait for the reset to drop
+      await_value(rst, '0', 0 ns, 60 * CLK_PERIOD, ERROR, "Reset drop expected.");
+      -- Wait for another reset to rise
+      await_value(rst, '1', 0 ns, 60 * CLK_PERIOD, ERROR, "Reset rise expected.");
+
+      note("The following acknowledge check messages are all suppressed.");
+      -- make sure to be slightly after the rising edge
+      wait for 1 ns;
+      -- Now we just compare expected data and valid to actual values as long as there's sth. to read from files
+      -- vsg_disable_next_line whitespace_013
+      while nand(eof) loop
+        check_value(eth_rx_packet.valid, eth_rx_expect.valid, ERROR, "Checking expected ETH valid.", "", ID_NEVER);
+        check_value(eth_rx_packet.sop, eth_rx_expect.sop, ERROR, "Checking expected ETH sop.", "", ID_NEVER);
+        check_value(eth_rx_packet.eop, eth_rx_expect.eop, ERROR, "Checking expected ETH eop.", "", ID_NEVER);
+        -- only check the expected data when it's relevant: reader will hold data after packet while uut might not
+        if eth_rx_expect.valid then
+          check_value(eth_rx_packet.data, eth_rx_expect.data, ERROR, "Checking expected ETH data.", "", HEX, KEEP_LEADING_0, ID_NEVER);
+        end if;
+        check_value(arp_rx_packet.valid, arp_rx_expect.valid, ERROR, "Checking expected ARP valid.", "", ID_NEVER);
+        check_value(arp_rx_packet.sop, arp_rx_expect.sop, ERROR, "Checking expected ARP sop.", "", ID_NEVER);
+        check_value(arp_rx_packet.eop, arp_rx_expect.eop, ERROR, "Checking expected ARP eop.", "", ID_NEVER);
+        -- only check the expected data when it's relevant: reader will hold data after packet while uut might not
+        if arp_rx_expect.valid then
+          check_value(arp_rx_packet.data, arp_rx_expect.data, ERROR, "Checking expected ARP data.", "", HEX, KEEP_LEADING_0, ID_NEVER);
+        end if;
+        check_value(ip_rx_packet.valid, ip_rx_expect.valid, ERROR, "Checking expected IP valid.", "", ID_NEVER);
+        check_value(ip_rx_packet.sop, ip_rx_expect.sop, ERROR, "Checking expected IP sop.", "", ID_NEVER);
+        check_value(ip_rx_packet.eop, ip_rx_expect.eop, ERROR, "Checking expected IP eop.", "", ID_NEVER);
+        -- only check the expected data when it's relevant: reader will hold data after packet while uut might not
+        if ip_rx_expect.valid then
+          check_value(ip_rx_packet.data, ip_rx_expect.data, ERROR, "Checking expected IP data.", "", HEX, KEEP_LEADING_0, ID_NEVER);
+        end if;
+        wait for CLK_PERIOD;
+      end loop;
+      note("If until here no errors showed up, a gazillion of checks on eth_rx_packet, arp_rx_packet and ip_rx_packet went fine.");
+
+      -- Grant an additional clock cycle in order for the avst_packet_receiver to finish writing
+      wait for CLK_PERIOD;
+
+      tb_end_simulation;
+
+    end process proc_uvvm;
+
+  end block blk_uvvm;
 
 end architecture tb;
