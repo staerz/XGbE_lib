@@ -261,7 +261,7 @@ PING request:
 6869 0000 0000 0000 110 0
 
 % IPbus read request to Back FPGA addr 0x13000 for 11 words
-@ 550
+@ 450
 0022 8F02 41EE 0019
 9912 3956 0800 4500
 001d 093c 4000 8011

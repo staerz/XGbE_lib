@@ -1,0 +1,23 @@
+% IP addresses to be recovered
+% Packet end indicators (empty and error) are just here to make the reader happy
+
+@20
+1122 ab01 0 0
+
+@25
+2233 cd02 0 0
+
+@30
+3344 ef03 0 0
+
+@45
+4455 0104 0 0
+
+@50
+1122 ab01 0 0
+
+@55
+2233 cd02 0 0
+
+@60
+ffaa bbcc 0 0

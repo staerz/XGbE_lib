@@ -235,8 +235,9 @@ begin
     begin
       if rising_edge(clk) then
         if (rst = '1') then
-          tx_data_sr <= (others => (others => '0'));
-          tx_ctrl_sr <= (others => (others => '0'));
+          tx_data_sr  <= (others => (others => '0'));
+          tx_ctrl_sr  <= (others => (others => '0'));
+          tx_valid(0) <= '0';
         elsif ip_tx_ready_r = '1' then
           -- take care for the data first: shift IP data into register
           -- with proper re-alignment for the insertion of 14 bytes of Ethernet header
