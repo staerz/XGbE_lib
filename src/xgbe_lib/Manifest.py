@@ -1,6 +1,6 @@
 # List of modules
 modules = {
-  "local" : [
+  "local": [
     '$PROJECT_ROOT_PATH/common/src/memory',
   ],
 }
