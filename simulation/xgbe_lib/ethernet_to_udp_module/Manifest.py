@@ -12,8 +12,8 @@ sim_do_cmd = 'wave.do'
 
 # List of modules
 modules = {
-  "local" : [
-    '$PROJECT_ROOT_PATH/fpga', # load central BSP of LASP (loads common/misc and common/sim as well)
+  "local": [
+    '$PROJECT_ROOT_PATH/fpga',  # load central BSP of LASP (loads common/misc and common/sim as well)
     "../../../src/xgbe_lib",
     '${TESTBENCH_PATH}',
   ],
@@ -30,5 +30,5 @@ files = [
 # Project configuration override
 configuration = {
   # select target device:
-  'G_BSP_NONE'      : {'value': 'True'},
+  'G_BSP_NONE': {'value': 'True'},
 }
