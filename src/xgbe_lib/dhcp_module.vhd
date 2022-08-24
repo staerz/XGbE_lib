@@ -38,11 +38,11 @@ entity dhcp_module is
     --! and the UDP CRC field set to x"0000".
     UDP_CRC_EN     : boolean                 := true;
     --! Timeout in milliseconds
-    ARP_TIMEOUT       : integer range 2 to 1000 := 50;
+    DHCP_TIMEOUT       : integer range 2 to 1000 := 50;
     --! Cycle time in milliseconds for ARP requests (when repetitions are needed)
-    ARP_REQUEST_CYCLE : integer range 1 to 1000 := 2;
+    DHCP_REQUEST_CYCLE : integer range 1 to 1000 := 2;
     --! Depth of ARP table (number of stored connections)
-    ARP_TABLE_DEPTH   : integer range 1 to 1024 := 4
+    DHCP_TABLE_DEPTH   : integer range 1 to 1024 := 4
   );
   port (
     --! Clock
@@ -84,7 +84,7 @@ entity dhcp_module is
     --! MAC address of the module
     my_mac_i        : in    std_logic_vector(47 downto 0);
     --! IP address of the module
-    my_ip_i         : out   std_logic_vector(31 downto 0);
+    my_ip_o         : out   std_logic_vector(31 downto 0);
 
     --! Clock cycle when 1 millisecond is passed
     one_ms_tick_i   : in    std_logic;
@@ -177,10 +177,33 @@ architecture behavioral of dhcp_module is
   signal disco_wren : std_logic;
   --! @}
 
+  --! Indicator if or if not to use a suggested IP
+  signal use_suggest_ip : boolean;
+  --! Previous stored IP of the core
+  signal mypreviousip   : std_logic_vector(31 downto 0);
+
+  --! The selected yiaddr from the possibly multiple offers
+  signal yourid   : std_logic_vector(31 downto 0);
+  --! The selected siaddr from the possibly multiple offers
+  signal serverid   : std_logic_vector(31 downto 0);
+
+  --! @name Indicators to send dedicated DHCP messages
+  --! @{
+
+  --! Discover
+  signal send_dhcp_discover : std_logic;
+  --! Request
+  signal send_dhcp_request : std_logic;
+  --! Decline
+  signal send_dhcp_decline : std_logic;
+  --! Release
+  signal send_dhcp_release : std_logic;
+
+  --! @}
 begin
 
-  assert ARP_REQUEST_CYCLE < ARP_TIMEOUT
-    report "ARP_REQUEST_CYCLE must be smaller than ARP_TIMEOUT!"
+  assert DHCP_REQUEST_CYCLE < DHCP_TIMEOUT
+    report "DHCP_REQUEST_CYCLE must be smaller than DHCP_TIMEOUT!"
     severity failure;
 
   -- Transmitter part
@@ -192,7 +215,7 @@ begin
     --! - ARP_RESPONSE:  ARP response is being sent
     --! - ARP_REQUEST:   ARP request is being sent
 
-    type t_tx_state is (IDLE, DHCP_DISCOVER, DHCP_REQUEST, DHCP_DECLINE);
+    type t_tx_state is (IDLE, DHCP_DISCOVER, DHCP_REQUEST, DHCP_DECLINE, DHCP_RELEASE);
     -- RELEASE, INFORM
 
     --! State of the TX FSM
@@ -251,15 +274,15 @@ begin
     --!   +-+---+-+---+-+---+-+---+-+---+-+---+-+---+-+---+-+---+-+---+-+-+
     --!   |                   (more) options (variable)                   |
     --!   +---------------------------------------------------------------+
-    signal dhcp_frame: std_logic_vector(((2 + 7 + 4 + 8 + 1) * 32) - 1 downto 0);
+    signal dhcp_frame: std_logic_vector(((2 + 9 + 8 + 16 + 1) * 32) - 1 downto 0);
 
     --! @name Elements of the DHCP frame
     --! @{
 
     --! UDP source port
-    constant UDP_SRC_PORT : std_logic_vector(15 downto 0) := x"23";
+    constant UDP_SRC_PORT : std_logic_vector(15 downto 0) := x"0043";
     --! UDP destination port
-    constant UDP_DST_PORT : std_logic_vector(15 downto 0) := x"24";
+    constant UDP_DST_PORT : std_logic_vector(15 downto 0) := x"0044";
     --! UDP length
     signal udp_length     : std_logic_vector(15 downto 0);
     --! UDP CRC
@@ -267,13 +290,11 @@ begin
     --! DHCP header (op & htype & hlen & hops)
     signal dhcp_header    : std_logic_vector(31 downto 0);
     --! Transaction ID
-    signal xid            : std_logic_vector(15 downto 0);
+    signal xid            : std_logic_vector(31 downto 0);
     --! Seconds
-    signal secs           : std_logic_vector(7 downto 0);
+    signal secs           : std_logic_vector(15 downto 0);
     --! Flags
-    signal flags          : std_logic_vector(7 downto 0);
-    --! Client IP ADDR
-    signal ciaddr         : std_logic_vector(31 downto 0);
+    signal flags          : std_logic_vector(15 downto 0);
     --! Client IP ADDR
     signal ciaddr         : std_logic_vector(31 downto 0);
     --! Your IP ADDR
@@ -285,9 +306,9 @@ begin
     --! Client Hardware IP ADDR
     signal chaddr         : std_logic_vector(63 downto 0);
     --! Optional server host name, null terminated string
-    constant sname        : std_logic_vector(255 downto 0) := (others => '0');
+    constant SNAME        : std_logic_vector(255 downto 0) := (others => '0');
     --! Boot file name, null terminated string
-    constant bfile        : std_logic_vector(512 downto 0) := (others => '0');
+    constant BFILE        : std_logic_vector(511 downto 0) := (others => '0');
     --! Magic cookie (mandatory first option word)
     constant MAGIC_COOKIE : std_logic_vector(31 downto 0) := x"63825363";
 
@@ -303,7 +324,7 @@ begin
     signal config_tg_ip  : std_logic_vector(31 downto 0);
 
     --! Counter for outgoing ARP response frame
-    signal tx_count : integer range 0 to 9;
+    signal tx_count : integer range 0 to 63;
 
     --! @brief State definition for the FIFO FSM
     --! @details
@@ -312,7 +333,7 @@ begin
     --! - PRE_READ: Set read request
     --! - READ:     Read data from FIFO
     --! - HOLD:     Wait until read data is properly processed by TX module
-    type t_fifo_state is (IDLE, PRE_READ, READ, HOLD);
+    type t_fifo_state is (IDLE, READ, LAST, HOLD);
 
     --! State of the FIFO FSM
 
@@ -328,11 +349,10 @@ begin
       ciaddr & yiaddr &
       siaddr & giaddr &
       chaddr &
-      sname & bfile &
+      SNAME & BFILE &
       MAGIC_COOKIE;
 
-    status_vector_o(0) <= '1' when arp_tx_ready_i = '0' else '0';
-    status_vector_o(1) <= '1' when tx_state = arp_response else '0';
+    status_vector_o(0) <= '1' when dhcp_tx_ready_i = '0' else '0';
 
     -- arp_tx_packet_o.data   <= see state machine;
 
@@ -379,7 +399,7 @@ begin
 
         inst_request_timeout_counter : entity misc.counting
         generic map (
-          COUNTER_MAX_VALUE => ARP_REQUEST_CYCLE
+          COUNTER_MAX_VALUE => DHCP_REQUEST_CYCLE
         )
         port map (
           clk => clk,
@@ -409,13 +429,13 @@ begin
 
         --  signals controlling the FIFO data flow
         --! FIFO data in
-        signal dhcp_options_fifo_din   : std_logic_vector(79 downto 0);
+        signal dhcp_options_fifo_din   : std_logic_vector(63 downto 0);
         --! FIRO write enable
         signal dhcp_options_fifo_wen   : std_logic;
         --! FIFO read enable
         signal dhcp_options_fifo_ren   : std_logic;
         --! FIFO data out
-        signal dhcp_options_fifo_dout  : std_logic_vector(79 downto 0);
+        signal dhcp_options_fifo_dout  : std_logic_vector(63 downto 0);
         --! FIFO full
         signal dhcp_options_fifo_full  : std_logic;
         --! FIFO empty
@@ -483,7 +503,7 @@ begin
                 -- The client broadcasts a DHCPREQUEST message that MUST include the 'server identifier' option
                 -- serverid is any of the selected siaddr
                 if tx_state = DHCP_REQUEST then
-                  dhcp_options_fifo_din <= x"3604" & serverid & x"00_00"
+                  dhcp_options_fifo_din <= x"3604" & serverid & x"00_00";
                   dhcp_options_fifo_wen <= '1';
                 end if;
               when others =>
@@ -527,7 +547,7 @@ begin
               when HOLD =>
                 -- TODO: we'll have to see that, but it may be a good idea to not directly go back to IDLE
                 -- before the packet is fully sent...
-                if dhcp_tx_packet_o.eof = '1' then
+                if dhcp_tx_packet_o.eop = '1' then
                   fifo_state <= IDLE;
                 else
                   fifo_state <= HOLD;
@@ -576,11 +596,11 @@ begin
                 -- depends on how/where individual selectors are set
                 if send_dhcp_discover = '1' then
                   tx_state <= DHCP_DISCOVER;
-                elsif send_dhcprequest = '1' then
+                elsif send_dhcp_request = '1' then
                   tx_state <= DHCP_REQUEST;
-                elsif send_dhcpdecline = '1' then
+                elsif send_dhcp_decline = '1' then
                   tx_state <= DHCP_DECLINE;
-                elsif send_dhcprelease = '1' then
+                elsif send_dhcp_release = '1' then
                   tx_state <= DHCP_RELEASE;
                 else
                   tx_state <= IDLE;
@@ -664,15 +684,14 @@ begin
     signal config_tg_en : std_logic;
   begin
 
-    status_vector_o(2) <= '1' when rx_state = STORING_TG else '0';
+    -- receiver is always ready
+    -- TODO: check that
+    arp_rx_ready_r <= '1';
 
-    -- receiver is always ready when the FIFO is not full
-    arp_rx_ready_r <= not dhcp_options_fifo_full;
-
-    arp_rx_ready_o <= arp_rx_ready_r;
+    dhcp_rx_ready_o <= arp_rx_ready_r;
 
     --! Counting the frames of 8 bytes received
-    proc_manage_rx_count_from_rx_sof : process (clk)
+    proc_manage_rx_count_from_rx_sop : process (clk)
     begin
       if rising_edge(clk) then
         -- reset counter
@@ -681,11 +700,11 @@ begin
           rx_ctrl_reg <= (others => '0');
           rx_count    <= 0;
         -- prevent from overwriting last received valid ARP data
-        elsif arp_rx_packet_i.valid = '1' and arp_rx_ready_r = '1' then
-          rx_data_reg <= arp_rx_packet_i.data;
-          rx_ctrl_reg <= avst_ctrl(arp_rx_packet_i);
+        elsif dhcp_rx_packet_i.valid = '1' and arp_rx_ready_r = '1' then
+          rx_data_reg <= dhcp_rx_packet_i.data;
+          rx_ctrl_reg <= avst_ctrl(dhcp_rx_packet_i);
           -- ... sof initializes counter
-          if arp_rx_packet_i.sop = '1' then
+          if dhcp_rx_packet_i.sop = '1' then
             rx_count <= 1;
           -- ... otherwise keep counting
           else
@@ -693,7 +712,7 @@ begin
           end if;
         end if;
       end if;
-    end process proc_manage_rx_count_from_rx_sof;
+    end process proc_manage_rx_count_from_rx_sop;
 
     --! Storing the relevant data from the ARP packet blindly
     proc_extract_rx_data_copy : process (clk)
@@ -725,19 +744,19 @@ begin
     end process proc_extract_rx_data_copy;
 
     -- eventually enable data storing and make blindly stored data permanent
-    config_tg_en <= '1' when rx_state = STORING_TG else '0';
+    config_tg_en <= '1' when rx_state = OFFER else '0';
 
     -- writing the extracted values to the FIFO
     proc_fifo_writer : process (clk)
     begin
       if rising_edge(clk) then
         if config_tg_en = '1' and rx_type = '1' then
-          dhcp_options_fifo_din <= rx_data_copy_tg_mac & rx_data_copy_tg_ip;
-          dhcp_options_fifo_wen <= '1';
+          --dhcp_options_fifo_din <= rx_data_copy_tg_mac & rx_data_copy_tg_ip;
+          --dhcp_options_fifo_wen <= '1';
         else
           -- don't care about data
-          dhcp_options_fifo_din <= (others => '-');
-          dhcp_options_fifo_wen <= '0';
+          --dhcp_options_fifo_din <= (others => '-');
+          --dhcp_options_fifo_wen <= '0';
         end if;
       end if;
     end process proc_fifo_writer;
@@ -767,7 +786,7 @@ begin
 
       if rising_edge(clk) then
         -- reset or sof indicate new header
-        if (rst = '1') or (arp_rx_packet_i.sop = '1') then
+        if (rst = '1') or (dhcp_rx_packet_i.sop = '1') then
           rx_state <= HEADER;
         elsif arp_rx_ready_r = '1' then
 
@@ -807,10 +826,10 @@ begin
                   end if;
                 when 4 =>
                   -- requested IP address must match and it mustn't be an error frame
-                  if rx_data_reg(63 downto 32) /= my_ip_i or rx_ctrl_reg(4 downto 3) = "11" then
+                  if rx_data_reg(63 downto 32) /= my_ip_o or rx_ctrl_reg(4 downto 3) = "11" then
                     rx_state <= SKIP;
                   else
-                    rx_state <= STORING_TG;
+                    rx_state <= ACKNOWLEDGE;
                   end if;
 
                 -- when 2, 3 => MAC and IP data is copied from reg in process extract_rx_data_copy
@@ -821,11 +840,17 @@ begin
 
             -- store source MAC and IP
             -- may only be assigned for one clk
-            when STORING_TG =>
+            when ACKNOWLEDGE =>
               rx_state <= SKIP;
 
             -- just let pass all other data
             -- new HEADER state is captured by reset condition of FSM
+            when NACKNOWLEDGE =>
+              rx_state <= SKIP;
+
+            when OFFER =>
+              rx_state <= SKIP;
+
             when SKIP =>
               rx_state <= SKIP;
 
@@ -972,7 +997,7 @@ begin
       --! Instantiate counting to generate request_timeout
       inst_request_timeout_counter : entity misc.counting
       generic map (
-        COUNTER_MAX_VALUE => ARP_TIMEOUT
+        COUNTER_MAX_VALUE => DHCP_TIMEOUT
       )
       port map (
         clk => clk,
@@ -992,7 +1017,7 @@ begin
       -- MAC
       PORT_O_W    => 48,
       -- Depth
-      TABLE_DEPTH => ARP_TABLE_DEPTH
+      TABLE_DEPTH => DHCP_TABLE_DEPTH
     )
     port map (
       clk             => clk,
