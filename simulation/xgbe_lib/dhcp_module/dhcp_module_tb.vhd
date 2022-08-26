@@ -32,6 +32,8 @@ entity dhcp_module_tb is
     DHCP_CHK_FILE     : string := "sim_data_files/DHCP_tx_expect.dat";
     --! File containing counters on which a manual reset is carried out
     MNL_RST_FILE      : string := "sim_data_files/MNL_RST_in.dat";
+    --! File containing counters on which a boot is carried out
+    BOOT_FILE         : string := "sim_data_files/BOOT_in.dat";
 
     --! Definition how many clock cycles a millisecond is
     ONE_MILLISECOND   : integer := 7;
@@ -70,13 +72,16 @@ library uvvm_util;
 architecture tb of dhcp_module_tb is
 
   --! Clock
-  signal clk : std_logic;
+  signal clk  : std_logic;
   --! reset, sync with #clk
-  signal rst : std_logic;
+  signal rst  : std_logic;
+  --! @brief Boot, sync with #clk
+  --! @details Rebooting with last assigned IP address (rather than resetting requesting new one)
+  signal boot : std_logic;
   --! Counter for the simulation
-  signal cnt : integer;
+  signal cnt  : integer;
   --! End of File indicators of all readers (data sources and checkers)
-  signal eof : std_logic_vector(1 downto 0);
+  signal eof  : std_logic_vector(1 downto 0);
 
   --! @name Avalon-ST (DHCP as bare UDP) to module (read from file)
   --! @{
@@ -131,8 +136,9 @@ begin
     DHCP_TABLE_DEPTH   => DHCP_TABLE_DEPTH
   )
   port map (
-    clk => clk,
-    rst => rst,
+    clk  => clk,
+    rst  => rst,
+    boot => boot,
 
     -- signals from dhcp requester
     dhcp_rx_ready_o  => dhcp_tx_ready,
@@ -191,6 +197,19 @@ begin
     );
 
     rst <= sim_rst or mnl_rst;
+
+    --! Instantiate counter_matcher to read boot from BOOT_FILE
+    inst_boot : entity sim.counter_matcher
+    generic map (
+      FILENAME     => BOOT_FILE,
+      COMMENT_FLAG => COMMENT_FLAG
+    )
+    port map (
+      clk      => clk,
+      rst      => '0',
+      cnt      => cnt,
+      stimulus => boot
+    );
 
     --! Instantiate avst_packet_sender to read dhcp_tx from DHCP_RXD_FILE
     inst_dhcp_tx : entity xgbe_lib.avst_packet_sender
@@ -254,7 +273,7 @@ begin
     )
     port map (
       clk   => clk,
-      rst   => rst,
+      rst   => '0',--rst,
       cnt_i => cnt,
 
       tx_ready_i  => dhcp_rx_ready,
