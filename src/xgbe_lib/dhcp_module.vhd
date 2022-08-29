@@ -229,8 +229,8 @@ architecture behavioral of dhcp_module is
   --! @name Signals for RX/TX comm
   --! @{
 
-  --! XID from server DHCP offer (to be used in REQUEST again)
-  signal xid_from_offer : std_logic_vector(31 downto 0);
+  --! XID used for client-server interaction
+  signal xid : unsigned(31 downto 0);
 
   --! @}
 
@@ -350,6 +350,34 @@ begin
     end if;
   end process proc_dchp_state;
 
+  --! @brief Create a new xid for every new request
+  --! @details RFC 2131:
+  --! A client may choose to reuse the same 'xid' or select a new 'xid' for each retransmitted message.
+  --!
+  --! We actually choose not to (hey, that's more fun!)
+  --!
+  --! "The DHCPREQUEST message contains the same 'xid' as the DHCPOFFER message."
+  --! But since further "The server inserts the 'xid' field from the
+  --! DHCPDISCOVER message into the 'xid' field of the DHCPOFFER message",
+  --! Effectively the exact same xid is used for a full DHCP interaction.
+  proc_xid : process (clk)
+  begin
+    if rising_edge(clk) then
+      -- reset of xid on input reset
+      if rst = '1' then
+        --! initial value is absolutely arbitrary
+        --! we could make it a value derived from HW ID or anything...
+        --! Note that the value+1 is the first one to ever be sent...
+        xid <= x"DEAD_BEEE";
+      -- create a new xid for each discover message
+      --! TODO: or:
+      --!  - dhcp_inform (upon fixed IP) [not necessarily to be implemented]
+      elsif send_dhcp_discover = '1' or (send_dhcp_request = '1' and dhcp_state = REBOOTING) then
+        xid <= xid + 1;
+      end if;
+    end if;
+  end process proc_xid;
+
   -- Transmitter part
   blk_make_tx_interface : block
     --! @brief State definition for the TX FSM
@@ -427,18 +455,17 @@ begin
     --! @name Elements of the DHCP frame
     --! @{
 
-    --! UDP source port
-    constant UDP_SRC_PORT : std_logic_vector(15 downto 0) := x"0043";
-    --! UDP destination port
-    constant UDP_DST_PORT : std_logic_vector(15 downto 0) := x"0044";
+    --! UDP source port (68)
+    constant UDP_SRC_PORT : std_logic_vector(15 downto 0) := x"0044";
+    --! UDP destination port (67)
+    constant UDP_DST_PORT : std_logic_vector(15 downto 0) := x"0043";
     --! UDP length
     signal udp_length     : unsigned(15 downto 0);
     --! UDP CRC
     signal udp_crc        : std_logic_vector(15 downto 0);
     --! DHCP header (op & htype & hlen & hops: fixed for client tx)
-    constant DHCP_HEADER  : std_logic_vector(31 downto 0) := x"02_01_06_00";
-    --! Transaction ID
-    signal xid            : std_logic_vector(31 downto 0);
+    constant DHCP_HEADER  : std_logic_vector(31 downto 0) := x"01_01_06_00";
+    -- Transaction ID: already defined globally
     --! Seconds
     signal secs           : std_logic_vector(15 downto 0);
     --! Flags
@@ -464,9 +491,6 @@ begin
 
     --! Register to temporarily store target MAC, used in TX path only and fed by FIFO
     signal config_tg_mac : std_logic_vector(47 downto 0);
-
-    --! Client-selected xid (counter ...)
-    signal xid_client  : unsigned(31 downto 0);
 
     --! Counter for outgoing ARP response frame
     signal tx_count : integer range 0 to 63;
@@ -502,33 +526,6 @@ begin
     else generate
       udp_crc <= (others => '0');
     end generate;
-
-    --! @brief Create a new xid for every new request
-    --! @details RFC 2131:
-    --! A client may choose to reuse the same 'xid' or select a new 'xid' for each retransmitted message.
-    --!
-    --! We actually choose not to (hey, that's more fun!)
-    proc_xid_client : process (clk)
-    begin
-      if rising_edge(clk) then
-        -- reset of xid_client on input reset
-        if rst = '1' then
-          --! initial value is absolutely arbitrary
-          --! we could make it a value derived from HW ID or anything...
-          --! Note that the value+1 is the first one to ever be sent...
-          xid_client <= x"DEAD_BEEE";
-        -- create a new xid for each discover message
-        --! TODO: or:
-        --!  - dhcp_inform (upon fixed IP) [not necessarily to be implemented]
-        elsif send_dhcp_discover = '1' or (send_dhcp_request = '1' and dhcp_state = REBOOTING) then
-          xid_client <= xid_client + 1;
-        end if;
-      end if;
-    end process proc_xid_client;
-
-    with tx_state select xid <=
-      xid_from_offer when DHCP_REQUEST,
-      std_logic_vector(xid_client) when others;
 
     -- count "seconds since DHCP request started"
     blk_secs : block
@@ -577,6 +574,8 @@ begin
     --!
     --! If this bit is set to 1, the DHCP message SHOULD be sent as
     --! an IP broadcast using an IP broadcast address (preferably 0xffffffff)
+    --!
+    --! TODO: we should also separate out the case of DHCP_REQUEST when in RENEWING or REBINDING (we have a valid IP then...)
     with tx_state select flags <=
       (0 => '1', others => '0') when DHCP_DISCOVER | DHCP_REQUEST,
       (others => '0') when others;
@@ -594,7 +593,7 @@ begin
     dhcp_frame <=
       UDP_SRC_PORT & UDP_DST_PORT & std_logic_vector(udp_length) & udp_crc &
       DHCP_HEADER &
-      xid & secs & flags &
+      std_logic_vector(xid) & secs & flags &
       ciaddr & YSGIADDR &
       YSGIADDR & YSGIADDR &
       chaddr &
@@ -723,6 +722,10 @@ begin
 
         -- in each tx_count cycle check if the option needs to be added or not,
         -- depending which kind of packet is to be sent
+        --! Compare to table 5 of RFC 2131
+        --!
+        --! Only MUST options are implemented so far.
+        --! We may (in all cases) add a client identifier option
         proc_write_fifo: process(clk)
         begin
           if rising_edge(clk) then
@@ -743,7 +746,8 @@ begin
                   dhcp_options_fifo_wen <= '1';
                 -- MUST be set to the value of 'yiaddr' in the DHCPOFFER message from the server.
                 -- yourid is any of the selected yiaddr
-                elsif tx_state = DHCP_REQUEST then
+                elsif (tx_state = DHCP_REQUEST and (dhcp_state = REQUESTING or dhcp_state = REBOOTING)) or
+                  (tx_state = DHCP_DECLINE) then
                   dhcp_options_fifo_din <= x"3204" & yourid & x"00_00";
                   dhcp_options_fifo_wen <= '1';
                 end if;
@@ -751,7 +755,8 @@ begin
               when 3 =>
                 -- The client broadcasts a DHCPREQUEST message that MUST include the 'server identifier' option
                 -- serverid is any of the selected siaddr
-                if tx_state = DHCP_REQUEST then
+                if (tx_state = DHCP_REQUEST and dhcp_state = REQUESTING) or
+                  tx_state = DHCP_DECLINE or tx_state = DHCP_RELEASE then
                   dhcp_options_fifo_din <= x"3604" & serverid & x"00_00";
                   dhcp_options_fifo_wen <= '1';
                 end if;
@@ -891,17 +896,17 @@ begin
     --! State definition for the RX FSM
     --! - HEADER: checks all requirement of the incoming DHCP packet
     --! - SKIP: skips all frames until EOF (if header is wrong)
-    --! - STORING_TG: indicates successful extraction of ARP target MAC and IP
+    --! - STORING_OPTS: indicates successful extraction of ARP target MAC and IP
 
     type   t_rx_state is (HEADER, SKIP, OFFER, ACKNOWLEDGE, NACKNOWLEDGE);
     --! States of the RX FSM
     signal rx_state : t_rx_state;
 
-    --! ARP RX type: '0': response, '1': request
-    signal rx_type : std_logic;
+    --! DHCP package type
+    signal rx_type : std_logic_vector(3 downto 0);
 
-    --! Internal ready siganl
-    signal arp_rx_ready_r : std_logic;
+    --! Internal ready signal
+    signal dhcp_rx_ready_i : std_logic;
 
     --! Counter for incoming packets: max possible = jumbo frame (9000 bytes = 1125 frames)
     signal rx_count    : integer range 0 to 1125;
@@ -926,9 +931,9 @@ begin
 
     -- receiver is always ready
     -- TODO: check that
-    arp_rx_ready_r <= '1';
+    dhcp_rx_ready_i <= '1';
 
-    dhcp_rx_ready_o <= arp_rx_ready_r;
+    dhcp_rx_ready_o <= dhcp_rx_ready_i;
 
     --! Counting the frames of 8 bytes received
     proc_manage_rx_count_from_rx_sop : process (clk)
@@ -940,7 +945,7 @@ begin
           rx_ctrl_reg <= (others => '0');
           rx_count    <= 0;
         -- prevent from overwriting last received valid ARP data
-        elsif dhcp_rx_packet_i.valid = '1' and arp_rx_ready_r = '1' then
+        elsif dhcp_rx_packet_i.valid = '1' and dhcp_rx_ready_i = '1' then
           rx_data_reg <= dhcp_rx_packet_i.data;
           rx_ctrl_reg <= avst_ctrl(dhcp_rx_packet_i);
           -- ... sof initializes counter
@@ -954,16 +959,10 @@ begin
       end if;
     end process proc_manage_rx_count_from_rx_sop;
 
-    --! Storing the relevant data from the ARP packet blindly
-    proc_extract_rx_data_copy : process (clk)
+    --! Storing the relevant data (yiaddr) from incoming DHCP blindly
+    proc_extract_yiaddr : process (clk)
     begin
       if rising_edge(clk) then
-        -- check whether request or response
-        if rx_count = 1 then
-          rx_type <= rx_data_reg(0);
-        else
-          rx_type <= rx_type;
-        end if;
 
         if rx_count = 2 then
           rx_data_copy_tg_mac              <= rx_data_reg(63 downto 16);
@@ -981,7 +980,7 @@ begin
           rx_data_copy_tg_ip(15 downto 0) <= rx_data_copy_tg_ip(15 downto 0);
         end if;
       end if;
-    end process proc_extract_rx_data_copy;
+    end process proc_extract_yiaddr;
 
     -- eventually enable data storing and make blindly stored data permanent
     config_tg_en <= '1' when rx_state = OFFER else '0';
@@ -990,7 +989,7 @@ begin
     proc_fifo_writer : process (clk)
     begin
       if rising_edge(clk) then
-        if config_tg_en = '1' and rx_type = '1' then
+        if config_tg_en = '1' then
           --dhcp_options_fifo_din <= rx_data_copy_tg_mac & rx_data_copy_tg_ip;
           --dhcp_options_fifo_wen <= '1';
         else
@@ -1028,7 +1027,7 @@ begin
         -- reset or sof indicate new header
         if (rst = '1') or (dhcp_rx_packet_i.sop = '1') then
           rx_state <= HEADER;
-        elsif arp_rx_ready_r = '1' then
+        elsif dhcp_rx_ready_i = '1' then
 
           case rx_state is
 
@@ -1040,29 +1039,26 @@ begin
                 when 0 =>
                   rx_state <= HEADER;
                 when 1 =>
+                  -- check UDP header
+                  if rx_data_reg(63 downto 48) /= x"0043" or -- UDP_SRC_PORT 67
+                    rx_data_reg(47 downto 32) /= x"0044"     -- UDP_DST_PORT 68
+                  then
+                    rx_state <= SKIP;
+                  else
+                    rx_state <= HEADER;
+                  end if;
+                when 2 =>
                   -- vsg_off if_035 if_009
-                  -- check for supported header (IPv4 on Ethernet)
-                  if rx_data_reg(63 downto 48) /= x"0001" or  -- HW-type Ethernet
-                    rx_data_reg(47 downto 32) /= x"0800" or   -- protocol type: IP
-                    rx_data_reg(31 downto 16) /= x"0604" then -- HW-size: 6, P-size: 4
+                  -- check for supported DHCP_HEADER (IPv4 on Ethernet)
+                  if rx_data_reg(63 downto 56) /= x"02" or            -- OP code: 02 = BOOTREPLY
+                    rx_data_reg(55 downto 48) /= x"01" or             -- htype: IP
+                    rx_data_reg(47 downto 40) /= x"06" or             -- hlen: 6 (MAC)
+                    rx_data_reg(31 downto 0) /= std_logic_vector(xid) -- XID from previous DISCOVER/REQUEST
+                  then
                     rx_state <= SKIP;
                   -- vsg_on if_035 if_009
                   else
-                    -- check whether ARP request or response
-
-                    case rx_data_reg(15 downto 0) is
-
-                      -- Operation: ARP request
-                      when x"0001" =>
-                        rx_state <= HEADER;
-                      -- Operation: ARP response
-                      when x"0002" =>
-                        rx_state <= HEADER;
-                      when others =>
-                        rx_state <= SKIP;
-
-                    end case;
-
+                    rx_state <= HEADER;
                   end if;
                 when 4 =>
                   -- requested IP address must match and it mustn't be an error frame

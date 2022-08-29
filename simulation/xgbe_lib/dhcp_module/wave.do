@@ -4,9 +4,10 @@ add wave -noupdate -radix decimal -radixshowbase 0 /dhcp_module_tb/cnt
 add wave -noupdate /dhcp_module_tb/uut/clk
 add wave -noupdate /dhcp_module_tb/uut/rst
 add wave -noupdate /dhcp_module_tb/uut/dhcp_rx_ready_o
-add wave -noupdate -radix hexadecimal -radixshowbase 0 /dhcp_module_tb/uut/dhcp_rx_packet_i
+add wave -noupdate -radix hexadecimal -childformat {{/dhcp_module_tb/uut/dhcp_rx_packet_i.data -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_rx_packet_i.valid -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_rx_packet_i.sop -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_rx_packet_i.eop -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_rx_packet_i.empty -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_rx_packet_i.error -radix hexadecimal}} -radixshowbase 0 -expand -subitemconfig {/dhcp_module_tb/uut/dhcp_rx_packet_i.data {-height 17 -radix hexadecimal -radixshowbase 0} /dhcp_module_tb/uut/dhcp_rx_packet_i.valid {-height 17 -radix hexadecimal -radixshowbase 0} /dhcp_module_tb/uut/dhcp_rx_packet_i.sop {-height 17 -radix hexadecimal -radixshowbase 0} /dhcp_module_tb/uut/dhcp_rx_packet_i.eop {-height 17 -radix hexadecimal -radixshowbase 0} /dhcp_module_tb/uut/dhcp_rx_packet_i.empty {-height 17 -radix hexadecimal -radixshowbase 0} /dhcp_module_tb/uut/dhcp_rx_packet_i.error {-height 17 -radix hexadecimal -radixshowbase 0}} /dhcp_module_tb/uut/dhcp_rx_packet_i
 add wave -noupdate /dhcp_module_tb/uut/dhcp_tx_ready_i
 add wave -noupdate -radix hexadecimal -childformat {{/dhcp_module_tb/uut/dhcp_tx_packet_o.data -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_tx_packet_o.valid -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_tx_packet_o.sop -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_tx_packet_o.eop -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_tx_packet_o.empty -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_tx_packet_o.error -radix hexadecimal}} -radixshowbase 0 -expand -subitemconfig {/dhcp_module_tb/uut/dhcp_tx_packet_o.data {-height 17 -radix hexadecimal -radixshowbase 0} /dhcp_module_tb/uut/dhcp_tx_packet_o.valid {-height 17 -radix hexadecimal -radixshowbase 0} /dhcp_module_tb/uut/dhcp_tx_packet_o.sop {-height 17 -radix hexadecimal -radixshowbase 0} /dhcp_module_tb/uut/dhcp_tx_packet_o.eop {-height 17 -radix hexadecimal -radixshowbase 0} /dhcp_module_tb/uut/dhcp_tx_packet_o.empty {-height 17 -radix hexadecimal -radixshowbase 0} /dhcp_module_tb/uut/dhcp_tx_packet_o.error {-height 17 -radix hexadecimal -radixshowbase 0}} /dhcp_module_tb/uut/dhcp_tx_packet_o
+add wave -noupdate -expand /dhcp_module_tb/blk_uvvm/dhcp_rx_expect
 add wave -noupdate /dhcp_module_tb/uut/reco_en_i
 add wave -noupdate -radix hexadecimal -radixshowbase 0 /dhcp_module_tb/uut/reco_ip_i
 add wave -noupdate -radix hexadecimal -radixshowbase 0 /dhcp_module_tb/uut/reco_mac_o
@@ -23,40 +24,30 @@ add wave -noupdate -expand -group internals /dhcp_module_tb/uut/blk_make_rx_inte
 add wave -noupdate -expand -group internals /dhcp_module_tb/uut/blk_make_rx_interface/rx_data_reg
 add wave -noupdate -expand -group internals /dhcp_module_tb/uut/blk_make_rx_interface/rx_state
 add wave -noupdate -expand -group internals /dhcp_module_tb/uut/blk_make_rx_interface/rx_type
-add wave -noupdate -expand -group internals -divider {Global FSM}
-add wave -noupdate /dhcp_module_tb/uut/dhcp_state
-add wave -noupdate /dhcp_module_tb/uut/send_dhcp_decline
-add wave -noupdate /dhcp_module_tb/uut/send_dhcp_discover
-add wave -noupdate /dhcp_module_tb/uut/send_dhcp_release
-add wave -noupdate /dhcp_module_tb/uut/send_dhcp_request
-add wave -noupdate /dhcp_module_tb/uut/dhcp_offer_selected
-add wave -noupdate /dhcp_module_tb/uut/dhcp_acknowledge
-add wave -noupdate /dhcp_module_tb/uut/dhcp_nack
-add wave -noupdate /dhcp_module_tb/uut/dhcp_accept
-add wave -noupdate /dhcp_module_tb/uut/decline_sent
-add wave -noupdate /dhcp_module_tb/uut/t1_expires
-add wave -noupdate /dhcp_module_tb/uut/t2_expires
-add wave -noupdate /dhcp_module_tb/uut/lease_expired
+add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/dhcp_state
+add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/send_dhcp_decline
+add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/send_dhcp_discover
+add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/send_dhcp_release
+add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/send_dhcp_request
+add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/dhcp_offer_selected
+add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/dhcp_acknowledge
+add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/dhcp_nack
+add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/dhcp_accept
+add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/decline_sent
+add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/t1_expires
+add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/t2_expires
+add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/lease_expired
 add wave -noupdate -expand -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/tx_state
 add wave -noupdate -expand -group {TX FSM} -radix decimal /dhcp_module_tb/uut/blk_make_tx_interface/tx_count
 add wave -noupdate -expand -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/dhcp_frame
 add wave -noupdate -expand -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/udp_crc
 add wave -noupdate -expand -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/udp_length
-add wave -noupdate -expand -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/DHCP_HEADER
-add wave -noupdate -expand -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/xid
-add wave -noupdate -expand -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/secs
-add wave -noupdate -expand -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/flags
-add wave -noupdate -expand -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/ciaddr
-add wave -noupdate -expand -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/YSGIADDR
-add wave -noupdate -expand -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/chaddr
-add wave -noupdate -expand -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/config_tg_mac
-add wave -noupdate -expand -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/dhcp_options
-add wave -noupdate -expand -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/fifo_state
+add wave -noupdate /dhcp_module_tb/uut/xid
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {455611 ps} 0}
+WaveRestoreCursors {{Cursor 1} {358400 ps} 0}
 quietly wave cursor active 1
-configure wave -namecolwidth 220
-configure wave -valuecolwidth 160
+configure wave -namecolwidth 150
+configure wave -valuecolwidth 156
 configure wave -justifyvalue left
 configure wave -signalnamewidth 1
 configure wave -snapdistance 10
@@ -69,4 +60,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {0 ps} {636409 ps}
+WaveRestoreZoom {428479 ps} {741497 ps}
