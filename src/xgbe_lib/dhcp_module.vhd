@@ -189,6 +189,8 @@ architecture behavioral of dhcp_module is
   signal yourid   : std_logic_vector(31 downto 0);
   --! The selected siaddr from the possibly multiple offers
   signal serverid   : std_logic_vector(31 downto 0);
+  --! Granted least time (in seconds)
+  signal my_lease_time   : std_logic_vector(31 downto 0);
 
   --! @name Indicators to send dedicated DHCP messages (comm from global FSM to tx FSM)
   --! @{
@@ -233,6 +235,15 @@ architecture behavioral of dhcp_module is
   signal xid : unsigned(31 downto 0);
 
   --! @}
+
+  --! @brief Size (length in words of 64 bits) of DHCP fixed header
+  --! @details
+  --! The fixed size part of a DHCP frame consists of the UDP header
+  --! (2 words of 32 bits) and another (11 + 16 + 32 + 1) 32-bit words.
+  --! In total, the frame comprises 62 32-bit, or 31 64-bit words.
+  --!
+  --! Compare to dhcp_frame.
+  constant DHCP_WORDS : integer := 31;
 
 begin
 
@@ -392,15 +403,6 @@ begin
 
     --! State of the TX FSM
     signal tx_state : t_tx_state := IDLE;
-
-    --! @brief Size (length in words of 64 bits) of DHCP fixed header
-    --! @details
-    --! The fixed size part of a DHCP frame consists of the UDP header
-    --! (2 words of 32 bits) and another (11 + 16 + 32 + 1) 32-bit words.
-    --! In total, the frame comprises 62 32-bit, or 31 64-bit words.
-    --!
-    --! Compare to dhcp_frame.
-    constant DHCP_WORDS : integer := 31;
 
     --! @brief Fixed size part of a DHCP frame
     --! @details
@@ -777,7 +779,6 @@ begin
 
               when IDLE =>
                 -- start reading from FIFO as soon as the fixed header is sent already
-                -- TODO: check exact counter value
                 if tx_count = DHCP_WORDS-1 and dhcp_options_fifo_empty = '0' then
                   dhcp_options_fifo_ren <= '1';
                   fifo_state <= READ;
@@ -794,7 +795,6 @@ begin
                   fifo_state <= LAST;
                 end if;
 
-              -- TODO: We'll have to see if HOLDing is needed ... could be redundant
               when LAST =>
                 fifo_state <= IDLE;
 
@@ -896,9 +896,10 @@ begin
     --! State definition for the RX FSM
     --! - HEADER: checks all requirement of the incoming DHCP packet
     --! - SKIP: skips all frames until EOF (if header is wrong)
-    --! - STORING_OPTS: indicates successful extraction of ARP target MAC and IP
+    --! - STORING_OPTS: storing the options in FIFO
+    --! - PARSING_OPTS: parsing the options from the FIFO
 
-    type   t_rx_state is (HEADER, SKIP, OFFER, ACKNOWLEDGE, NACKNOWLEDGE);
+    type   t_rx_state is (HEADER, SKIP, STORING_OPTS, PARSING_OPTS); --OFFER, ACKNOWLEDGE, NACKNOWLEDGE);
     --! States of the RX FSM
     signal rx_state : t_rx_state;
 
@@ -911,44 +912,51 @@ begin
     --! Counter for incoming packets: max possible = jumbo frame (9000 bytes = 1125 frames)
     signal rx_count    : integer range 0 to 1125;
     --! Register receiving data
-    signal rx_data_reg : std_logic_vector(63 downto 0);
-    --! Register receiving controls
-    signal rx_ctrl_reg : std_logic_vector(6 downto 0);
+    signal rx_packet_reg : dhcp_rx_packet_i'subtype;
 
-    --! @name Register to extract relevant data of incoming (ARP) packets:
-    --! These signals serve the RX path and extract data blindly
+    --! Indicator if parsing DHCP options is done
+    signal parse_options_done : std_logic;
+
+    --! @name Data extracted blindly from RX package
     --! @{
 
-    --! Requesting MAC
-    signal rx_data_copy_tg_mac : std_logic_vector(47 downto 0);
-    --! Requesting IP
-    signal rx_data_copy_tg_ip  : std_logic_vector(31 downto 0);
+    --! Offered IP
+    signal offered_yiaddr  : std_logic_vector(31 downto 0);
+
     --! @}
 
-    --! Control for retrieving ARP target (requester) and storing data - may be optimized away
-    signal config_tg_en : std_logic;
+    --! @name Extracted options
+    --! @{
+
+    --! DHCP operation
+    signal dhcp_operation  : std_logic_vector(3 downto 0);
+    --! DHCP lease time (in seconds)
+    signal dhcp_lease_time : std_logic_vector(31 downto 0);
+    --! DHCP server IP address
+    signal dhcp_server_ip  : std_logic_vector(31 downto 0);
+
+    --! @}
+
   begin
 
-    -- receiver is always ready
-    -- TODO: check that
-    dhcp_rx_ready_i <= '1';
+    -- Receiver is always ready as long as we're not just evaluating options (from a previous request)
+    -- That prevents write options of multiple incoming DHCP packets into the options FIFO
+    dhcp_rx_ready_i <= '0' when rx_state = PARSING_OPTS else '1';
 
     dhcp_rx_ready_o <= dhcp_rx_ready_i;
 
     --! Counting the frames of 8 bytes received
+    -- TODO: do we have to reset _reg signals?
     proc_manage_rx_count_from_rx_sop : process (clk)
     begin
       if rising_edge(clk) then
         -- reset counter
         if (rst = '1') then
-          rx_data_reg <= (others => '0');
-          rx_ctrl_reg <= (others => '0');
-          rx_count    <= 0;
-        -- prevent from overwriting last received valid ARP data
+          rx_count <= 0;
+        -- Count (and register) input data words
         elsif dhcp_rx_packet_i.valid = '1' and dhcp_rx_ready_i = '1' then
-          rx_data_reg <= dhcp_rx_packet_i.data;
-          rx_ctrl_reg <= avst_ctrl(dhcp_rx_packet_i);
-          -- ... sof initializes counter
+          rx_packet_reg <= dhcp_rx_packet_i;
+          -- and initialize counter upon sop
           if dhcp_rx_packet_i.sop = '1' then
             rx_count <= 1;
           -- ... otherwise keep counting
@@ -960,66 +968,21 @@ begin
     end process proc_manage_rx_count_from_rx_sop;
 
     --! Storing the relevant data (yiaddr) from incoming DHCP blindly
+    --! secs and ciaddr are rather irrelevant
     proc_extract_yiaddr : process (clk)
     begin
       if rising_edge(clk) then
-
-        if rx_count = 2 then
-          rx_data_copy_tg_mac              <= rx_data_reg(63 downto 16);
-          rx_data_copy_tg_ip(31 downto 16) <= rx_data_reg(15 downto 0);
+        if rx_count = 4 then
+          offered_yiaddr <= rx_packet_reg.data(63 downto 32);
         else
-          -- just store
-          rx_data_copy_tg_mac              <= rx_data_copy_tg_mac;
-          rx_data_copy_tg_ip(31 downto 16) <= rx_data_copy_tg_ip(31 downto 16);
-        end if;
-
-        if rx_count = 3 then
-          rx_data_copy_tg_ip(15 downto 0) <= rx_data_reg(63 downto 48);
-        else
-          -- just store
-          rx_data_copy_tg_ip(15 downto 0) <= rx_data_copy_tg_ip(15 downto 0);
+          offered_yiaddr <= offered_yiaddr;
         end if;
       end if;
     end process proc_extract_yiaddr;
 
-    -- eventually enable data storing and make blindly stored data permanent
-    config_tg_en <= '1' when rx_state = OFFER else '0';
-
-    -- writing the extracted values to the FIFO
-    proc_fifo_writer : process (clk)
-    begin
-      if rising_edge(clk) then
-        if config_tg_en = '1' then
-          --dhcp_options_fifo_din <= rx_data_copy_tg_mac & rx_data_copy_tg_ip;
-          --dhcp_options_fifo_wen <= '1';
-        else
-          -- don't care about data
-          --dhcp_options_fifo_din <= (others => '-');
-          --dhcp_options_fifo_wen <= '0';
-        end if;
-      end if;
-    end process proc_fifo_writer;
-
-    --! Writing the extracted values to the ARP table
-    proc_arp_table_writer : process (clk)
-    begin
-      if rising_edge(clk) then
-        if config_tg_en = '1' then
-          disco_mac  <= rx_data_copy_tg_mac;
-          disco_ip   <= rx_data_copy_tg_ip;
-          disco_wren <= '1';
-        else
-          disco_mac  <= (others => '-');
-          disco_ip   <= (others => '-');
-          disco_wren <= '0';
-        end if;
-      end if;
-    end process proc_arp_table_writer;
-
-    --! @brief FSM to handle ARP requests.
+    --! @brief FSM to handle incoming DHCP messages
     --! @details
-    --! Analysing incoming data packets and checking them for ARP content.
-    --! Extract relevant ARP data if it is an ARP packet.
+    --! Analysing incoming data packets and checking them for DHCP content.
     proc_rx_state : process (clk)
     begin
 
@@ -1027,7 +990,8 @@ begin
         -- reset or sof indicate new header
         if (rst = '1') or (dhcp_rx_packet_i.sop = '1') then
           rx_state <= HEADER;
-        elsif dhcp_rx_ready_i = '1' then
+        --elsif dhcp_rx_ready_i = '1' then
+        else
 
           case rx_state is
 
@@ -1040,8 +1004,8 @@ begin
                   rx_state <= HEADER;
                 when 1 =>
                   -- check UDP header
-                  if rx_data_reg(63 downto 48) /= x"0043" or -- UDP_SRC_PORT 67
-                    rx_data_reg(47 downto 32) /= x"0044"     -- UDP_DST_PORT 68
+                  if rx_packet_reg.data(63 downto 48) /= x"0043" or -- UDP_SRC_PORT 67
+                    rx_packet_reg.data(47 downto 32) /= x"0044"     -- UDP_DST_PORT 68
                   then
                     rx_state <= SKIP;
                   else
@@ -1050,23 +1014,34 @@ begin
                 when 2 =>
                   -- vsg_off if_035 if_009
                   -- check for supported DHCP_HEADER (IPv4 on Ethernet)
-                  if rx_data_reg(63 downto 56) /= x"02" or            -- OP code: 02 = BOOTREPLY
-                    rx_data_reg(55 downto 48) /= x"01" or             -- htype: IP
-                    rx_data_reg(47 downto 40) /= x"06" or             -- hlen: 6 (MAC)
-                    rx_data_reg(31 downto 0) /= std_logic_vector(xid) -- XID from previous DISCOVER/REQUEST
+                  if rx_packet_reg.data(63 downto 56) /= x"02" or            -- OP code: 02 = BOOTREPLY
+                    rx_packet_reg.data(55 downto 48) /= x"01" or             -- htype: IP
+                    rx_packet_reg.data(47 downto 40) /= x"06" or             -- hlen: 6 (MAC)
+                    rx_packet_reg.data(31 downto 0) /= std_logic_vector(xid) -- XID from previous DISCOVER/REQUEST
                   then
                     rx_state <= SKIP;
                   -- vsg_on if_035 if_009
                   else
                     rx_state <= HEADER;
                   end if;
-                when 4 =>
-                  -- requested IP address must match and it mustn't be an error frame
-                  if rx_data_reg(63 downto 32) /= my_ip_o or rx_ctrl_reg(4 downto 3) = "11" then
+                when 5 =>
+                  -- check chaddr (hw address)
+                  if rx_packet_reg.data(31 downto 0) /= my_mac_i(47 downto 16) then
                     rx_state <= SKIP;
                   else
-                    rx_state <= ACKNOWLEDGE;
+                    rx_state <= HEADER;
                   end if;
+                when 6 =>
+                  -- check chaddr (hw address)
+                  if rx_packet_reg.data(63 downto 48) /= my_mac_i(15 downto 0) then
+                    rx_state <= SKIP;
+                  else
+                    rx_state <= HEADER;
+                  end if;
+
+                -- if we made it until here, we finally find DHCP options
+                when DHCP_WORDS =>
+                  rx_state <= STORING_OPTS;
 
                 -- when 2, 3 => MAC and IP data is copied from reg in process extract_rx_data_copy
                 when others =>
@@ -1074,19 +1049,22 @@ begin
 
               end case;
 
-            -- store source MAC and IP
-            -- may only be assigned for one clk
-            when ACKNOWLEDGE =>
-              rx_state <= SKIP;
+            when STORING_OPTS =>
+              -- end of frame concludes package
+              if rx_packet_reg.eop = '1' then
+                rx_state <= PARSING_OPTS;
+              else
+                rx_state <= STORING_OPTS;
+              end if;
 
-            -- just let pass all other data
-            -- new HEADER state is captured by reset condition of FSM
-            when NACKNOWLEDGE =>
-              rx_state <= SKIP;
+            when PARSING_OPTS =>
+              if parse_options_done = '1' then
+                rx_state <= SKIP;
+              else
+                rx_state <= PARSING_OPTS;
+              end if;
 
-            when OFFER =>
-              rx_state <= SKIP;
-
+            -- return to HEADER is done external to this case list
             when SKIP =>
               rx_state <= SKIP;
 
@@ -1095,6 +1073,283 @@ begin
         end if;
       end if;
     end process proc_rx_state;
+
+    --! Extract options
+
+    -- Need to extract (see table 3 of RFC 2131):
+    -- - IP address lease time (DHCP OFFER, DHCP ACK)
+    --     The time is in units of seconds, and is specified as a 32-bit unsigned integer.
+    --     The code for this option is 51, and its length is 4.
+    -- - server identifier (DHCP OFFER, DHCP ACK, DHCP NACK)
+    --     The identifier is the IP address of the selected server.
+    --     The code for this option is 54, and its length is 4.
+    --
+    -- We must fully parse all options (detecting option code, length and then value)
+    -- to be sure not to misparse a value for an option!
+
+    blk_dhcp_rx_options_fifo_handler : block
+      --  signals controlling the FIFO data flow
+      --! FIFO data in: full frame segment
+      signal dhcp_rx_options_fifo_din   : std_logic_vector(63 downto 0);
+      --! FIRO write enable
+      signal dhcp_rx_options_fifo_wen   : std_logic;
+      --! FIFO read enable
+      signal dhcp_rx_options_fifo_ren   : std_logic;
+      --! FIFO data out: On byte at a time
+      signal dhcp_rx_options_fifo_dout  : std_logic_vector(7 downto 0);
+      --! FIFO full
+      signal dhcp_rx_options_fifo_full  : std_logic;
+      --! FIFO empty
+      signal dhcp_rx_options_fifo_empty : std_logic;
+
+      --! @brief State definition for the options FIFO FSM
+      --! @details
+      --! State definition for the FIFO FSM
+      --! - IDLE:     Nothing happening
+      --! - READ:     First ever read (an option)
+      --! - OPTION:   Evaluate option identifier
+      --! - LENGTH:   Evaluate length indicator
+      --! - VALUE:    Read option value
+      type t_option_state is (IDLE, READ, OPTION, LENGTH, VALUE);
+
+      --! State of the FIFO FSM
+
+      -- vsg_disable_next_line signal_007
+      signal option_state : t_option_state := IDLE;
+
+      --! Value length indication of the option
+      signal value_length : unsigned(7 downto 0);
+
+      --! Buffer for data read from FIFO
+      --! Information we are interested in is 4 bytes long, that's 6 with option and length field
+      signal value_buffer : std_logic_vector(6*8 - 1 downto 0);
+
+      --! Different options we want to extract
+      type t_dhcp_option is (SKIP, OPERATION, LEASE_TIME, SERVER_IP);
+      --! Current option being extracted
+      signal dhcp_option : t_dhcp_option;
+
+    begin
+
+      --! @brief FIFO to store DHCP options to be sent
+      --! @details
+      --! FIFO is filled (options section only) once a valid package is received
+      --! Storing 16 option words is already on the higher edge.
+      inst_dhcp_rx_options_fifo : entity memory.generic_fifo
+      generic map (
+        -- it's actually not a dual clock, but in order to get different port width working, we need this setting
+        DUAL_CLK   => true,
+        -- make read data available directly in next clock cycle (default is non-zero in dual clock mode)
+        RD_SYNC_STAGES => 0,
+        WR_D_WIDTH => 64,
+        WR_D_DEPTH => 16,
+        RD_D_WIDTH => 8
+      )
+      port map (
+        rst      => rst,
+        wr_clk   => clk,
+        wr_en    => dhcp_rx_options_fifo_wen,
+        wr_data  => dhcp_rx_options_fifo_din,
+        rd_clk   => clk,
+        rd_en    => dhcp_rx_options_fifo_ren,
+        rd_data  => dhcp_rx_options_fifo_dout,
+        rd_full  => dhcp_rx_options_fifo_full,
+        rd_empty => dhcp_rx_options_fifo_empty
+      );
+
+      --! @brief Store options in each cycle of rx_state = STORING_OPTS
+      --! @details Options are stored (each cycle of rx_state = STORING_OPTS) to FIFO
+      --! Data is treated first to:
+      --! - Replace any trailing data (at eof, indicated by empty) with zeros
+      --!   in order to not confuse the option parser
+      --! - swapping the byte order due to the way the FIFO reads the bytes back
+      proc_write_fifo : process(clk)
+        -- Actual data being stored into the FIFO
+        variable rx_data : rx_packet_reg.data'subtype;
+      begin
+        if rising_edge(clk) then
+          if rx_state = STORING_OPTS then
+
+            rx_data := (others => '0');
+            if to_integer(rx_packet_reg.empty) > 0 then
+              for i in rx_packet_reg.data'high downto 8 * to_integer(rx_packet_reg.empty) loop
+                rx_data(i) := rx_packet_reg.data(i);
+              end loop;
+            else
+              rx_data := rx_packet_reg.data;
+            end if;
+
+            dhcp_rx_options_fifo_din <= swap(rx_data, 8);
+            dhcp_rx_options_fifo_wen <= '1';
+          else
+            dhcp_rx_options_fifo_din <= (others => '0');
+            dhcp_rx_options_fifo_wen <= '0';
+          end if;
+        end if;
+      end process proc_write_fifo;
+
+      --! @brief Options FIFO reading
+      --! @details Reading the Options FIFO continuously as long as it's not empty
+      --! (it cannot run empty during one packet as we write continuously)
+      --! and dump data from FIFO into worded shift register (for later use)
+      proc_read_fifo : process (clk)
+      begin
+        if rising_edge(clk) then
+          dhcp_rx_options_fifo_ren <= not dhcp_rx_options_fifo_empty;
+
+          value_buffer <= value_buffer(39 downto 0) & dhcp_rx_options_fifo_dout;
+        end if;
+      end process proc_read_fifo;
+
+      --! @brief Parsing of DHCP options
+      --! @details Option handling happens via cycling trough OPTION-LENGTH-VALUE.
+      --! The FIFO output word is looked at.
+      --! The OPTION state allows further processes to interpret the actual option (data from FIFO).
+      --! Finally we use value_length = 0 to indicate that an option is fully read (for further processes).
+      proc_parse_options : process (clk)
+      begin
+        if rising_edge(clk) then
+
+          -- defaults:
+          value_length       <= x"01";
+          parse_options_done <= '0';
+
+          -- TODO: Think about this: Do we need to be sensitive to rst, or would it work anyway?
+          --if rst = '1' then
+          --  option_state <= IDLE;
+          --else
+
+          case option_state is
+
+            when IDLE =>
+              -- start reading from FIFO as soon as options are available
+              if dhcp_rx_options_fifo_empty = '0' then
+                option_state <= READ;
+              else
+                option_state <= IDLE;
+              end if;
+
+            when READ =>
+              option_state <= OPTION;
+
+            when OPTION =>
+              -- Watch out for end of options at large ...
+              if dhcp_rx_options_fifo_empty = '1' then
+                option_state <= IDLE;
+
+                parse_options_done <= '1';
+              -- but check for padding bytes: simply skip and interpret next byte as option
+              -- note order of prio: If empty is seen and x"00" at the same time, that simply means there is no more data to read
+              elsif dhcp_rx_options_fifo_dout = x"00" then
+                option_state <= OPTION;
+              else
+                option_state <= LENGTH;
+              end if;
+
+            when LENGTH =>
+              value_length <= unsigned(dhcp_rx_options_fifo_dout);
+
+              option_state <= VALUE;
+
+            when VALUE =>
+              if value_length > 1 then
+                value_length <= value_length - 1;
+
+                option_state <= VALUE;
+              else
+                value_length <= (others => '0');
+
+                -- and here goes the setting of the options that we plan to extract
+                -- data is now available in value_buffer
+
+                if dhcp_rx_options_fifo_empty = '1' then
+                  option_state <= IDLE;
+
+                  parse_options_done <= '1';
+                else
+                  option_state <= OPTION;
+                end if;
+              end if;
+
+          end case;
+
+        end if;
+      end process proc_parse_options;
+
+      --! Detect the useful (supported) DHCP option
+      proc_detect_option : process(clk)
+      begin
+        if rising_edge(clk) then
+          -- default:
+          dhcp_option <= dhcp_option;
+
+          -- only once an option is read, interpret it
+          if option_state = OPTION then
+            case dhcp_rx_options_fifo_dout is
+              when x"35" => -- DHCP operation
+                dhcp_option <= OPERATION;
+              when x"33" => -- IP address lease time
+                dhcp_option <= LEASE_TIME;
+              when x"36" => -- server identifier
+                dhcp_option <= SERVER_IP;
+              when others =>
+                dhcp_option <= SKIP;
+            end case;
+          end if;
+        end if;
+      end process proc_detect_option;
+
+      -- Now we can individually extract the data that we look for
+
+      --! Extract all relevant DHCP options
+      proc_extract_dhcp_options : process(clk)
+      begin
+        if rising_edge(clk) then
+          -- options are fully read once the value length has reached 0
+          if value_length = 0 then
+            -- not using case construct here on purpose as individual cases do actually set independent targets
+            if dhcp_option = OPERATION then
+              dhcp_operation <= value_buffer(3 downto 0);
+            end if;
+
+            if dhcp_option = LEASE_TIME then
+              dhcp_lease_time <= value_buffer(31 downto 0);
+            end if;
+
+            if dhcp_option = SERVER_IP then
+              dhcp_server_ip <= value_buffer(31 downto 0);
+            end if;
+          end if;
+        end if;
+      end process proc_extract_dhcp_options;
+
+    end block blk_dhcp_rx_options_fifo_handler;
+
+    --! Finally evaluate the received packet once parsing is done
+    proc_evaluate_rx_packet : process(clk)
+    begin
+      if rising_edge(clk) then
+        if parse_options_done = '1' then
+          -- check (relevant) DHCP message type:
+          --   2: DHCPOFFER
+          --   5: DHCPACK
+          --   6: DHCPNAK
+          if dhcp_operation = x"2" then
+            -- we have a valid offer, so we can accept it
+            -- note: We just accept the first offer if we're still in SELECTING
+            if dhcp_state = SELECTING then
+              dhcp_offer_selected <= '1';
+
+              -- also set the options we need to include in the request
+              yourid        <= offered_yiaddr;
+              serverid      <= dhcp_server_ip;
+              -- TODO: check again if we have to calculate back to initial discover time ...
+              my_lease_time <= dhcp_lease_time;
+            end if;
+          end if;
+        end if;
+      end if;
+    end process proc_evaluate_rx_packet;
 
   end block blk_make_rx_interface;
 
