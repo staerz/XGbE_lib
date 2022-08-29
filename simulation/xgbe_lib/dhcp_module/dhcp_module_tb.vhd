@@ -81,7 +81,7 @@ architecture tb of dhcp_module_tb is
   --! Counter for the simulation
   signal cnt  : integer;
   --! End of File indicators of all readers (data sources and checkers)
-  signal eof  : std_logic_vector(1 downto 0);
+  signal eof  : std_logic_vector(3 downto 0);
 
   --! @name Avalon-ST (DHCP as bare UDP) to module (read from file)
   --! @{
@@ -193,7 +193,9 @@ begin
       clk      => clk,
       rst      => '0',
       cnt      => cnt,
-      stimulus => mnl_rst
+      stimulus => mnl_rst,
+
+      eof => eof(3)
     );
 
     rst <= sim_rst or mnl_rst;
@@ -208,7 +210,9 @@ begin
       clk      => clk,
       rst      => '0',
       cnt      => cnt,
-      stimulus => boot
+      stimulus => boot,
+
+      eof => eof(2)
     );
 
     --! Instantiate avst_packet_sender to read dhcp_tx from DHCP_RXD_FILE
