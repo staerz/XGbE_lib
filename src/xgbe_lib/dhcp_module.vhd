@@ -497,13 +497,15 @@ begin
     --! Counter for outgoing ARP response frame
     signal tx_count : integer range 0 to 63;
 
+    --! EOP indicator
+    signal last_tx_word : std_logic;
+
     --! @brief State definition for the FIFO FSM
     --! @details
     --! State definition for the FIFO FSM
     --! - IDLE:     Nothing happening
     --! - READ:     Read data from FIFO
-    --! - LAST:     Last word from FIFO was read (FIFO empty again)
-    type t_fifo_state is (IDLE, READ, LAST);
+    type t_fifo_state is (IDLE, READ);
 
     --! State of the FIFO FSM
 
@@ -517,7 +519,8 @@ begin
     --! in the tx options FIFO (once written), but then we'd have to wait for that
     --! to happen first which would delay the process
     with tx_state select udp_length <=
-      to_unsigned((8 * DHCP_WORDS + 8), 16) when DHCP_DISCOVER,
+      to_unsigned((8 * (DHCP_WORDS + 1)), 16) when DHCP_DISCOVER,
+      to_unsigned((8 * (DHCP_WORDS + 3)), 16) when DHCP_REQUEST,
       (others => '-') when others;
 
     gen_udp_crc: if UDP_CRC_EN generate
@@ -604,11 +607,9 @@ begin
 
     status_vector_o(0) <= '1' when dhcp_tx_ready_i = '0' else '0';
 
-    -- arp_tx_packet_o.data   <= see state machine;
-
     dhcp_tx_packet_o.valid <= '1' when tx_count >= 1 and tx_state /= IDLE else '0';
     dhcp_tx_packet_o.sop   <= '1' when tx_count = 1 else '0';
-    dhcp_tx_packet_o.eop   <= '1' when fifo_state = LAST else '0';
+    dhcp_tx_packet_o.eop   <= last_tx_word;
     dhcp_tx_packet_o.error <= "0";
 
     -- the implementation always sends full 8-byte words
@@ -632,47 +633,7 @@ begin
     end process proc_count;
 
     blk_gen_tx_data : block
-      signal target_mac    : std_logic_vector(47 downto 0);
-      signal target_ip     : std_logic_vector(31 downto 0);
-      signal target_ip_tmp : std_logic_vector(31 downto 0);
-      signal send_request  : std_logic;
     begin
-
-      blk_send_request : block
-        signal cnt_rst : std_logic;
-        signal cnt_en  : std_logic;
-      begin
-
-        cnt_en <= one_ms_tick_i and request_en;
-
-        cnt_rst <= not request_en;
-
-        inst_request_timeout_counter : entity misc.counting
-        generic map (
-          COUNTER_MAX_VALUE => DHCP_REQUEST_CYCLE
-        )
-        port map (
-          clk => clk,
-          rst => cnt_rst,
-          en  => cnt_en,
-
-          cycle_done => send_request
-        );
-
-      end block blk_send_request;
-
-      proc_arp_request : process (clk)
-      begin
-        if rising_edge(clk) then
-          if rst = '1' then
-            target_ip_tmp <= (others => '0');
-          elsif request_en = '1' then
-            target_ip_tmp <= request_ip;
-          else
-            target_ip_tmp <= target_ip_tmp;
-          end if;
-        end if;
-      end process proc_arp_request;
 
       blk_fifo_handler : block
         signal dhcp_operation : std_logic_vector(3 downto 0);
@@ -772,15 +733,12 @@ begin
         proc_read_fifo : process (clk)
         begin
           if rising_edge(clk) then
-            -- default settings:
-            dhcp_options_fifo_ren <= '0';
 
             case fifo_state is
 
               when IDLE =>
                 -- start reading from FIFO as soon as the fixed header is sent already
                 if tx_count = DHCP_WORDS-1 and dhcp_options_fifo_empty = '0' then
-                  dhcp_options_fifo_ren <= '1';
                   fifo_state <= READ;
                 -- TODO: if FIFO is empty at that point, we do have a problem (as filling it went wrong)
                 else
@@ -788,27 +746,27 @@ begin
                 end if;
 
               when READ =>
-                if dhcp_options_fifo_empty = '1' then
-                  dhcp_options_fifo_ren <= '1';
+                if dhcp_options_fifo_empty = '0' then
                   fifo_state <= READ;
                 else
-                  fifo_state <= LAST;
+                  fifo_state <= IDLE;
                 end if;
-
-              when LAST =>
-                fifo_state <= IDLE;
 
             end case;
 
           end if;
         end process proc_read_fifo;
 
+        dhcp_options_fifo_ren <= not dhcp_options_fifo_empty when fifo_state = READ else '0';
+
         -- actual DCHP options are FIFO output if it has useful data, otherwise it's empty
         with fifo_state select dhcp_options <=
           dhcp_options_fifo_dout
-            when READ | LAST,
+            when READ,
           (others => '0')
             when others;
+
+        last_tx_word <= '1' when fifo_state = READ and dhcp_options_fifo_empty = '1' else '0';
 
       end block blk_fifo_handler;
 
@@ -852,28 +810,28 @@ begin
                 end if;
 
               when DHCP_DISCOVER =>
-                if fifo_state = LAST then
+                if last_tx_word then
                   tx_state <= IDLE;
                 else
                   tx_state <= DHCP_DISCOVER;
                 end if;
 
               when DHCP_REQUEST =>
-                if fifo_state = LAST then
+                if last_tx_word then
                   tx_state <= IDLE;
                 else
                   tx_state <= DHCP_REQUEST;
                 end if;
 
               when DHCP_DECLINE =>
-                if fifo_state = LAST then
+                if last_tx_word then
                   tx_state <= IDLE;
                 else
                   tx_state <= DHCP_DECLINE;
                 end if;
 
               when DHCP_RELEASE =>
-                if fifo_state = LAST then
+                if last_tx_word then
                   tx_state <= IDLE;
                 else
                   tx_state <= DHCP_RELEASE;
