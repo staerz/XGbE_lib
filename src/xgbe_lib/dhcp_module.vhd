@@ -520,7 +520,7 @@ begin
     --! to happen first which would delay the process
     with tx_state select udp_length <=
       to_unsigned((8 * (DHCP_WORDS + 1)), 16) when DHCP_DISCOVER,
-      to_unsigned((8 * (DHCP_WORDS + 3)), 16) when DHCP_REQUEST,
+      to_unsigned((8 * (DHCP_WORDS + 3)), 16) when DHCP_REQUEST | DHCP_DECLINE,
       (others => '-') when others;
 
     gen_udp_crc: if UDP_CRC_EN generate
@@ -842,6 +842,8 @@ begin
           end if;
         end if;
       end process proc_tx_state;
+
+      decline_sent <= '1' when tx_state = DHCP_DECLINE and last_tx_word = '1' else '0';
 
     end block blk_gen_tx_data;
 
@@ -1287,6 +1289,11 @@ begin
     proc_evaluate_rx_packet : process(clk)
     begin
       if rising_edge(clk) then
+        -- defaults:
+        dhcp_offer_selected <= '0';
+        dhcp_acknowledge    <= '0';
+        dhcp_nack           <= '0';
+
         if parse_options_done = '1' then
           -- check (relevant) DHCP message type:
           --   2: DHCPOFFER
@@ -1304,7 +1311,31 @@ begin
               -- TODO: check again if we have to calculate back to initial discover time ...
               my_lease_time <= dhcp_lease_time;
             end if;
+
+          elsif dhcp_operation = x"5" then
+
+            if dhcp_state = REQUESTING then
+              dhcp_acknowledge <= '1';
+
+              -- also set the options we need to include in the request
+              yourid        <= offered_yiaddr;
+              serverid      <= dhcp_server_ip;
+              -- TODO: check again if we have to calculate back to initial discover time ...
+              my_lease_time <= dhcp_lease_time;
+
+              -- add some (arbitrary IP accept criteria):
+              if offered_yiaddr(31 downto 24) = x"FF" then
+                dhcp_accept <= '0';
+              else
+                dhcp_accept <= '1';
+              end if;
+
+            end if;
+
+          elsif dhcp_operation = x"6" then
+            dhcp_nack <= '1';
           end if;
+
         end if;
       end if;
     end process proc_evaluate_rx_packet;
