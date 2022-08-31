@@ -693,39 +693,41 @@ begin
         begin
           if rising_edge(clk) then
             -- default: don't write anything to the FIFO
-            dhcp_options_fifo_din <= (others => '0');
+            dhcp_options_fifo_din <= (others => '-');
             dhcp_options_fifo_wen <= '0';
 
-            case tx_count is
-              -- DHCP Message Type
-              when 1 =>
-                dhcp_options_fifo_din <= x"35010" & dhcp_operation & x"00_00_00_00_00";
-                dhcp_options_fifo_wen <= '1';
-              -- Requested IP Address
-              when 2 =>
-                -- optional for discover, can request any
-                if tx_state = DHCP_DISCOVER and use_suggest_ip then
-                  dhcp_options_fifo_din <= x"3204" & mypreviousip & x"00_00";
+            if dhcp_tx_ready_i = '1' then
+              case tx_count is
+                -- DHCP Message Type
+                when 1 =>
+                  dhcp_options_fifo_din <= x"35010" & dhcp_operation & x"00_00_00_00_00";
                   dhcp_options_fifo_wen <= '1';
-                -- MUST be set to the value of 'yiaddr' in the DHCPOFFER message from the server.
-                -- yourid is any of the selected yiaddr
-                elsif (tx_state = DHCP_REQUEST and (dhcp_state = REQUESTING or dhcp_state = REBOOTING)) or
-                  (tx_state = DHCP_DECLINE) then
-                  dhcp_options_fifo_din <= x"3204" & yourid & x"00_00";
-                  dhcp_options_fifo_wen <= '1';
-                end if;
-              -- Server Identifier
-              when 3 =>
-                -- The client broadcasts a DHCPREQUEST message that MUST include the 'server identifier' option
-                -- serverid is any of the selected siaddr
-                if (tx_state = DHCP_REQUEST and dhcp_state = REQUESTING) or
-                  tx_state = DHCP_DECLINE or tx_state = DHCP_RELEASE then
-                  dhcp_options_fifo_din <= x"3604" & serverid & x"00_00";
-                  dhcp_options_fifo_wen <= '1';
-                end if;
-              when others =>
-                null;
-            end case;
+                -- Requested IP Address
+                when 2 =>
+                  -- optional for discover, can request any
+                  if tx_state = DHCP_DISCOVER and use_suggest_ip then
+                    dhcp_options_fifo_din <= x"3204" & mypreviousip & x"00_00";
+                    dhcp_options_fifo_wen <= '1';
+                  -- MUST be set to the value of 'yiaddr' in the DHCPOFFER message from the server.
+                  -- yourid is any of the selected yiaddr
+                  elsif (tx_state = DHCP_REQUEST and (dhcp_state = REQUESTING or dhcp_state = REBOOTING)) or
+                    (tx_state = DHCP_DECLINE) then
+                    dhcp_options_fifo_din <= x"3204" & yourid & x"00_00";
+                    dhcp_options_fifo_wen <= '1';
+                  end if;
+                -- Server Identifier
+                when 3 =>
+                  -- The client broadcasts a DHCPREQUEST message that MUST include the 'server identifier' option
+                  -- serverid is any of the selected siaddr
+                  if (tx_state = DHCP_REQUEST and dhcp_state = REQUESTING) or
+                    tx_state = DHCP_DECLINE or tx_state = DHCP_RELEASE then
+                    dhcp_options_fifo_din <= x"3604" & serverid & x"00_00";
+                    dhcp_options_fifo_wen <= '1';
+                  end if;
+                when others =>
+                  null;
+              end case;
+            end if;
           end if;
         end process proc_write_fifo;
 
@@ -733,31 +735,33 @@ begin
         proc_read_fifo : process (clk)
         begin
           if rising_edge(clk) then
+            if dhcp_tx_ready_i = '1' then
 
-            case fifo_state is
+              case fifo_state is
 
-              when IDLE =>
-                -- start reading from FIFO as soon as the fixed header is sent already
-                if tx_count = DHCP_WORDS-1 and dhcp_options_fifo_empty = '0' then
-                  fifo_state <= READ;
-                -- TODO: if FIFO is empty at that point, we do have a problem (as filling it went wrong)
-                else
-                  fifo_state <= IDLE;
-                end if;
+                when IDLE =>
+                  -- start reading from FIFO as soon as the fixed header is sent already
+                  if tx_count = DHCP_WORDS-1 and dhcp_options_fifo_empty = '0' then
+                    fifo_state <= READ;
+                  -- TODO: if FIFO is empty at that point, we do have a problem (as filling it went wrong)
+                  else
+                    fifo_state <= IDLE;
+                  end if;
 
-              when READ =>
-                if dhcp_options_fifo_empty = '0' then
-                  fifo_state <= READ;
-                else
-                  fifo_state <= IDLE;
-                end if;
+                when READ =>
+                  if dhcp_options_fifo_empty = '0' then
+                    fifo_state <= READ;
+                  else
+                    fifo_state <= IDLE;
+                  end if;
 
-            end case;
+              end case;
 
+            end if;
           end if;
         end process proc_read_fifo;
 
-        dhcp_options_fifo_ren <= not dhcp_options_fifo_empty when fifo_state = READ else '0';
+        dhcp_options_fifo_ren <= not dhcp_options_fifo_empty and dhcp_tx_ready_i when fifo_state = READ else '0';
 
         -- actual DCHP options are FIFO output if it has useful data, otherwise it's empty
         with fifo_state select dhcp_options <=
@@ -790,7 +794,7 @@ begin
         if rising_edge(clk) then
           if (rst = '1') then
             tx_state <= IDLE;
-          else
+          elsif dhcp_tx_ready_i = '1' then
 
             case tx_state is
 
