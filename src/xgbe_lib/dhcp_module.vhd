@@ -19,6 +19,20 @@
 --!
 --! Outgoing DHCP requests are buffered while dhcp_tx_ready_i is indicating busy
 --! unless it would exceed timeouts specified by the DHCP protocol.
+--!
+--! TODO: DHCP Discover:
+--! - The client records its own local time
+--!   for later use in computing the lease expiration.
+--! - The client then broadcasts the DHCPDISCOVER on the local hardware
+--!   broadcast address to the 0xffffffff IP broadcast address.
+--! - The client SHOULD include the 'maximum DHCP message size' option to
+--!   let the server know how large the server may make its DHCP messages.
+--!
+--! TODO: DHCP Request:
+--! - Request from SELECTING: broadcast the 0xffffffff IP broadcast address
+--! - Request from RENEWING: unicast
+--! - Request from REBINDING: broadcast the 0xffffffff IP broadcast address
+--! - Request from INIT_REBOOT: broadcast the 0xffffffff IP broadcast address
 --------------------------------------------------------------------------------
 
 --! @cond
@@ -107,6 +121,9 @@ library memory;
 
 --! Implementation of the dhcp_module
 architecture behavioral of dhcp_module is
+  --! @brief Number of milliseconds per second
+  --! @details In simulation we want the time to pass quickly!
+  constant MSPERS : positive := ite(SIMULATION, 4, 1000);
   --! @brief State definition of the DHCP module
   --! @details
   --! The following is Figure 5 (State-transition diagram for DHCP clients)
@@ -185,12 +202,17 @@ architecture behavioral of dhcp_module is
   --! Previous stored IP of the core
   signal mypreviousip   : std_logic_vector(31 downto 0);
 
+  --! @name DHCP options communicated from DHCP server
+  --! @{
+
   --! The selected yiaddr from the possibly multiple offers
-  signal yourid   : std_logic_vector(31 downto 0);
+  signal yourid    : std_logic_vector(31 downto 0);
   --! The selected siaddr from the possibly multiple offers
-  signal serverid   : std_logic_vector(31 downto 0);
+  signal serverid  : std_logic_vector(31 downto 0);
   --! Granted least time (in seconds)
-  signal my_lease_time   : std_logic_vector(31 downto 0);
+  signal leasetime : std_logic_vector(31 downto 0);
+
+  --! @}
 
   --! @name Indicators to send dedicated DHCP messages (comm from global FSM to tx FSM)
   --! @{
@@ -324,7 +346,6 @@ begin
             elsif t2_expires = '1' then
               dhcp_state <= REBINDING;
 
-              --! TODO: must be broadcast - same as before?
               send_dhcp_request <= '1';
             else
               dhcp_state <= RENEWING;
@@ -538,11 +559,13 @@ begin
       signal second_tick : std_logic;
     begin
 
+      -- TODO: We have to check, we might also have to start over for send_dhcp_request
+      -- in certain other conditions (global FSM state)
       cnt_rst <= rst or send_dhcp_discover;
 
       inst_second_tick : entity misc.counting
       generic map (
-        COUNTER_MAX_VALUE => 1000
+        COUNTER_MAX_VALUE => MSPERS
       )
       port map (
         clk => clk,
@@ -558,7 +581,7 @@ begin
       )
       port map (
         clk => clk,
-        rst => rst,
+        rst => cnt_rst,
         inc => second_tick,
         dec => '0',
 
@@ -1310,24 +1333,40 @@ begin
               dhcp_offer_selected <= '1';
 
               -- also set the options we need to include in the request
-              yourid        <= offered_yiaddr;
-              serverid      <= dhcp_server_ip;
+              yourid    <= offered_yiaddr;
+              serverid  <= dhcp_server_ip;
               -- TODO: check again if we have to calculate back to initial discover time ...
-              my_lease_time <= dhcp_lease_time;
+              leasetime <= dhcp_lease_time;
             end if;
 
           elsif dhcp_operation = x"5" then
 
-            if dhcp_state = REQUESTING then
+            if dhcp_state = REQUESTING or dhcp_state = RENEWING or dhcp_state = REBINDING then
               dhcp_acknowledge <= '1';
 
-              -- also set the options we need to include in the request
-              yourid        <= offered_yiaddr;
-              serverid      <= dhcp_server_ip;
-              -- TODO: check again if we have to calculate back to initial discover time ...
-              my_lease_time <= dhcp_lease_time;
+              -- also set the options we need to include in a follow-up request
+              yourid    <= offered_yiaddr;
+              serverid  <= dhcp_server_ip;
+              leasetime <= dhcp_lease_time;
+            end if;
 
-              -- add some (arbitrary IP accept criteria):
+            -- some (arbitrary) IP accept criteria when initially accepting the IP:
+            if dhcp_state = REQUESTING then
+------------------------------<-    80 chars    ->------------------------------
+--! 4.4.1:
+--! The client SHOULD perform a
+--! check on the suggested address to ensure that the address is not
+--! already in use.  For example, if the client is on a network that
+--! supports ARP, the client may issue an ARP request for the suggested
+--! request.When broadcasting an ARP request for the suggested address,
+--! the client must fill in its own hardware address as the sender's
+--! hardware address, and 0 as the sender's IP address, to avoid
+--! confusing ARP caches in other hosts on the same subnet.  If the
+--! network address appears to be in use, the client MUST send a
+--! DHCPDECLINE message to the server.The client SHOULD broadcast an ARP
+--! reply to announce the client's new IP address and clear any outdated
+--! ARP cache entries in hosts on the client's subnet.
+--------------------------------------------------------------------------------
               if offered_yiaddr(31 downto 24) = x"FF" then
                 dhcp_accept <= '0';
               else
@@ -1345,6 +1384,125 @@ begin
     end process proc_evaluate_rx_packet;
 
   end block blk_make_rx_interface;
+
+  blk_manage_my_ip : block
+
+  begin
+
+    proc_capture_my_ip : process(clk)
+    begin
+      if rising_edge(clk) then
+        if dhcp_acknowledge = '1' then
+          my_ip_o <= yourid;
+        elsif lease_expired = '1' then
+          -- TODO: we must also seize all network activity at that point!
+          my_ip_o <= (others => '0');
+        end if;
+      end if;
+    end process proc_capture_my_ip;
+
+  end block blk_manage_my_ip;
+
+  --! @brief Lease time management
+  --! @details
+  --! DCHP client cannot rely on receiving information of T1 and T2 by the server.
+  --! Hence we keep track of our own T1/T2 (and do not (yet) implement any T1/T2 option recognition).
+  blk_manage_lease_times : block
+    --! Granted lease time in seconds
+    signal lease_time : unsigned(32 downto 0);
+    --! Timer T1: Time until to request RENEWING
+    signal t1 : lease_time'subtype;
+    --! Timer T2: Time until to request REBINDING
+    signal t2 : lease_time'subtype;
+    --! Timer when a second is over (from counting ms)
+    signal second_tick : std_logic;
+    --! Number of seconds since "the original request was sent"
+    -- Note: MUST be 32 bit wide (to fit the positive range)
+    signal seconds : std_logic_vector(15 downto 0);
+  begin
+
+    -- To be sure to be independent, we re-implement a second time counter: secs /= least_time!
+    -- count "seconds since DHCP request started"
+    blk_secs : block
+      signal cnt_rst : std_logic;
+    begin
+
+      cnt_rst <= send_dhcp_request;
+
+      inst_second_tick : entity misc.counting
+      generic map (
+        COUNTER_MAX_VALUE => MSPERS
+      )
+      port map (
+        clk => clk,
+        rst => cnt_rst,
+        en  => one_ms_tick_i,
+
+        cycle_done => second_tick
+      );
+
+      inst_seconds : entity misc.counter
+      generic map (
+        COUNTER_MAX_VALUE => 2**(seconds'length)-1
+      )
+      port map (
+        clk => clk,
+        rst => cnt_rst,
+        inc => second_tick,
+        dec => '0',
+
+        empty => open,
+        full  => open,
+        count => seconds
+      );
+
+    end block blk_secs;
+
+    --! @brief Manage the lease time from DHCP server replies
+    --! @details
+    --! "The client records the lease expiration time as the sum of
+    --! the time at which the original request was sent and the duration of
+    --! the lease from the DHCPACK message."
+    --!
+    --! Since we count the time backwards (remaining seconds), this turns into a difference.
+    proc_manage_lease_times : process(clk)
+      variable lt : unsigned(31 downto 0);
+    begin
+      if rising_edge(clk) then
+        -- default:
+        lease_time <= lease_time;
+        t1 <= t1;
+        t2 <= t2;
+
+        -- DHCP acknowledge resets the lease timers
+        if dhcp_acknowledge = '1' then
+          lt := unsigned(leasetime) - resize(unsigned(seconds),lt'length);
+          lease_time <= '0' & lt;
+          --! T1 defaults to (0.5 * duration_of_lease).
+          t1 <= "00" & lt(31 downto 1);
+          --! T2 defaults to (0.875 * duration_of_lease)
+          t2 <= '0' & (lt - ("000" & lt(31 downto 3)));
+        elsif second_tick = '1' then
+          -- decrease counters by a second (as long as they are positive)
+          if lease_time(lease_time'high) = '0' then
+            lease_time <= lease_time - 1;
+          end if;
+          if t1(t1'high) = '0' then
+            t1 <= t1 - 1;
+          end if;
+          if t2(t2'high) = '0' then
+            t2 <= t2 - 1;
+          end if;
+        end if;
+      end if;
+    end process proc_manage_lease_times;
+
+    -- expiration is simply indicated by the counters being negative
+    t1_expires    <= t1(t1'high);
+    t2_expires    <= t2(t2'high);
+    lease_expired <= lease_time(lease_time'high);
+
+  end block blk_manage_lease_times;
 
   -- Handling of ARP requests to the ARP table:
   --
