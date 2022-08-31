@@ -7,7 +7,7 @@ add wave -noupdate -color {Medium Orchid} /dhcp_module_tb/uut/dhcp_rx_ready_o
 add wave -noupdate -color {Medium Orchid} -radix hexadecimal -childformat {{/dhcp_module_tb/uut/dhcp_rx_packet_i.data -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_rx_packet_i.valid -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_rx_packet_i.sop -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_rx_packet_i.eop -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_rx_packet_i.empty -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_rx_packet_i.error -radix hexadecimal}} -expand -subitemconfig {/dhcp_module_tb/uut/dhcp_rx_packet_i.data {-color {Medium Orchid} -height 17 -radix hexadecimal} /dhcp_module_tb/uut/dhcp_rx_packet_i.valid {-color {Medium Orchid} -height 17 -radix hexadecimal} /dhcp_module_tb/uut/dhcp_rx_packet_i.sop {-color {Medium Orchid} -height 17 -radix hexadecimal} /dhcp_module_tb/uut/dhcp_rx_packet_i.eop {-color {Medium Orchid} -height 17 -radix hexadecimal} /dhcp_module_tb/uut/dhcp_rx_packet_i.empty {-color {Medium Orchid} -height 17 -radix hexadecimal} /dhcp_module_tb/uut/dhcp_rx_packet_i.error {-color {Medium Orchid} -height 17 -radix hexadecimal}} /dhcp_module_tb/uut/dhcp_rx_packet_i
 add wave -noupdate -color Gold /dhcp_module_tb/uut/dhcp_tx_ready_i
 add wave -noupdate -color Gold -radix hexadecimal -childformat {{/dhcp_module_tb/uut/dhcp_tx_packet_o.data -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_tx_packet_o.valid -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_tx_packet_o.sop -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_tx_packet_o.eop -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_tx_packet_o.empty -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_tx_packet_o.error -radix hexadecimal}} -expand -subitemconfig {/dhcp_module_tb/uut/dhcp_tx_packet_o.data {-color Gold -height 17 -radix hexadecimal} /dhcp_module_tb/uut/dhcp_tx_packet_o.valid {-color Gold -height 17 -radix hexadecimal} /dhcp_module_tb/uut/dhcp_tx_packet_o.sop {-color Gold -height 17 -radix hexadecimal} /dhcp_module_tb/uut/dhcp_tx_packet_o.eop {-color Gold -height 17 -radix hexadecimal} /dhcp_module_tb/uut/dhcp_tx_packet_o.empty {-color Gold -height 17 -radix hexadecimal} /dhcp_module_tb/uut/dhcp_tx_packet_o.error {-color Gold -height 17 -radix hexadecimal}} /dhcp_module_tb/uut/dhcp_tx_packet_o
-add wave -noupdate -color Khaki -expand -subitemconfig {/dhcp_module_tb/blk_uvvm/dhcp_rx_expect.data {-color Khaki} /dhcp_module_tb/blk_uvvm/dhcp_rx_expect.valid {-color Khaki} /dhcp_module_tb/blk_uvvm/dhcp_rx_expect.sop {-color Khaki} /dhcp_module_tb/blk_uvvm/dhcp_rx_expect.eop {-color Khaki} /dhcp_module_tb/blk_uvvm/dhcp_rx_expect.empty {-color Khaki} /dhcp_module_tb/blk_uvvm/dhcp_rx_expect.error {-color Khaki}} /dhcp_module_tb/blk_uvvm/dhcp_rx_expect
+add wave -noupdate -color Khaki -expand -subitemconfig {/dhcp_module_tb/blk_uvvm/dhcp_rx_expect.data {-color Khaki -height 17} /dhcp_module_tb/blk_uvvm/dhcp_rx_expect.valid {-color Khaki -height 17} /dhcp_module_tb/blk_uvvm/dhcp_rx_expect.sop {-color Khaki -height 17} /dhcp_module_tb/blk_uvvm/dhcp_rx_expect.eop {-color Khaki -height 17} /dhcp_module_tb/blk_uvvm/dhcp_rx_expect.empty {-color Khaki -height 17} /dhcp_module_tb/blk_uvvm/dhcp_rx_expect.error {-color Khaki -height 17}} /dhcp_module_tb/blk_uvvm/dhcp_rx_expect
 add wave -noupdate -radix hexadecimal -radixshowbase 0 /dhcp_module_tb/uut/my_mac_i
 add wave -noupdate -radix hexadecimal -radixshowbase 0 /dhcp_module_tb/uut/my_ip_o
 add wave -noupdate /dhcp_module_tb/uut/one_ms_tick_i
@@ -26,26 +26,27 @@ add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/t1_expires
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/t2_expires
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/lease_expired
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/xid
-add wave -noupdate -expand -group {TX FSM} -color Cyan /dhcp_module_tb/uut/blk_make_tx_interface/tx_state
-add wave -noupdate -expand -group {TX FSM} -radix decimal /dhcp_module_tb/uut/blk_make_tx_interface/tx_count
-add wave -noupdate -expand -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/dhcp_frame
-add wave -noupdate -expand -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/udp_crc
-add wave -noupdate -expand -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/udp_length
-add wave -noupdate -expand -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/fifo_state
-add wave -noupdate -expand -group {TX FSM} -expand -group {TX OPTIONS FIFO} /dhcp_module_tb/uut/blk_make_tx_interface/blk_gen_tx_data/blk_fifo_handler/dhcp_operation
-add wave -noupdate -expand -group {TX FSM} -expand -group {TX OPTIONS FIFO} /dhcp_module_tb/uut/blk_make_tx_interface/blk_gen_tx_data/blk_fifo_handler/dhcp_options_fifo_din
-add wave -noupdate -expand -group {TX FSM} -expand -group {TX OPTIONS FIFO} /dhcp_module_tb/uut/blk_make_tx_interface/blk_gen_tx_data/blk_fifo_handler/dhcp_options_fifo_wen
-add wave -noupdate -expand -group {TX FSM} -expand -group {TX OPTIONS FIFO} /dhcp_module_tb/uut/blk_make_tx_interface/blk_gen_tx_data/blk_fifo_handler/dhcp_options_fifo_ren
-add wave -noupdate -expand -group {TX FSM} -expand -group {TX OPTIONS FIFO} /dhcp_module_tb/uut/blk_make_tx_interface/blk_gen_tx_data/blk_fifo_handler/dhcp_options_fifo_dout
-add wave -noupdate -expand -group {TX FSM} -expand -group {TX OPTIONS FIFO} /dhcp_module_tb/uut/blk_make_tx_interface/blk_gen_tx_data/blk_fifo_handler/dhcp_options_fifo_full
-add wave -noupdate -expand -group {TX FSM} -expand -group {TX OPTIONS FIFO} /dhcp_module_tb/uut/blk_make_tx_interface/blk_gen_tx_data/blk_fifo_handler/dhcp_options_fifo_empty
-add wave -noupdate -expand -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/dhcp_options
+add wave -noupdate -group {TX FSM} -color Cyan /dhcp_module_tb/uut/blk_make_tx_interface/tx_state
+add wave -noupdate -group {TX FSM} -radix decimal /dhcp_module_tb/uut/blk_make_tx_interface/tx_count
+add wave -noupdate -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/dhcp_frame
+add wave -noupdate -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/udp_crc
+add wave -noupdate -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/udp_length
+add wave -noupdate -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/fifo_state
+add wave -noupdate -group {TX FSM} -expand -group {TX OPTIONS FIFO} /dhcp_module_tb/uut/blk_make_tx_interface/blk_gen_tx_data/blk_fifo_handler/dhcp_tx_operation
+add wave -noupdate -group {TX FSM} -expand -group {TX OPTIONS FIFO} /dhcp_module_tb/uut/blk_make_tx_interface/blk_gen_tx_data/blk_fifo_handler/dhcp_options_fifo_din
+add wave -noupdate -group {TX FSM} -expand -group {TX OPTIONS FIFO} /dhcp_module_tb/uut/blk_make_tx_interface/blk_gen_tx_data/blk_fifo_handler/dhcp_options_fifo_wen
+add wave -noupdate -group {TX FSM} -expand -group {TX OPTIONS FIFO} /dhcp_module_tb/uut/blk_make_tx_interface/blk_gen_tx_data/blk_fifo_handler/dhcp_options_fifo_ren
+add wave -noupdate -group {TX FSM} -expand -group {TX OPTIONS FIFO} /dhcp_module_tb/uut/blk_make_tx_interface/blk_gen_tx_data/blk_fifo_handler/dhcp_options_fifo_dout
+add wave -noupdate -group {TX FSM} -expand -group {TX OPTIONS FIFO} /dhcp_module_tb/uut/blk_make_tx_interface/blk_gen_tx_data/blk_fifo_handler/dhcp_options_fifo_full
+add wave -noupdate -group {TX FSM} -expand -group {TX OPTIONS FIFO} /dhcp_module_tb/uut/blk_make_tx_interface/blk_gen_tx_data/blk_fifo_handler/dhcp_options_fifo_empty
+add wave -noupdate -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/dhcp_options
 add wave -noupdate -expand -group RX -color Cyan /dhcp_module_tb/uut/blk_make_rx_interface/rx_state
 add wave -noupdate -expand -group RX /dhcp_module_tb/uut/blk_make_rx_interface/rx_type
 add wave -noupdate -expand -group RX /dhcp_module_tb/uut/blk_make_rx_interface/dhcp_rx_ready_i
 add wave -noupdate -expand -group RX /dhcp_module_tb/uut/blk_make_rx_interface/rx_count
 add wave -noupdate -expand -group RX -expand /dhcp_module_tb/uut/blk_make_rx_interface/rx_packet_reg
 add wave -noupdate -expand -group RX /dhcp_module_tb/uut/blk_make_rx_interface/offered_yiaddr
+add wave -noupdate -expand -group RX /dhcp_module_tb/uut/yourid
 add wave -noupdate -expand -group RX -expand -group {RX OPT FIFO} /dhcp_module_tb/uut/blk_make_rx_interface/blk_dhcp_rx_options_fifo_handler/dhcp_rx_options_fifo_din
 add wave -noupdate -expand -group RX -expand -group {RX OPT FIFO} /dhcp_module_tb/uut/blk_make_rx_interface/blk_dhcp_rx_options_fifo_handler/dhcp_rx_options_fifo_wen
 add wave -noupdate -expand -group RX -expand -group {RX OPT FIFO} /dhcp_module_tb/uut/blk_make_rx_interface/blk_dhcp_rx_options_fifo_handler/dhcp_rx_options_fifo_ren
@@ -57,11 +58,17 @@ add wave -noupdate -expand -group RX /dhcp_module_tb/uut/blk_make_rx_interface/b
 add wave -noupdate -expand -group RX -color Cyan /dhcp_module_tb/uut/blk_make_rx_interface/blk_dhcp_rx_options_fifo_handler/dhcp_option
 add wave -noupdate -expand -group RX -color Cyan /dhcp_module_tb/uut/blk_make_rx_interface/blk_dhcp_rx_options_fifo_handler/option_state
 add wave -noupdate -expand -group RX /dhcp_module_tb/uut/blk_make_rx_interface/parse_options_done
-add wave -noupdate /dhcp_module_tb/uut/blk_make_rx_interface/dhcp_operation
-add wave -noupdate /dhcp_module_tb/uut/blk_make_rx_interface/dhcp_lease_time
+add wave -noupdate /dhcp_module_tb/uut/blk_make_rx_interface/dhcp_rx_operation
+add wave -noupdate -radix decimal /dhcp_module_tb/uut/blk_make_rx_interface/dhcp_lease_time
 add wave -noupdate /dhcp_module_tb/uut/blk_make_rx_interface/dhcp_server_ip
+add wave -noupdate -expand -group {Lease timers} /dhcp_module_tb/uut/one_ms_tick_i
+add wave -noupdate -expand -group {Lease timers} -radix decimal /dhcp_module_tb/uut/blk_manage_lease_times/lease
+add wave -noupdate -expand -group {Lease timers} -radix decimal /dhcp_module_tb/uut/blk_manage_lease_times/t1
+add wave -noupdate -expand -group {Lease timers} -radix decimal /dhcp_module_tb/uut/blk_manage_lease_times/t2
+add wave -noupdate -expand -group {Lease timers} /dhcp_module_tb/uut/blk_manage_lease_times/second_tick
+add wave -noupdate -expand -group {Lease timers} /dhcp_module_tb/uut/blk_manage_lease_times/seconds
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {373425 ps} 0}
+WaveRestoreCursors {{Cursor 1} {1375403 ps} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 211
 configure wave -valuecolwidth 156
@@ -77,4 +84,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {246224 ps} {547080 ps}
+WaveRestoreZoom {630449 ps} {2479356 ps}

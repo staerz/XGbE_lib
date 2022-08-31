@@ -21,39 +21,35 @@ library fpga;
 entity dhcp_module_tb is
   generic (
     --! Clock period
-    CLK_PERIOD        : time   := 6.4 ns;
+    CLK_PERIOD      : time   := 6.4 ns;
     --! File containing the DHCP RX data
-    DHCP_RXD_FILE     : string := "sim_data_files/DHCP_rx_in.dat";
+    DHCP_RXD_FILE   : string := "sim_data_files/DHCP_rx_in.dat";
     --! File containing counters on which the TX interface is not ready
-    DHCP_RDY_FILE     : string := "sim_data_files/DHCP_tx_ready_in.dat";
+    DHCP_RDY_FILE   : string := "sim_data_files/DHCP_tx_ready_in.dat";
     --! File to write out the response of the module
-    DHCP_TXD_FILE     : string := "sim_data_files/DHCP_tx_out.dat";
+    DHCP_TXD_FILE   : string := "sim_data_files/DHCP_tx_out.dat";
     --! File to read expected response of the module
-    DHCP_CHK_FILE     : string := "sim_data_files/DHCP_tx_expect.dat";
+    DHCP_CHK_FILE   : string := "sim_data_files/DHCP_tx_expect.dat";
     --! File containing counters on which a manual reset is carried out
-    MNL_RST_FILE      : string := "sim_data_files/MNL_RST_in.dat";
+    MNL_RST_FILE    : string := "sim_data_files/MNL_RST_in.dat";
     --! File containing counters on which a boot is carried out
-    BOOT_FILE         : string := "sim_data_files/BOOT_in.dat";
+    BOOT_FILE       : string := "sim_data_files/BOOT_in.dat";
 
     --! Definition how many clock cycles a millisecond is
-    ONE_MILLISECOND   : integer := 7;
+    ONE_MILLISECOND : integer := 7;
 
     --! Flag to use to indicate comments
-    COMMENT_FLAG      : character := '%';
+    COMMENT_FLAG    : character := '%';
     --! Flat to use to indicate counters
-    COUNTER_FLAG      : character := '@';
+    COUNTER_FLAG    : character := '@';
 
     --! MAC address
-    MY_MAC            : std_logic_vector(47 downto 0) := x"00_22_8F_02_41_EE";
+    MY_MAC          : std_logic_vector(47 downto 0) := x"00_22_8F_02_41_EE";
 
     --! UDP CRC calculation enable
-    UDP_CRC_EN        : boolean                 := false;
+    UDP_CRC_EN      : boolean                 := false;
     --! Timeout in milliseconds
-    DHCP_TIMEOUT       : integer range 2 to 1000 := 10;
-    --! Cycle time in milliseconds for APR requests (when repetitions are needed)
-    DHCP_REQUEST_CYCLE : integer range 1 to 1000 := 2;
-    --! Depth of DHCP table (number of stored connections)
-    DHCP_TABLE_DEPTH   : integer range 1 to 1024 := 4
+    DHCP_TIMEOUT    : integer range 2 to 1000 := 10
   );
 end entity dhcp_module_tb;
 
@@ -104,20 +100,7 @@ architecture tb of dhcp_module_tb is
   --! @}
 
   --! Assigned (retrieved) IP address
-  signal my_ip          : std_logic_vector(31 downto 0);
-
-  --! @name Interface for recovering MAC address from given IP address
-  --! @{
-
-  --! Recovery enable
-  signal reco_en   : std_logic;
-  --! IP address to recover
-  signal reco_ip   : std_logic_vector(31 downto 0);
-  --! Recovered MAX address
-  signal reco_mac  : std_logic_vector(47 downto 0);
-  --! recovery success: 1 = found, 0 = not found (time out)
-  signal reco_done : std_logic;
-  --! @}
+  signal my_ip : std_logic_vector(31 downto 0);
 
   --! Clock cycle when 1 millisecond is passed
   signal one_ms_tick : std_logic;
@@ -130,15 +113,13 @@ begin
   --! Instantiate the Unit Under Test (UUT)
   uut : entity xgbe_lib.dhcp_module
   generic map (
-    UDP_CRC_EN         => UDP_CRC_EN,
-    DHCP_REQUEST_CYCLE => DHCP_REQUEST_CYCLE,
-    DHCP_TIMEOUT       => DHCP_TIMEOUT,
-    DHCP_TABLE_DEPTH   => DHCP_TABLE_DEPTH
+    UDP_CRC_EN   => UDP_CRC_EN,
+    DHCP_TIMEOUT => DHCP_TIMEOUT
   )
   port map (
-    clk  => clk,
-    rst  => rst,
-    boot => boot,
+    clk    => clk,
+    rst    => rst,
+    boot_i => boot,
 
     -- signals from dhcp requester
     dhcp_rx_ready_o  => dhcp_tx_ready,
@@ -147,13 +128,6 @@ begin
     -- signals to dhcp requester
     dhcp_tx_ready_i  => dhcp_rx_ready,
     dhcp_tx_packet_o => dhcp_rx_packet,
-
-    -- interface for recovering mac address from given ip address
-    reco_en_i   => reco_en,
-    reco_ip_i   => reco_ip,
-    -- response (next clk if directly found, later if dhcp request needs to be sent)
-    reco_mac_o  => reco_mac,
-    reco_done_o => reco_done,
 
     my_mac_i => MY_MAC,
     my_ip_o  => my_ip,
@@ -253,14 +227,6 @@ begin
       '1' when 0,
       '0' when others;
 
-    with cnt select reco_ip <=
-      x"C0_A8_00_23" when 100,
-      (others => '0') when others;
-
-    with cnt select reco_en <=
-      '1' when 100,
-      '0' when others;
-
   end block blk_simulation;
 
   blk_uvvm : block
@@ -269,6 +235,7 @@ begin
   begin
 
     --! Use the avst_packet_sender to read expected data from an independent file
+    -- TODO: have to check rst behaviour
     inst_dhcp_tx_checker : entity xgbe_lib.avst_packet_sender
     generic map (
       FILENAME     => DHCP_CHK_FILE,
@@ -277,7 +244,7 @@ begin
     )
     port map (
       clk   => clk,
-      rst   => '0',--rst,
+      rst   => '0',
       cnt_i => cnt,
 
       tx_ready_i  => dhcp_rx_ready,
@@ -294,6 +261,7 @@ begin
       -- Wait for the reset to drop
       await_value(rst, '0', 0 ns, 60 * CLK_PERIOD, ERROR, "Reset drop expected.");
 
+      --! @cond
       note("The following acknowledge check messages are all suppressed.");
       -- make sure to be slightly after the rising edge
       wait for 1 ns;
@@ -309,6 +277,7 @@ begin
         end if;
         wait for CLK_PERIOD;
       end loop;
+      --! @endcond
       note("If until here no errors showed up, a gazillion of checks on dhcp_rx_packet went fine.");
 
       -- Grant an additional clock cycle in order for the avst_packet_receiver to finish writing
