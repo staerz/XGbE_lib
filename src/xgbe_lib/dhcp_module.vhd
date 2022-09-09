@@ -21,8 +21,6 @@
 --! busy unless it would exceed timeouts specified by the DHCP protocol.
 --!
 --! @todo DHCP Discover:
---! - The client records its own local time
---!   for later use in computing the lease expiration.
 --! - The client then broadcasts the DHCPDISCOVER on the local hardware
 --!   broadcast address to the 0xffffffff IP broadcast address.
 --! - The client SHOULD include the 'maximum DHCP message size' option to
@@ -108,7 +106,7 @@ architecture behavioral of dhcp_module is
 
   --! @brief Number of milliseconds per second
   --! @details In simulation we want the time to pass quickly!
-  constant MSPERS : positive := ite(SIMULATION, 4, 1000);
+  constant MSPERS : positive := ite(SIMULATION, 8, 1000);
 
   --! @brief State definition of the DHCP module
   --! @details
@@ -167,6 +165,9 @@ architecture behavioral of dhcp_module is
   -- vsg_disable_next_line signal_007
   signal dhcp_state : t_dhcp_state := INIT;
 
+  --! Indication of the RX FSM to be in IDLE (not busy)
+  signal no_rx : std_logic;
+
   --! Indicator if or if not to use a suggested IP
   signal use_suggest_ip : boolean;
   --! Previous stored IP of the core
@@ -188,13 +189,17 @@ architecture behavioral of dhcp_module is
   --! @{
 
   --! Discover
-  signal send_dhcp_discover : std_logic;
+  signal send_dhcp_discover   : std_logic;
+  --! Discover (resend)
+  signal resend_dhcp_discover : std_logic;
   --! Request
-  signal send_dhcp_request  : std_logic;
+  signal send_dhcp_request    : std_logic;
+  --! Request (resend)
+  signal resend_dhcp_request  : std_logic;
   --! Decline
-  signal send_dhcp_decline  : std_logic;
+  signal send_dhcp_decline    : std_logic;
   --! Release
-  signal send_dhcp_release  : std_logic;
+  signal send_dhcp_release    : std_logic;
 
   --! @}
 
@@ -210,11 +215,11 @@ architecture behavioral of dhcp_module is
   --! DHCP decline message sent
   signal decline_sent        : std_logic;
   --! Expiration of T1
-  signal t1_expires          : std_logic;
+  signal t1_expired          : std_logic;
   --! DHCP nacknowledge received (while in REQUESTING, RENEWING, REBINDING, REBOOTING)
   signal dhcp_nack           : std_logic;
   --! Expiration of T2
-  signal t2_expires          : std_logic;
+  signal t2_expired          : std_logic;
   --! Expiration of lease
   signal lease_expired       : std_logic;
 
@@ -252,8 +257,6 @@ begin
       elsif boot_i = '1' then
         dhcp_state <= INIT_REBOOT;
       else
-        -- TODO: Add timeout options in different states waiting for feedback
-        -- see page 24 of the specs about "retransmission"
 
         case dhcp_state is
 
@@ -267,7 +270,15 @@ begin
               dhcp_state <= REQUESTING;
 
               send_dhcp_request <= '1';
+
             else
+              -- in addition to the specified state transitions,
+              -- this one takes care of retransmission of a new discovery message after timeout
+              if resend_dhcp_discover = '1' then
+                send_dhcp_discover <= '1';
+              end if;
+
+              --dhcp_state <= INIT;
               dhcp_state <= SELECTING;
             end if;
 
@@ -283,6 +294,12 @@ begin
             elsif dhcp_nack = '1' then
               dhcp_state <= INIT;
             else
+              -- in addition to the specified state transitions,
+              -- we also need to resend a request after timeout
+              if resend_dhcp_request = '1' then
+                send_dhcp_request <= '1';
+              end if;
+
               dhcp_state <= REQUESTING;
             end if;
 
@@ -294,7 +311,7 @@ begin
             end if;
 
           when BOUND =>
-            if t1_expires = '1' then
+            if t1_expired = '1' then
               dhcp_state <= RENEWING;
 
               send_dhcp_request <= '1';
@@ -308,11 +325,17 @@ begin
             elsif dhcp_nack = '1' then
               -- TODO: HALT network
               dhcp_state <= INIT;
-            elsif t2_expires = '1' then
+            elsif t2_expired = '1' then
               dhcp_state <= REBINDING;
 
               send_dhcp_request <= '1';
             else
+              -- in addition to the specified state transitions,
+              -- we also need to resend a request after timeout
+              if resend_dhcp_request = '1' then
+                send_dhcp_request <= '1';
+              end if;
+
               dhcp_state <= RENEWING;
             end if;
 
@@ -323,6 +346,12 @@ begin
               -- TODO: HALT network
               dhcp_state <= INIT;
             else
+              -- in addition to the specified state transitions,
+              -- we also need to resend a request after timeout
+              if resend_dhcp_request = '1' then
+                send_dhcp_request <= '1';
+              end if;
+
               dhcp_state <= REBINDING;
             end if;
 
@@ -538,8 +567,8 @@ begin
       --! @}
     begin
 
-      -- TODO: We have to check, we might also have to start over for send_dhcp_request
-      -- in certain other conditions (global FSM state)
+      -- RFC 2131, page 37 has "seconds since DHCP process started"
+      -- so we need a dedicated counter for this field, independent of the lease time calculation
       cnt_rst <= rst or send_dhcp_discover;
 
       inst_second_tick : entity misc.counting
@@ -554,7 +583,7 @@ begin
         cycle_done => second_tick
       );
 
-      inst_seconds : entity misc.counter
+      inst_secs : entity misc.counter
       generic map (
         COUNTER_MAX_VALUE => 2**(secs'length) - 1
       )
@@ -874,6 +903,56 @@ begin
 
     end block blk_gen_tx_data;
 
+    blk_backoff_discover : block
+      --! Position to check on the #secs timer to evaluate if timeout is reached:
+      --! First timeout is after 4 seconds, next after 8, 16, 32, finally 64 which
+      --! translates to bit positions 2 to 6 to be checked.
+      --! Position 1 is initialisation.
+      signal timer_pos : natural range 1 to 6;
+      signal need_resend : std_logic;
+    begin
+      --! @brief Implementation (part 1) of a randomized exponential backoff algorithm (page 24 of RFC2131)
+      --! @details Every time a dhcp discover is sent (indicated by #send_dhcp_discover),
+      --! the timer position is increased (until its maximum).
+      proc_timer_pos : process (clk)
+      begin
+        if rising_edge(clk) then
+          if dhcp_state = INIT then
+            timer_pos <= 1;
+          elsif send_dhcp_discover = '1' and timer_pos < 6 then
+            timer_pos <= timer_pos + 1;
+          end if;
+        end if;
+      end process proc_timer_pos;
+
+      --! @brief Implementation (part 2) of a randomized exponential backoff algorithm (page 24 of RFC2131)
+      --! @details Check the #secs counter to be up by evaluating it at bit position #timer_pos.
+      --! We only must check this during #dhcp_state = SELECTING and consider (re)send_dhcp_discover for timing.
+      proc_resend_discover : process (clk)
+      begin
+        if rising_edge(clk) then
+          if dhcp_state = SELECTING and secs(timer_pos) = '1' and no_rx = '1' and send_dhcp_discover = '0' then
+            need_resend <= '1';
+          else
+            need_resend <= '0';
+          end if;
+        end if;
+      end process proc_resend_discover;
+
+      inst_resend_dhcp_discover : entity misc.hilo_detect
+      generic map (
+        lohi    => true
+      )
+      port map (
+        clk     => clk,
+        sig_in  => need_resend,
+        sig_out => resend_dhcp_discover
+      );
+
+      -- TODO: with timer_pos select status_vector(x) <= '1' when 6 else '0';
+
+    end block blk_backoff_discover;
+
   end block blk_make_tx_interface;
 
   -- Receiver part
@@ -881,12 +960,13 @@ begin
     --! @brief State definition for the RX FSM
     --! @details
     --! State definition for the RX FSM
+    --! - IDLE: no ongoing reception
     --! - HEADER: checks all requirement of the incoming DHCP packet
     --! - SKIP: skips all frames until EOP (if header is wrong)
     --! - STORING_OPTS: storing the options in FIFO
     --! - PARSING_OPTS: parsing the options from the FIFO
 
-    type   t_rx_state is (HEADER, SKIP, STORING_OPTS, PARSING_OPTS);
+    type   t_rx_state is (IDLE, HEADER, SKIP, STORING_OPTS, PARSING_OPTS);
     --! States of the RX FSM
     signal rx_state : t_rx_state;
 
@@ -932,7 +1012,6 @@ begin
     dhcp_rx_ready_o <= dhcp_rx_ready_i;
 
     --! Counting the frames of 8 bytes received
-    -- TODO: do we have to reset _reg signals?
     proc_manage_rx_count_from_rx_sop : process (clk)
     begin
       if rising_edge(clk) then
@@ -973,20 +1052,28 @@ begin
     begin
 
       if rising_edge(clk) then
-        -- reset tentatively indicate new header
-        if rst = '1' then
-          rx_state <= HEADER;
+        -- reset or returning into dhcp_state INIT reset RX FSM
+        -- checking dhcp_state makes sure to discard offers to outdated discoveries
+        if rst = '1' or (dhcp_state = SELECTING and resend_dhcp_discover = '1') then
+          rx_state <= IDLE;
         else
 
           case rx_state is
+
+            when IDLE =>
+              if dhcp_rx_packet_i.sop = '1' then
+                rx_state <= HEADER;
+              else
+                rx_state <= IDLE;
+              end if;
 
             -- check header data
             when HEADER =>
 
               case rx_count is
 
-                when 0 =>
-                  rx_state <= HEADER;
+                --when 0 =>
+                  --rx_state <= HEADER;
                 when 1 =>
                   -- check UDP header
                   -- vsg_off if_009
@@ -1045,15 +1132,15 @@ begin
 
             when PARSING_OPTS =>
               if parse_options_done = '1' then
-                rx_state <= HEADER;
+                rx_state <= IDLE;
               else
                 rx_state <= PARSING_OPTS;
               end if;
 
-            -- return to HEADER with a new packet only
+            -- return to IDLE with end of packet (or reset, but that's done by process reset condition)
             when SKIP =>
-              if dhcp_rx_packet_i.sop = '1' then
-                rx_state <= HEADER;
+              if dhcp_rx_packet_i.eop = '1' then
+                rx_state <= IDLE;
               else
                 rx_state <= SKIP;
               end if;
@@ -1063,6 +1150,8 @@ begin
         end if;
       end if;
     end process proc_rx_state;
+
+    no_rx <= '1' when rx_state = IDLE else '0';
 
     -- Extract options
     --
@@ -1200,17 +1289,15 @@ begin
       --! The FIFO output word is looked at.
       --! The `OPTION` state allows further processes to interpret the actual option (data from FIFO).
       --! Finally we use #value_length = 0 to indicate that an option is fully read (for further processes).
+      --!
+      --! The process is insensitive to #rst: If a reset happens while the options are parsed,
+      --! the FIFO is reset directly which makes it empty, which is seen by this process, returning to IDLE.
       proc_parse_options : process (clk)
       begin
         if rising_edge(clk) then
           -- defaults:
           value_length       <= x"01";
           parse_options_done <= '0';
-
-          -- TODO: Think about this: Do we need to be sensitive to rst, or would it work anyway?
-          --if rst = '1' then
-          --  option_state <= IDLE;
-          --else
 
           case option_state is
 
@@ -1338,7 +1425,9 @@ begin
     begin
       if rising_edge(clk) then
         -- defaults:
-        dhcp_offer_selected <= '0';
+        -- offer selected: Make sure it stays selected and only is discarded when returning to INIT.
+        -- this is needed for retransmission of the request message (re-looping once to state SELECTING)
+        dhcp_offer_selected <= '0' when dhcp_state = INIT;
         dhcp_acknowledge    <= '0';
         dhcp_nack           <= '0';
 
@@ -1440,7 +1529,7 @@ begin
 
     -- To be sure to be independent, we re-implement a second time counter: secs /= least_time!
     -- count "seconds since DHCP request started"
-    blk_secs : block
+    blk_seconds : block
       signal cnt_rst : std_logic;
     begin
 
@@ -1473,7 +1562,7 @@ begin
         count => seconds
       );
 
-    end block blk_secs;
+    end block blk_seconds;
 
     --! @brief Manage the lease time from DHCP server replies
     --! @details
@@ -1492,8 +1581,12 @@ begin
         t1 <= t1;
         t2 <= t2;
 
+        if rst = '1' then
+          -- upon reset we only need to reset the lease time
+          -- this will reset my_ip_o as a consequence (in the next cycle)
+          lease(lease'high) <= '1';
         -- DHCP acknowledge resets the lease timers
-        if dhcp_acknowledge = '1' then
+        elsif dhcp_acknowledge = '1' then
           lt := unsigned(leasetime) - resize(unsigned(seconds), lt'length);
           lease <= '0' & lt;
 
@@ -1517,9 +1610,69 @@ begin
     end process proc_manage_lease_times;
 
     -- expiration is simply indicated by the counters being negative
-    t1_expires    <= t1(t1'high);
-    t2_expires    <= t2(t2'high);
+    t1_expired    <= t1(t1'high);
+    t2_expired    <= t2(t2'high);
     lease_expired <= lease(lease'high);
+
+    blk_backoff_request : block
+      --! Position to check on the #secs timer to evaluate if timeout is reached:
+      --! First timeout is after 4 seconds, next after 8, 16, 32, finally 64 which
+      --! translates to bit positions 2 to 6 to be checked.
+      --! Position 1 is initialisation.
+      signal timer_pos : natural range 1 to 6;
+      --! Combining states which have possible need for re-requesting
+      signal is_rerequest_state : std_logic;
+      signal need_resend : std_logic;
+      signal t2_expired_tick : std_logic;
+    begin
+      inst_t2_expired_tick : entity misc.hilo_detect
+      generic map (
+        lohi    => true
+      )
+      port map (
+        clk     => clk,
+        sig_in  => t2_expired,
+        sig_out => t2_expired_tick
+      );
+
+      --! @brief Implementation (part 1) of a randomized exponential backoff algorithm (page 24 of RFC2131) for requests
+      --! @details Every time a dhcp request is sent (indicated by #send_dhcp_request),
+      --! the timer position is increased (until its maximum).
+      --! The timer position is reset on corner stone states.
+      proc_timer_pos : process (clk)
+      begin
+        if rising_edge(clk) then
+          if dhcp_state = INIT or dhcp_state = BOUND or t2_expired_tick = '1' then
+            timer_pos <= 1;
+          elsif send_dhcp_request = '1' and timer_pos < 6 then
+            timer_pos <= timer_pos + 1;
+          end if;
+        end if;
+      end process proc_timer_pos;
+
+      with dhcp_state select is_rerequest_state <=
+        '1' when REQUESTING | RENEWING | REBINDING,
+        '0' when others;
+
+      -- possibly we have to put this into a process as seconds(timer_pos) is not globally static (need to verify in compilation)
+      need_resend <= '1' when is_rerequest_state = '1' and seconds(timer_pos) = '1' and no_rx = '1' and send_dhcp_request = '0' else '0';
+
+      --! @brief Implementation (part 2) of a randomized exponential backoff algorithm (page 24 of RFC2131) for requests
+      --! @details #need_resend indicates that a resend is needed, but we must only produce a tick,
+      --! which is then picked up by the global FSM.
+      inst_resend_dhcp_request : entity misc.hilo_detect
+      generic map (
+        lohi    => true
+      )
+      port map (
+        clk     => clk,
+        sig_in  => need_resend,
+        sig_out => resend_dhcp_request
+      );
+
+      -- TODO: with timer_pos select status_vector(x) <= '1' when 6 else '0';
+
+    end block blk_backoff_request;
 
   end block blk_manage_lease_times;
 
