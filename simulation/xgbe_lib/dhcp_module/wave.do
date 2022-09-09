@@ -7,7 +7,7 @@ add wave -noupdate -color {Medium Orchid} /dhcp_module_tb/uut/dhcp_rx_ready_o
 add wave -noupdate -color {Medium Orchid} -radix hexadecimal -childformat {{/dhcp_module_tb/uut/dhcp_rx_packet_i.data -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_rx_packet_i.valid -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_rx_packet_i.sop -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_rx_packet_i.eop -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_rx_packet_i.empty -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_rx_packet_i.error -radix hexadecimal}} -expand -subitemconfig {/dhcp_module_tb/uut/dhcp_rx_packet_i.data {-color {Medium Orchid} -height 17 -radix hexadecimal} /dhcp_module_tb/uut/dhcp_rx_packet_i.valid {-color {Medium Orchid} -height 17 -radix hexadecimal} /dhcp_module_tb/uut/dhcp_rx_packet_i.sop {-color {Medium Orchid} -height 17 -radix hexadecimal} /dhcp_module_tb/uut/dhcp_rx_packet_i.eop {-color {Medium Orchid} -height 17 -radix hexadecimal} /dhcp_module_tb/uut/dhcp_rx_packet_i.empty {-color {Medium Orchid} -height 17 -radix hexadecimal} /dhcp_module_tb/uut/dhcp_rx_packet_i.error {-color {Medium Orchid} -height 17 -radix hexadecimal}} /dhcp_module_tb/uut/dhcp_rx_packet_i
 add wave -noupdate -color Gold /dhcp_module_tb/uut/dhcp_tx_ready_i
 add wave -noupdate -color Gold -radix hexadecimal -childformat {{/dhcp_module_tb/uut/dhcp_tx_packet_o.data -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_tx_packet_o.valid -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_tx_packet_o.sop -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_tx_packet_o.eop -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_tx_packet_o.empty -radix hexadecimal} {/dhcp_module_tb/uut/dhcp_tx_packet_o.error -radix hexadecimal}} -expand -subitemconfig {/dhcp_module_tb/uut/dhcp_tx_packet_o.data {-color Gold -height 17 -radix hexadecimal} /dhcp_module_tb/uut/dhcp_tx_packet_o.valid {-color Gold -height 17 -radix hexadecimal} /dhcp_module_tb/uut/dhcp_tx_packet_o.sop {-color Gold -height 17 -radix hexadecimal} /dhcp_module_tb/uut/dhcp_tx_packet_o.eop {-color Gold -height 17 -radix hexadecimal} /dhcp_module_tb/uut/dhcp_tx_packet_o.empty {-color Gold -height 17 -radix hexadecimal} /dhcp_module_tb/uut/dhcp_tx_packet_o.error {-color Gold -height 17 -radix hexadecimal}} /dhcp_module_tb/uut/dhcp_tx_packet_o
-add wave -noupdate -color Khaki -expand -subitemconfig {/dhcp_module_tb/blk_uvvm/dhcp_rx_expect.data {-color Khaki -height 17} /dhcp_module_tb/blk_uvvm/dhcp_rx_expect.valid {-color Khaki -height 17} /dhcp_module_tb/blk_uvvm/dhcp_rx_expect.sop {-color Khaki -height 17} /dhcp_module_tb/blk_uvvm/dhcp_rx_expect.eop {-color Khaki -height 17} /dhcp_module_tb/blk_uvvm/dhcp_rx_expect.empty {-color Khaki -height 17} /dhcp_module_tb/blk_uvvm/dhcp_rx_expect.error {-color Khaki -height 17}} /dhcp_module_tb/blk_uvvm/dhcp_rx_expect
+add wave -noupdate -color Khaki /dhcp_module_tb/blk_uvvm/dhcp_rx_expect
 add wave -noupdate -radix hexadecimal -radixshowbase 0 /dhcp_module_tb/uut/my_mac_i
 add wave -noupdate -radix hexadecimal -radixshowbase 0 /dhcp_module_tb/uut/my_ip_o
 add wave -noupdate /dhcp_module_tb/uut/one_ms_tick_i
@@ -15,15 +15,20 @@ add wave -noupdate -radix binary -radixshowbase 0 /dhcp_module_tb/uut/status_vec
 add wave -noupdate -expand -group {Global FSM} -color Cyan /dhcp_module_tb/uut/dhcp_state
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/send_dhcp_decline
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/send_dhcp_discover
+add wave -noupdate -expand -group {Global FSM} -radix decimal /dhcp_module_tb/uut/blk_make_tx_interface/secs
+add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/resend_dhcp_discover
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/send_dhcp_release
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/send_dhcp_request
+add wave -noupdate -expand -group {Global FSM} -radix decimal /dhcp_module_tb/uut/blk_manage_lease_times/seconds
+add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/blk_manage_lease_times/blk_backoff_request/timer_pos
+add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/resend_dhcp_request
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/dhcp_offer_selected
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/dhcp_acknowledge
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/dhcp_nack
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/dhcp_accept
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/decline_sent
-add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/t1_expires
-add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/t2_expires
+add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/t1_expired
+add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/t2_expired
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/lease_expired
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/xid
 add wave -noupdate -group {TX FSM} -color Cyan /dhcp_module_tb/uut/blk_make_tx_interface/tx_state
@@ -68,7 +73,7 @@ add wave -noupdate -expand -group {Lease timers} -radix decimal /dhcp_module_tb/
 add wave -noupdate -expand -group {Lease timers} /dhcp_module_tb/uut/blk_manage_lease_times/second_tick
 add wave -noupdate -expand -group {Lease timers} /dhcp_module_tb/uut/blk_manage_lease_times/seconds
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {1375403 ps} 0}
+WaveRestoreCursors {{Cursor 1} {18949206 ps} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 211
 configure wave -valuecolwidth 156
@@ -84,4 +89,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {630449 ps} {2479356 ps}
+WaveRestoreZoom {0 ps} {48057734 ps}
