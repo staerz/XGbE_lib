@@ -135,10 +135,8 @@ architecture tb of dhcp_in_ip_module_tb is
   --! @{
   --! Assigned (retrieved) IP address
   signal my_ip      : std_logic_vector(31 downto 0);
-  -- vsg_off signal_007
-  --! Net mask
-  signal ip_netmask : std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
-  -- vsg_on signal_007
+  --! IP subnet mask
+  signal ip_netmask : std_logic_vector(31 downto 0);
   --! @}
 
   --! Clock cycle when 1 millisecond is passed
@@ -171,8 +169,9 @@ begin
     dhcp_tx_ready_i  => udp_rx_ready,
     dhcp_tx_packet_o => udp_rx_packet,
 
-    my_mac_i => MY_MAC,
-    my_ip_o  => my_ip,
+    my_mac_i     => MY_MAC,
+    my_ip_o      => my_ip,
+    ip_netmask_o => ip_netmask,
 
     one_ms_tick_i => one_ms_tick,
 
@@ -334,7 +333,6 @@ begin
   blk_uvvm : block
     --! Expected RX data and controls
     signal ip_rx_expect  : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
-    signal udp_rx_expect : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
   begin
 
     --! Use the avst_packet_sender to read expected IP data from an independent file
