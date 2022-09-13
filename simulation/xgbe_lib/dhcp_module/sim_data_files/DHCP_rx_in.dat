@@ -13,7 +13,7 @@ containing data
 % for DHCP_module_tester, the pure DHCP request (UDP layer) is required
 
 % DHCP Offer (35*8+5 bytes long = 285 = x11D)
-@ 100
+@ 176
 % UDP header: SRC DST length CRC
 0043 0044 011D 0000
 % DHCP-header XID
@@ -120,7 +120,7 @@ A802 0106 0801 0203
 0401 0203 05BA DBAD 011 1
 
 % DHCP Acknowledge
-@ 300
+@ 450
 % UDP header: SRC DST length CRC
 0043 0044 011D 0000
 % DHCP-header XID
@@ -178,7 +178,7 @@ A801 0106 0801 0203
 % to make it too late, i.e. after REBINDING:
 %@ 1810
 % DHCP Acknowledge
-@ 1810
+@ 1600
 % UDP header: SRC DST length CRC
 0043 0044 011D 0000
 % DHCP-header XID
@@ -186,7 +186,7 @@ A801 0106 0801 0203
 % SECS FLAGS CIADDR
 0000 0000 0000 0000
 % YIADDR SIADDR
-C0A8 0164 C0A8 0101
+C0A8 0154 C0A8 0301
 % GIADDR CHADDR(1)
 0000 0000 0022 8F02
 % CHADDR(2)
