@@ -103,7 +103,9 @@ architecture tb of dhcp_module_tb is
   --! @}
 
   --! Assigned (retrieved) IP address
-  signal my_ip : std_logic_vector(31 downto 0);
+  signal my_ip      : std_logic_vector(31 downto 0);
+  --! IP subnet mask
+  signal ip_netmask : std_logic_vector(31 downto 0);
 
   --! Clock cycle when 1 millisecond is passed
   signal one_ms_tick : std_logic;
@@ -132,8 +134,9 @@ begin
     dhcp_tx_ready_i  => dhcp_rx_ready,
     dhcp_tx_packet_o => dhcp_rx_packet,
 
-    my_mac_i => MY_MAC,
-    my_ip_o  => my_ip,
+    my_mac_i     => MY_MAC,
+    my_ip_o      => my_ip,
+    ip_netmask_o => ip_netmask,
 
     one_ms_tick_i => one_ms_tick,
 

@@ -149,7 +149,7 @@ architecture tb of ethernet_to_udp_module_tb is
   signal my_mac     : std_logic_vector(47 downto 0) := x"00_22_8f_02_41_ee";
   --! IP address
   signal my_ip      : std_logic_vector(31 downto 0) := x"c0_a8_00_1e";
-  --! Net mask
+  --! IP subnet mask
   signal ip_netmask : std_logic_vector(31 downto 0) := x"ff_ff_00_00";
   -- vsg_on signal_007
   --! @}

@@ -96,6 +96,8 @@ entity dhcp_module is
     my_mac_i         : in    std_logic_vector(47 downto 0);
     --! IP address of the module
     my_ip_o          : out   std_logic_vector(31 downto 0);
+    --! IP subnet mask
+    ip_netmask_o     : out   std_logic_vector(31 downto 0);
 
     --! Clock cycle when 1 millisecond is passed
     one_ms_tick_i    : in    std_logic;
@@ -194,6 +196,8 @@ architecture behavioral of dhcp_module is
   signal serverid  : std_logic_vector(31 downto 0);
   --! Granted least time (in seconds)
   signal leasetime : std_logic_vector(31 downto 0);
+  --! IP subnet mask
+  signal netmask   : std_logic_vector(31 downto 0);
 
   --! @}
 
@@ -780,6 +784,11 @@ begin
                     dhcp_options_fifo_din <= x"3604" & serverid & x"00_00";
                     dhcp_options_fifo_wen <= '1';
                   end if;
+                -- Parameter Request List (if short enough, this could be stuffed into case 1)
+                when 4 =>
+                  -- Requesting: 1 = IP subnet mask, x1A = d26 = MTU, x1C = d28 = Broadcast address
+                  dhcp_options_fifo_din <= x"3703" & x"01" & x"1A" & x"1C" & x"00_00_00";
+                  dhcp_options_fifo_wen <= '1';
                 -- END option
                 when DHCP_WORDS - 1 =>
                   dhcp_options_fifo_din <= x"FF" & x"00_00_00_00_00_00_00";
@@ -1017,6 +1026,13 @@ begin
     signal dhcp_lease_time   : std_logic_vector(31 downto 0);
     --! DHCP server IP address
     signal dhcp_server_ip    : std_logic_vector(31 downto 0);
+    --! DHCP provided IP subnet mask
+    signal dhcp_netmask      : std_logic_vector(31 downto 0);
+
+    --! DHCP broadcast address (extracted but not used)
+    signal dhcp_broadcast_addr : std_logic_vector(31 downto 0);
+    --! Interface MTU (extracted but not used)
+    signal dhcp_mtu            : std_logic_vector(15 downto 0);
 
     --! @}
   begin
@@ -1064,6 +1080,7 @@ begin
     --! @brief FSM to handle incoming DHCP messages
     --! @details
     --! Analysing incoming data packets and checking them for DHCP content.
+    --! @todo Implementation of check for UDP length is currently missing.
     proc_rx_state : process (clk)
     begin
 
@@ -1219,10 +1236,8 @@ begin
       --! @details Information we are interested in is 4 bytes long, that's 6 with option and length field.
       signal value_buffer : std_logic_vector(6 * 8 - 1 downto 0);
 
-      --! Different options we want to extract
-      type   t_dhcp_option is (SKIP, OPERATION, LEASE_TIME, SERVER_IP);
       --! Current option being extracted
-      signal dhcp_option : t_dhcp_option;
+      signal dhcp_option : std_logic_vector(7 downto 0);
 
       --! @}
     begin
@@ -1370,29 +1385,13 @@ begin
         end if;
       end process proc_parse_options;
 
-      --! Detect a useful (= supported) DHCP option for later evaluation
+      --! Store DHCP option for later evaluation
       proc_detect_option : process (clk)
       begin
         if rising_edge(clk) then
-          -- default:
-          dhcp_option <= dhcp_option;
-
-          -- only once an option is read, interpret it
+          -- only once an option is read, store it
           if option_state = OPTION then
-
-            case dhcp_rx_options_fifo_dout is
-
-              when x"35" => -- DHCP operation
-                dhcp_option <= OPERATION;
-              when x"33" => -- IP address lease time
-                dhcp_option <= LEASE_TIME;
-              when x"36" => -- server identifier
-                dhcp_option <= SERVER_IP;
-              when others =>
-                dhcp_option <= SKIP;
-
-            end case;
-
+            dhcp_option <= dhcp_rx_options_fifo_dout;
           end if;
         end if;
       end process proc_detect_option;
@@ -1403,18 +1402,32 @@ begin
       begin
         if rising_edge(clk) then
           if value_length = 0 then
-            -- not using case construct here on purpose as individual cases do actually set independent targets
-            if dhcp_option = OPERATION then
-              dhcp_rx_operation <= value_buffer(3 downto 0);
-            end if;
 
-            if dhcp_option = LEASE_TIME then
-              dhcp_lease_time <= value_buffer(31 downto 0);
-            end if;
+            case dhcp_option is
 
-            if dhcp_option = SERVER_IP then
-              dhcp_server_ip <= value_buffer(31 downto 0);
-            end if;
+              when x"01" =>
+                dhcp_netmask <= value_buffer(31 downto 0);
+
+              when x"1A" =>
+                dhcp_mtu <= value_buffer(15 downto 0);
+
+              when x"1C" =>
+                dhcp_broadcast_addr <= value_buffer(31 downto 0);
+
+              when x"33" =>
+                dhcp_lease_time <= value_buffer(31 downto 0);
+
+              when x"35" =>
+                dhcp_rx_operation <= value_buffer(3 downto 0);
+
+              when x"36" =>
+                dhcp_server_ip <= value_buffer(31 downto 0);
+
+              when others =>
+                null;
+
+            end case;
+
           end if;
         end if;
       end process proc_extract_dhcp_options;
@@ -1475,6 +1488,7 @@ begin
                 -- no need to re-extract yourid, we just checked it to be the same ...
                 -- but this time finally get the lease time
                 leasetime <= dhcp_lease_time;
+                netmask   <= dhcp_netmask;
               end if;
 
               if dhcp_state = REQUESTING then
@@ -1512,9 +1526,11 @@ begin
     begin
       if rising_edge(clk) then
         if dhcp_acknowledge = '1' then
-          my_ip_o <= yourid;
+          my_ip_o      <= yourid;
+          ip_netmask_o <= netmask;
         elsif lease_expired = '1' then
-          my_ip_o <= (others => '0');
+          my_ip_o      <= (others => '0');
+          ip_netmask_o <= (others => '0');
         end if;
       end if;
     end process proc_capture_my_ip;

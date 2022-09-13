@@ -74,7 +74,7 @@ entity ip_header_module is
 
     --! IP address
     my_ip_i         : in    std_logic_vector(31 downto 0);
-    --! Net mask
+    --! IP subnet mask
     ip_netmask_i    : in    std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
     --! @}
 
