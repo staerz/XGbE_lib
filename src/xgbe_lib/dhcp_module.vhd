@@ -270,7 +270,6 @@ begin
               dhcp_state <= REQUESTING;
 
               send_dhcp_request <= '1';
-
             else
               -- in addition to the specified state transitions,
               -- this one takes care of retransmission of a new discovery message after timeout
@@ -908,9 +907,11 @@ begin
       --! First timeout is after 4 seconds, next after 8, 16, 32, finally 64 which
       --! translates to bit positions 2 to 6 to be checked.
       --! Position 1 is initialisation.
-      signal timer_pos : natural range 1 to 6;
+      signal timer_pos   : natural range 1 to 6;
+      --! Indicator that a request should be resent
       signal need_resend : std_logic;
     begin
+
       --! @brief Implementation (part 1) of a randomized exponential backoff algorithm (page 24 of RFC2131)
       --! @details Every time a dhcp discover is sent (indicated by #send_dhcp_discover),
       --! the timer position is increased (until its maximum).
@@ -928,6 +929,7 @@ begin
       --! @brief Implementation (part 2) of a randomized exponential backoff algorithm (page 24 of RFC2131)
       --! @details Check the #secs counter to be up by evaluating it at bit position #timer_pos.
       --! We only must check this during #dhcp_state = SELECTING and consider (re)send_dhcp_discover for timing.
+      --! @todo This could possibly be written as a concurrent statement: check if compilation would pass.
       proc_resend_discover : process (clk)
       begin
         if rising_edge(clk) then
@@ -939,9 +941,12 @@ begin
         end if;
       end process proc_resend_discover;
 
+      --! @brief Implementation (part 3) of a randomized exponential backoff algorithm (page 24 of RFC2131)
+      --! @details #need_resend indicates that a resend is needed, but we must only produce a tick,
+      --! which is then picked up by the global FSM.
       inst_resend_dhcp_discover : entity misc.hilo_detect
       generic map (
-        lohi    => true
+        LOHI => true
       )
       port map (
         clk     => clk,
@@ -1072,8 +1077,6 @@ begin
 
               case rx_count is
 
-                --when 0 =>
-                  --rx_state <= HEADER;
                 when 1 =>
                   -- check UDP header
                   -- vsg_off if_009
@@ -1428,8 +1431,9 @@ begin
         -- offer selected: Make sure it stays selected and only is discarded when returning to INIT.
         -- this is needed for retransmission of the request message (re-looping once to state SELECTING)
         dhcp_offer_selected <= '0' when dhcp_state = INIT;
-        dhcp_acknowledge    <= '0';
-        dhcp_nack           <= '0';
+
+        dhcp_acknowledge <= '0';
+        dhcp_nack        <= '0';
 
         if parse_options_done = '1' then
           -- check (relevant) DHCP message type:
@@ -1510,6 +1514,7 @@ begin
     --! @name Lease time management
     --! DCHP client cannot rely on receiving information of T1 and T2 by the server.
     --! Hence we keep track of our own T1/T2 (and do not (yet) implement any T1/T2 option recognition).
+    --! As we want to evaluate the left bit to know if the counters to be expired, we use 1 bit more.
     --! @{
 
     --! Granted lease time in seconds
@@ -1520,9 +1525,10 @@ begin
     signal t2          : lease'subtype;
     --! Timer when a second is over (from counting ms)
     signal second_tick : std_logic;
-    --! Number of seconds since "the original request was sent"
-    -- Note: MUST be 32 bit wide (to fit the positive range)
-    signal seconds     : std_logic_vector(15 downto 0);
+    --! @brief Number of seconds since "the original request was sent"
+    --! @details MUST fit the positive range but 8 bit is sufficient to span the time needed:
+    --! Maximum re-requesting time is 64 seconds, so we have even 1 bit margin.
+    signal seconds     : std_logic_vector(7 downto 0);
 
     --! @}
   begin
@@ -1535,6 +1541,7 @@ begin
 
       cnt_rst <= send_dhcp_request;
 
+      --! Creation of #second_tick from #one_ms_tick_i, reset by #send_dhcp_request
       inst_second_tick : entity misc.counting
       generic map (
         COUNTER_MAX_VALUE => MSPERS
@@ -1547,6 +1554,7 @@ begin
         cycle_done => second_tick
       );
 
+      --! Counting of #seconds from #second_tick
       inst_seconds : entity misc.counter
       generic map (
         COUNTER_MAX_VALUE => 2**(seconds'length) - 1
@@ -1590,9 +1598,9 @@ begin
           lt := unsigned(leasetime) - resize(unsigned(seconds), lt'length);
           lease <= '0' & lt;
 
-          --! T1 defaults to (0.5 * duration_of_lease).
+          -- T1 defaults to (0.5 * duration_of_lease).
           t1 <= "00" & lt(31 downto 1);
-          --! T2 defaults to (0.875 * duration_of_lease)
+          -- T2 defaults to (0.875 * duration_of_lease)
           t2 <= '0' & (lt - ("000" & lt(31 downto 3)));
         elsif second_tick = '1' then
           -- decrease counters by a second (as long as they are positive)
@@ -1619,15 +1627,19 @@ begin
       --! First timeout is after 4 seconds, next after 8, 16, 32, finally 64 which
       --! translates to bit positions 2 to 6 to be checked.
       --! Position 1 is initialisation.
-      signal timer_pos : natural range 1 to 6;
+      signal timer_pos          : natural range 1 to 6;
       --! Combining states which have possible need for re-requesting
       signal is_rerequest_state : std_logic;
-      signal need_resend : std_logic;
-      signal t2_expired_tick : std_logic;
+      --! Indicator that a request should be resent
+      signal need_resend        : std_logic;
+      --! 1-clock cycle signal once t2 expires (moves #timer_pos)
+      signal t2_expired_tick    : std_logic;
     begin
+
+      --! Creation of #t2_expired_tick from #t2_expired
       inst_t2_expired_tick : entity misc.hilo_detect
       generic map (
-        lohi    => true
+        LOHI => true
       )
       port map (
         clk     => clk,
@@ -1638,7 +1650,8 @@ begin
       --! @brief Implementation (part 1) of a randomized exponential backoff algorithm (page 24 of RFC2131) for requests
       --! @details Every time a dhcp request is sent (indicated by #send_dhcp_request),
       --! the timer position is increased (until its maximum).
-      --! The timer position is reset on corner stone states.
+      --! The timer position is reset on corner stone states or the transition from
+      --! RENEWING to REBINDING (indicated by #t2_expired_tick).
       proc_timer_pos : process (clk)
       begin
         if rising_edge(clk) then
@@ -1662,7 +1675,7 @@ begin
       --! which is then picked up by the global FSM.
       inst_resend_dhcp_request : entity misc.hilo_detect
       generic map (
-        lohi    => true
+        LOHI => true
       )
       port map (
         clk     => clk,
