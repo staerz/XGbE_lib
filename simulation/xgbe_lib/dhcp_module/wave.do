@@ -10,6 +10,7 @@ add wave -noupdate -color Gold -radix hexadecimal -childformat {{/dhcp_module_tb
 add wave -noupdate -color Khaki /dhcp_module_tb/blk_uvvm/dhcp_rx_expect
 add wave -noupdate -radix hexadecimal -radixshowbase 0 /dhcp_module_tb/uut/my_mac_i
 add wave -noupdate -radix hexadecimal -radixshowbase 0 /dhcp_module_tb/uut/my_ip_o
+add wave -noupdate /dhcp_module_tb/uut/ip_netmask_o
 add wave -noupdate /dhcp_module_tb/uut/one_ms_tick_i
 add wave -noupdate -radix binary -radixshowbase 0 /dhcp_module_tb/uut/status_vector_o
 add wave -noupdate -expand -group {Global FSM} -color Cyan /dhcp_module_tb/uut/dhcp_state
@@ -73,7 +74,7 @@ add wave -noupdate -expand -group {Lease timers} -radix decimal /dhcp_module_tb/
 add wave -noupdate -expand -group {Lease timers} /dhcp_module_tb/uut/blk_manage_lease_times/second_tick
 add wave -noupdate -expand -group {Lease timers} /dhcp_module_tb/uut/blk_manage_lease_times/seconds
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {18949206 ps} 0}
+WaveRestoreCursors {{Cursor 1} {20159407 ps} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 211
 configure wave -valuecolwidth 156

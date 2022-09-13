@@ -13,7 +13,7 @@ as a comment
 % must be decimal numbers in increasing order!
 
 % IP packet:
-% IP header starting wit 4500
+% IP header starting with 4500
 % xxxx 001d 093c 4000
 % 8011 0000
 % IP src = c0a8 0063 (192.168.0.99)

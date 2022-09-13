@@ -206,7 +206,7 @@ begin
       tx_ready_i  => dhcp_tx_ready,
       tx_packet_o => dhcp_tx_packet,
 
-      eof_o => eof(0)
+      eof_o => eof(1)
     );
 
     --! Instantiate avst_packet_receiver to write dhcp_rx to DHCP_TXD_FILE
@@ -237,7 +237,7 @@ begin
   begin
 
     --! Use the avst_packet_sender to read expected data from an independent file
-    -- TODO: have to check rst behaviour
+    -- TODO: have to check rst behaviour: possibly using sim_rst is key to success (seen in IP module)
     inst_dhcp_tx_checker : entity xgbe_lib.avst_packet_sender
     generic map (
       FILENAME     => DHCP_CHK_FILE,
@@ -252,7 +252,7 @@ begin
       tx_ready_i  => dhcp_rx_ready,
       tx_packet_o => dhcp_rx_expect,
 
-      eof_o => eof(1)
+      eof_o => eof(0)
     );
 
     -- We expect 1 error from the reset cutting into the started transmission:
