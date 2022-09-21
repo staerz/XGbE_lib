@@ -7,11 +7,11 @@
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
 --------------------------------------------------------------------------------
 --! @details
---! Provides an IP address in #my_ip_o based on negotiating it with a DHCP
+--! Provides an IP address in #my_ip_o after negotiating it with a DHCP
 --! server.
 --! The MAC address of the core has to be provided at all times to #my_mac_i.
 --! The incoming interface #dhcp_rx_packet_i expects the raw UDP frame (Ethernet
---! and IP header and already stripped off), but including the full UDP header.
+--! and IP header already stripped off), but including the full UDP header.
 --! The outgoing interface #dhcp_tx_packet_o provides a full UDP frame,
 --! including UDP header with UDP CRC field.
 --! The UDP CRC field is set to the checksum over the UDP data if #UDP_CRC_EN
@@ -19,6 +19,16 @@
 --!
 --! Outgoing DHCP requests are buffered while #dhcp_tx_ready_i is indicating
 --! busy unless it would exceed timeouts specified by the DHCP protocol.
+--!
+--! DHCP options (RFC2132) which are interpreted by the receiver:
+--! - DHCP operation
+--! - IP address lease time
+--! - Server identifier
+--!
+--! Support for further DHCP options can be implemented if needed (but would
+--! require) an extension of this module to provide access to these options
+--! to the outer world, possibly via further ports or an entire redesign using
+--! an AVMM interface (register access).
 --!
 --! @todo DHCP Discover:
 --! - The client then broadcasts the DHCPDISCOVER on the local hardware
@@ -31,6 +41,8 @@
 --! - Request from RENEWING: unicast
 --! - Request from REBINDING: broadcast the 0xffffffff IP broadcast address
 --! - Request from INIT_REBOOT: broadcast the 0xffffffff IP broadcast address
+--!
+--! @todo Calculation of the UDP CRC field is currently not implemented.
 --------------------------------------------------------------------------------
 
 --! @cond
@@ -44,7 +56,7 @@ entity dhcp_module is
   generic (
     --! @brief UDP CRC calculation
     --! @details
-    --! If enabled, the UDP check sum will be calculated over the UDP data
+    --! If enabled, the UDP checksum will be calculated over the UDP data
     --! and presented in the UDP CRC field for further adaption at the IP layer.
     --! If disabled, the check sum calculation is omitted
     --! and the UDP CRC field set to `x"0000"`.
@@ -379,14 +391,13 @@ begin
   --! @details RFC 2131:
   --! 'A client may choose to reuse the same `xid` or select a new `xid` for each retransmitted message.'
   --!
-  --! We actually choose not to (hey, that's more fun!)
-  --!
   --! 'The DHCPREQUEST message contains the same `xid` as the DHCPOFFER message.'
   --! But since further 'The server inserts the `xid` field from the
   --! DHCPDISCOVER message into the `xid` field of the DHCPOFFER message',
   --! Effectively the exact same #xid is used for a full DHCP interaction.
   --!
   --! A new (increased by 1) #xid is hence created for each DISCOVER and each REQUEST from REBOOTING.
+  --! In particular we choose not to reuse the same `xid` for each transaction, but distinct ones.
   --!
   --! @todo Include case of dhcp_inform (upon fixed IP) [not necessarily to be implemented]
   proc_xid : process (clk)
@@ -1481,7 +1492,7 @@ begin
             end if;
           -- in case of not acknowledge
           elsif dhcp_rx_operation = x"6" then
-            -- note that we have no means of checking if the nack come from the server we requested
+            -- note that we have no means of checking if the nack came from the server we requested
             -- other than via the xid, but that check was already done when accepting the RX packet
             -- and it's better to not accept and start over requesting an IP than using a wrong IP
             dhcp_nack <= '1';
