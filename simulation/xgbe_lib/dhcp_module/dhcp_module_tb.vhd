@@ -79,6 +79,9 @@ architecture tb of dhcp_module_tb is
   --! End of File indicators of all readers (data sources and checkers)
   signal eof  : std_logic_vector(3 downto 0);
 
+  --! Reset of the simulation (only at start)
+  signal sim_rst : std_logic;
+
   --! @name Avalon-ST (DHCP as bare UDP) to module (read from file)
   --! @{
 
@@ -141,7 +144,6 @@ begin
   -- Simulation part
   -- generating stimuli based on cnt
   blk_simulation : block
-    signal sim_rst : std_logic;
     signal mnl_rst : std_logic;
   begin
 
@@ -244,7 +246,7 @@ begin
     )
     port map (
       clk   => clk,
-      rst   => '0',
+      rst   => sim_rst,
       cnt_i => cnt,
 
       tx_ready_i  => dhcp_rx_ready,
@@ -252,6 +254,10 @@ begin
 
       eof_o => eof(1)
     );
+
+    -- We expect 1 error from the reset cutting into the started transmission:
+    -- The reader cuts off with eop, but not the dhcp module
+    increment_expected_alerts(ERROR, 1);
 
     --! UVVM check
     proc_uvvm : process
