@@ -1,0 +1,20 @@
+% file to indicate counters for dhcp_rx_ready is 0 (interface not ready)
+% have one integer per line
+% must be in increasing order!
+% decimal numbers
+
+% TODO: so far only copied from ARP module ... need to adjust
+
+@19
+@26
+@28
+@30
+@33-35
+@70
+@74
+@77-78
+@80
+@145
+@161
+@183
+@217-220
