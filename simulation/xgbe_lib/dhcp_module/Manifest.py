@@ -1,11 +1,11 @@
 # Project description
-description = 'Simulation of the bare ethernet_to_udp_module'
+description = 'Simulation of the bare dhcp_module'
 
 # Simulating the design
 action = 'simulation'
 
 # Top module used for simulation
-top_module = 'xgbe_lib.ethernet_to_udp_module_tb'
+top_module = 'xgbe_lib.dhcp_module_tb'
 
 # Waveforms for simulation
 sim_do_cmd = 'wave.do'
@@ -24,7 +24,7 @@ library = "xgbe_lib"
 
 # List of source files for the Reset_module testbench
 files = [
-  "ethernet_to_udp_module_tb.vhd",
+  "dhcp_module_tb.vhd",
 ]
 
 # Project configuration override
