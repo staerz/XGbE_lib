@@ -146,7 +146,7 @@ architecture tb of dhcp_in_ip_module_tb is
   signal status_vector_ip : std_logic_vector(12 downto 0);
 
   --! Status of the DHCP module
-  signal status_vector_dhcp : std_logic_vector(4 downto 0);
+  signal status_vector_dhcp : std_logic_vector(5 downto 0);
 
 begin
 
