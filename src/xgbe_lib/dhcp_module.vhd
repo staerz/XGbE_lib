@@ -571,10 +571,10 @@ begin
     -- Note: a more general approach would be to check the number of words
     -- in the tx options FIFO (once written), but then we'd have to wait for that
     -- to happen first which would delay the process
-    with tx_state select udp_length <=
-      to_unsigned((1 + 8 * (DHCP_WORDS + 1)), 16) when DHCP_DISCOVER,
-      to_unsigned((1 + 8 * (DHCP_WORDS + 3)), 16) when DHCP_REQUEST | DHCP_DECLINE,
-      (others => '-') when others;
+    udp_length <=
+      to_unsigned((1 + 8 * (DHCP_WORDS + 2)), 16) when tx_state = DHCP_DISCOVER or dhcp_state = RENEWING else
+      to_unsigned((1 + 8 * (DHCP_WORDS + 4)), 16) when tx_state = DHCP_REQUEST or tx_state = DHCP_DECLINE else
+      (others => '-');
 
     gen_udp_crc : if UDP_CRC_EN generate
       -- Will need major rework as first the package will have to be generated and

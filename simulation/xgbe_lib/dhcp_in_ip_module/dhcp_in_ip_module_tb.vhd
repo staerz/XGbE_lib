@@ -353,6 +353,7 @@ begin
         check_value(ip_rx_packet.valid, ip_rx_expect.valid, ERROR, "Checking expected IP valid.", "", ID_NEVER);
         check_value(ip_rx_packet.sop, ip_rx_expect.sop, ERROR, "Checking expected IP sop.", "", ID_NEVER);
         check_value(ip_rx_packet.eop, ip_rx_expect.eop, ERROR, "Checking expected IP eop.", "", ID_NEVER);
+        check_value(ip_rx_packet.error(0), ip_rx_expect.error(0), ERROR, "Checking expected IP eop.", "", ID_NEVER);
         -- only check the expected data when it's relevant: reader will hold data after packet while uut might not
         if ip_rx_expect.valid then
           check_value(ip_rx_packet.data, ip_rx_expect.data, ERROR, "Checking expected IP data.", "", HEX, KEEP_LEADING_0, ID_NEVER);
