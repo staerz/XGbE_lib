@@ -31,15 +31,10 @@
 --! an AVMM interface (register access).
 --!
 --! @todo DHCP Discover:
---! - The client then broadcasts the DHCPDISCOVER on the local hardware
---!   broadcast address to the 0xffffffff IP broadcast address.
 --! - The client SHOULD include the 'maximum DHCP message size' option to
 --!   let the server know how large the server may make its DHCP messages.
 --!
 --! @todo DHCP Request:
---! - Request from SELECTING: broadcast the 0xffffffff IP broadcast address
---! - Request from RENEWING: unicast
---! - Request from REBINDING: broadcast the 0xffffffff IP broadcast address
 --! - Request from INIT_REBOOT: broadcast the 0xffffffff IP broadcast address
 --!
 --! @todo Calculation of the UDP CRC field is currently not implemented.
@@ -626,9 +621,7 @@ begin
 
     end block blk_secs;
 
-    -- TODO: Check what the outer world does: We may also just send unicasts
-    -- and instead add an auxiliary interface to indicate to it which addresses to use!
-    --
+    -- The RFC state:
     -- A client that cannot receive unicast IP datagrams until its protocol
     -- software has been configured with an IP address SHOULD set the
     -- BROADCAST bit in the 'flags' field to 1 in any DHCPDISCOVER or
@@ -637,10 +630,10 @@ begin
     -- If this bit is set to 1, the DHCP message SHOULD be sent as
     -- an IP broadcast using an IP broadcast address (preferably 0xffffffff)
     --
-    -- TODO: we should also separate out the case of DHCP_REQUEST when in RENEWING or REBINDING (we have a valid IP then...)
-    with tx_state select flags <=
-      (0 => '1', others => '0') when DHCP_DISCOVER | DHCP_REQUEST,
-      (others => '0') when others;
+    -- So we set the flag when ever we are not configured.
+    flags <=
+      (0 => '1', others => '0') when dhcp_state /= RENEWING and (tx_state = DHCP_DISCOVER or tx_state = DHCP_REQUEST) else
+      (others => '0');
 
     ciaddr <=
       -- vsg_off concurrent_009
