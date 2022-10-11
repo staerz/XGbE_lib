@@ -103,8 +103,13 @@ entity dhcp_module is
 
     --! @brief Status of the module
     --! @details Status of the module
-    --! @todo to be defined
-    status_vector_o  : out   std_logic_vector(4 downto 0)
+    --! - 5 : request timeout
+    --! - 4 : discover timeout
+    --! - 3 : lease expired
+    --! - 2 : t2_expired
+    --! - 1 : t1_expired
+    --! - 0 : IP address configured (DHCP module in BOUND or RENEWING state)
+    status_vector_o  : out   std_logic_vector(5 downto 0)
   );
 end entity dhcp_module;
 
@@ -398,6 +403,11 @@ begin
     end if;
   end process proc_dhcp_state;
 
+  -- indicate dhcp_state to status_vector
+  with dhcp_state select status_vector_o(0) <=
+    '1' when BOUND | RENEWING,
+    '0' when others;
+
   --! @brief Create a new xid for every new request
   --! @details RFC 2131:
   --! 'A client may choose to reuse the same `xid` or select a new `xid` for each retransmitted message.'
@@ -656,8 +666,6 @@ begin
       chaddr &
       SNAME & BFILE &
       MAGIC_COOKIE;
-
-    status_vector_o(0) <= '1' when dhcp_tx_ready_i = '0' else '0';
 
     dhcp_tx_packet_o.valid <= '1' when tx_count >= 1 and tx_state /= IDLE else '0';
     dhcp_tx_packet_o.sop   <= '1' when tx_count = 1 else '0';
@@ -997,7 +1005,10 @@ begin
         sig_out => resend_dhcp_discover
       );
 
-      -- TODO: with timer_pos select status_vector(x) <= '1' when 6 else '0';
+      -- propagate discover timeout indicator to status vector
+      with timer_pos select status_vector_o(4) <=
+        '1' when 6,
+        '0' when others;
 
     end block blk_backoff_discover;
 
@@ -1664,6 +1675,9 @@ begin
           -- upon reset we only need to reset the lease time
           -- this will reset my_ip_o as a consequence (in the next cycle)
           lease(lease'high) <= '1';
+
+          t1(t1'high) <= '1';
+          t2(t2'high) <= '1';
         -- DHCP acknowledge resets the lease timers
         elsif dhcp_acknowledge = '1' then
           lt := unsigned(leasetime) - resize(unsigned(seconds), lt'length);
@@ -1692,6 +1706,11 @@ begin
     t1_expired    <= t1(t1'high);
     t2_expired    <= t2(t2'high);
     lease_expired <= lease(lease'high);
+
+    -- indicate these 'timers' to status vector
+    status_vector_o(1) <= t1_expired;
+    status_vector_o(2) <= t2_expired;
+    status_vector_o(3) <= lease_expired;
 
     blk_backoff_request : block
       --! Position to check on the #secs timer to evaluate if timeout is reached:
@@ -1754,7 +1773,10 @@ begin
         sig_out => resend_dhcp_request
       );
 
-      -- TODO: with timer_pos select status_vector(x) <= '1' when 6 else '0';
+      -- propagate request timeout indicator to status vector
+      with timer_pos select status_vector_o(5) <=
+        '1' when 6,
+        '0' when others;
 
     end block blk_backoff_request;
 
