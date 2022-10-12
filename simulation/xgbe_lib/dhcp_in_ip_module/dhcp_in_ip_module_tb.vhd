@@ -45,9 +45,7 @@ entity dhcp_in_ip_module_tb is
     MY_MAC         : std_logic_vector(47 downto 0) := x"00_22_8F_02_41_EE";
 
     --! Post-UDP-module UDP CRC calculation
-    UDP_CRC_EN     : boolean                 := false;
-    --! Timeout in milliseconds
-    DHCP_TIMEOUT   : integer range 2 to 1000 := 10;
+    UDP_CRC_EN     : boolean := false;
 
     --! Enable IP address filtering
     IP_FILTER_EN   : std_logic               := '1';
@@ -153,8 +151,7 @@ begin
   --! Instantiate the primary Unit Under Test (UUT): DHCP module
   uut1 : entity xgbe_lib.dhcp_module
   generic map (
-    UDP_CRC_EN   => UDP_CRC_EN,
-    DHCP_TIMEOUT => DHCP_TIMEOUT
+    UDP_CRC_EN => UDP_CRC_EN
   )
   port map (
     clk    => clk,
