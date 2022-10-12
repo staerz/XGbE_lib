@@ -56,9 +56,7 @@ entity dhcp_module is
     --! If disabled, the check sum calculation is omitted
     --! and the UDP CRC field set to `x"0000"`.
     --! @todo CRC calculation is currently not implemented.
-    UDP_CRC_EN   : boolean                 := true;
-    --! Timeout in milliseconds
-    DHCP_TIMEOUT : integer range 2 to 1000 := 50
+    UDP_CRC_EN : boolean := true
   );
   port (
     --! Clock
@@ -77,7 +75,7 @@ entity dhcp_module is
     --! RX data and controls
     dhcp_rx_packet_i : in    t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! RX packet ID (to restore IP address in IP module)
-    udp_rx_id_i      : in    std_logic_vector(15 downto 0) := (others => '0');
+    udp_rx_id_i      : in    std_logic_vector(15 downto 0);
     --! @}
 
     --! @name Avalon-ST to DHCP core
@@ -103,12 +101,12 @@ entity dhcp_module is
 
     --! @brief Status of the module
     --! @details Status of the module
-    --! - 5 : request timeout
-    --! - 4 : discover timeout
-    --! - 3 : lease expired
-    --! - 2 : t2_expired
-    --! - 1 : t1_expired
-    --! - 0 : IP address configured (DHCP module in BOUND or RENEWING state)
+    --! - 5: request timeout
+    --! - 4: discover timeout
+    --! - 3: lease expired
+    --! - 2: t2_expired
+    --! - 1: t1_expired
+    --! - 0: IP address configured (DHCP module in BOUND or RENEWING state)
     status_vector_o  : out   std_logic_vector(5 downto 0)
   );
 end entity dhcp_module;
