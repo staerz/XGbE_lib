@@ -111,7 +111,7 @@ architecture tb of dhcp_module_tb is
   signal one_ms_tick : std_logic;
 
   --! Status of the module
-  signal status_vector : std_logic_vector(4 downto 0);
+  signal status_vector : std_logic_vector(5 downto 0);
 
 begin
 
