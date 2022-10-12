@@ -146,16 +146,12 @@ architecture tb of ethernet_to_udp_module_tb is
   --! @{
   -- vsg_off signal_007
   --! MAC address
-  signal my_mac     : std_logic_vector(47 downto 0) := x"00_22_8f_02_41_ee";
-  --! IP address
-  signal my_ip      : std_logic_vector(31 downto 0) := x"c0_a8_00_1e";
-  --! IP subnet mask
-  signal ip_netmask : std_logic_vector(31 downto 0) := x"ff_ff_00_00";
-  -- vsg_on signal_007
+  signal my_mac : std_logic_vector(47 downto 0) := x"00_22_8F_02_41_EE";
+
   --! @}
 
   --! Status of the module
-  signal status_vector : std_logic_vector(26 downto 0);
+  signal status_vector : std_logic_vector(32 downto 0);
 
 begin
 
@@ -191,9 +187,7 @@ begin
     udp_tx_packet_o => udp_rx_packet,
     udp_tx_id_o     => udp_rx_id,
 
-    my_mac_i     => my_mac,
-    my_ip_i      => my_ip,
-    ip_netmask_i => ip_netmask,
+    my_mac_i => my_mac,
 
     status_vector_o => status_vector
   );

@@ -69,8 +69,18 @@ add wave -noupdate -expand -group {ip module} -expand -group {ip id table} /ethe
 add wave -noupdate -expand -group {ip module} -expand -group {ip id table} /ethernet_to_udp_module_tb/uut/inst_ip_module/blk_stripoff_header/blk_make_ip_udp_table/inst_id_ip_table/reco_port_o
 add wave -noupdate -expand -group {ip module} -expand -group {ip id table} /ethernet_to_udp_module_tb/uut/inst_ip_module/blk_stripoff_header/blk_make_ip_udp_table/inst_id_ip_table/reco_found_o
 add wave -noupdate -expand -group {ip module} -expand -group {ip id table} -color White -expand -subitemconfig {/ethernet_to_udp_module_tb/uut/inst_ip_module/blk_stripoff_header/blk_make_ip_udp_table/inst_id_ip_table/port_io_table_data(5) {-color White -height 17} /ethernet_to_udp_module_tb/uut/inst_ip_module/blk_stripoff_header/blk_make_ip_udp_table/inst_id_ip_table/port_io_table_data(4) {-color White -height 17} /ethernet_to_udp_module_tb/uut/inst_ip_module/blk_stripoff_header/blk_make_ip_udp_table/inst_id_ip_table/port_io_table_data(3) {-color White -height 17} /ethernet_to_udp_module_tb/uut/inst_ip_module/blk_stripoff_header/blk_make_ip_udp_table/inst_id_ip_table/port_io_table_data(2) {-color White -height 17} /ethernet_to_udp_module_tb/uut/inst_ip_module/blk_stripoff_header/blk_make_ip_udp_table/inst_id_ip_table/port_io_table_data(1) {-color White -height 17}} /ethernet_to_udp_module_tb/uut/inst_ip_module/blk_stripoff_header/blk_make_ip_udp_table/inst_id_ip_table/port_io_table_data
+add wave -noupdate -expand -group {dhcp module} -color {Medium Orchid} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_rx_ready_o
+add wave -noupdate -expand -group {dhcp module} -color {Medium Orchid} -subitemconfig {/ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_rx_packet_i.data {-color {Medium Orchid}} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_rx_packet_i.valid {-color {Medium Orchid}} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_rx_packet_i.sop {-color {Medium Orchid}} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_rx_packet_i.eop {-color {Medium Orchid}} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_rx_packet_i.empty {-color {Medium Orchid}} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_rx_packet_i.error {-color {Medium Orchid}}} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_rx_packet_i
+add wave -noupdate -expand -group {dhcp module} -color {Medium Orchid} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/udp_rx_id_i
+add wave -noupdate -expand -group {dhcp module} -color Gold /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_tx_ready_i
+add wave -noupdate -expand -group {dhcp module} -color Gold -expand -subitemconfig {/ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_tx_packet_o.data {-color Gold} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_tx_packet_o.valid {-color Gold} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_tx_packet_o.sop {-color Gold} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_tx_packet_o.eop {-color Gold} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_tx_packet_o.empty {-color Gold} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_tx_packet_o.error {-color Gold}} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_tx_packet_o
+add wave -noupdate -expand -group {dhcp module} -color Gold /ethernet_to_udp_module_tb/uut/inst_dhcp_module/udp_tx_id_o
+add wave -noupdate -expand -group {dhcp module} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/my_ip_o
+add wave -noupdate -expand -group {dhcp module} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/ip_netmask_o
+add wave -noupdate -color Cyan /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_state
+add wave -noupdate /ethernet_to_udp_module_tb/uut/inst_dhcp_module/blk_make_rx_interface/rx_state
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {3970794 ps} 0}
+WaveRestoreCursors {{Cursor 1} {236574 ps} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 227
 configure wave -valuecolwidth 178
@@ -86,5 +96,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {0 ps} {4000 ns}
-run 4000 ns
+WaveRestoreZoom {0 ps} {4 us}

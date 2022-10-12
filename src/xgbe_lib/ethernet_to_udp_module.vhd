@@ -122,10 +122,6 @@ entity ethernet_to_udp_module is
 
     --! MAC address of the module
     my_mac_i        : in    std_logic_vector(47 downto 0);
-    --! IP address
-    my_ip_i         : in    std_logic_vector(31 downto 0);
-    --! IP subnet mask
-    ip_netmask_i    : in    std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
     --! @}
 
     --! @brief Status of the module
@@ -157,7 +153,7 @@ entity ethernet_to_udp_module is
     --! - 2: IP module: RX FSM: UDP packet is being received
     --! - 1: IP module: RX FSM: ICMP packet is being received
     --! - 0: IP module: RX FSM: IDLE mode
-    status_vector_o : out   std_logic_vector(26 downto 0)
+    status_vector_o : out   std_logic_vector(32 downto 0)
   );
 end entity ethernet_to_udp_module;
 
@@ -209,6 +205,42 @@ architecture behavioral of ethernet_to_udp_module is
 
   --! @}
 
+  --! @name Interface to integrate DHCP module between UDP RX and IP module
+  --! @{
+
+  --! TX ready of DHCP module
+  signal dhcp_tx_ready  : std_logic;
+  --! TX data and controls of DHCP module
+  signal dhcp_tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+
+  --! UDP RX ready of IP module
+  signal udp_to_ip_ready  : std_logic;
+  --! UDP RX data and controls of IP module
+  signal udp_to_ip_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+
+  --! TX ready of IP module
+  signal udp_tx_ready_ip  : std_logic;
+  --! UDP TX data and controls to IP module
+  signal udp_tx_packet_ip : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+
+  --! RX ready of DHCP module (for interface parallel to UDP udp_tx_packet_o interface)
+  signal udp_rx_ready_dhcp : std_logic;
+
+  --! UDP RX ID of IP module
+  signal udp_to_ip_id   : std_logic_vector(15 downto 0);
+  --! UDP TX ID of DHCP module
+  signal dhcp_udp_tx_id : std_logic_vector(15 downto 0);
+
+  --! IP address
+  signal my_ip_i      : std_logic_vector(31 downto 0);
+  --! IP subnet mask
+  signal ip_netmask_i : std_logic_vector(31 downto 0);
+
+  --! Port list for interface_splitter to identify DHCP port
+  constant PORT_LIST : t_slv_vector(1 downto 1) := (1 => x"0044");
+
+  --! @}
+
   --! @name Interface for recovering MAC address from given IP address
   --! @{
 
@@ -229,16 +261,20 @@ architecture behavioral of ethernet_to_udp_module is
   --! @{
 
   --! ethernet_module
-  signal eth_status_vector : std_logic_vector(8 downto 0);
+  signal eth_status_vector  : std_logic_vector(8 downto 0);
   --! arp_module
-  signal arp_status_vector : std_logic_vector(4 downto 0);
+  signal arp_status_vector  : std_logic_vector(4 downto 0);
   --! ip_module
-  signal ip_status_vector  : std_logic_vector(12 downto 0);
+  signal ip_status_vector   : std_logic_vector(12 downto 0);
+  --! dhcp_module
+  signal dhcp_status_vector : std_logic_vector(5 downto 0);
+  --! interface_merger
+  signal im_status_vector   : std_logic_vector(2 downto 0);
   --! @}
 
 begin
 
-  status_vector_o <= eth_status_vector & arp_status_vector & ip_status_vector;
+  status_vector_o <= eth_status_vector & arp_status_vector & ip_status_vector & dhcp_status_vector;
 
   --! Instantiate the ethernet_module
   inst_ethernet_module : entity xgbe_lib.ethernet_module
@@ -333,18 +369,102 @@ begin
     ip_tx_ready_i  => ip_to_eth_ready,
     ip_tx_packet_o => ip_to_eth_packet,
 
-    udp_rx_ready_o  => udp_rx_ready_o,
-    udp_rx_packet_i => udp_rx_packet_i,
-    udp_rx_id_i     => udp_rx_id_i,
+    udp_rx_ready_o  => udp_to_ip_ready,
+    udp_rx_packet_i => udp_to_ip_packet,
+    udp_rx_id_i     => udp_to_ip_id,
 
-    udp_tx_ready_i  => udp_tx_ready_i,
-    udp_tx_packet_o => udp_tx_packet_o,
+    udp_tx_ready_i  => udp_tx_ready_ip,
+    udp_tx_packet_o => udp_tx_packet_ip,
     udp_tx_id_o     => udp_tx_id_o,
 
     my_ip_i      => my_ip_i,
     ip_netmask_i => ip_netmask_i,
 
     status_vector_o => ip_status_vector
+  );
+
+  --! Instantiate the dhcp_module
+  inst_dhcp_module : entity xgbe_lib.dhcp_module
+  generic map (
+    UDP_CRC_EN => UDP_CRC_EN
+  )
+  port map (
+    clk    => clk,
+    rst    => rst,
+    boot_i => '0',
+
+    -- signals from dhcp requester
+    dhcp_rx_ready_o  => udp_rx_ready_dhcp,
+    dhcp_rx_packet_i => udp_tx_packet_o,
+    udp_rx_id_i      => udp_tx_id_o,
+
+    -- signals to dhcp requester
+    dhcp_tx_ready_i  => dhcp_tx_ready,
+    dhcp_tx_packet_o => dhcp_tx_packet,
+    udp_tx_id_o      => dhcp_udp_tx_id,
+
+    my_mac_i     => my_mac_i,
+    my_ip_o      => my_ip_i,
+    ip_netmask_o => ip_netmask_i,
+
+    one_ms_tick_i => one_ms_tick,
+
+    -- status of the DHCP module
+    status_vector_o => dhcp_status_vector
+  );
+
+  --! Instantiate the interface_splitter to multiplex ready signals of DHCP and outer UDP
+  --! @details
+  --! avst_rx_packet_i and avst_tx_packet_o are identical but for consistency
+  --! and better understanding of the data path, we use the connections
+  inst_interface_splitter : entity xgbe_lib.interface_splitter
+  generic map (
+    PORT_LIST     => PORT_LIST,
+    DATA_W_OFFSET => 32
+  )
+  port map (
+    -- clk (synch reset with clk)
+    clk => clk,
+    rst => rst,
+
+    -- Avalon-ST input to be multiplexed
+    avst_rx_ready_o  => udp_tx_ready_ip,
+    avst_rx_packet_i => udp_tx_packet_ip,
+
+    -- Avalon-ST output interface
+    avst_tx_readys_i => (0 => udp_tx_ready_i, 1 => udp_rx_ready_dhcp),
+    avst_tx_packet_o => udp_tx_packet_o,
+
+    -- status of the module
+    status_vector_o => open
+  );
+
+  -- todo: the IDs could be merged via the interface merger by simply concatenating the data part of the interface
+  with im_status_vector(2) select udp_to_ip_id <=
+    udp_rx_id_i when '1',
+    dhcp_udp_tx_id when others;
+
+  --! Instantiate the interface_merger to merge reply from dhcp_module and ARP RX interface
+  inst_interface_merger : entity xgbe_lib.interface_merger
+  port map (
+    -- clk (synch reset with clk)
+    clk => clk,
+    rst => rst,
+
+    -- avalon-st from first priority module
+    avst1_rx_ready_o  => dhcp_tx_ready,
+    avst1_rx_packet_i => dhcp_tx_packet,
+
+    -- avalon-st from second priority module
+    avst2_rx_ready_o  => udp_rx_ready_o,
+    avst2_rx_packet_i => udp_rx_packet_i,
+
+    -- avalon-st to outer module
+    avst_tx_ready_i  => udp_to_ip_ready,
+    avst_tx_packet_o => udp_to_ip_packet,
+
+    -- status of the module
+    status_vector_o => im_status_vector
   );
 
   --! Instantiate cyclic counting to generate a tick each millisecond
