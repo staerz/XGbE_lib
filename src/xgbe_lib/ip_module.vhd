@@ -476,6 +476,8 @@ begin
       signal disco_id   : std_logic_vector(15 downto 0);
       --! Discovery IP address
       signal disco_ip   : std_logic_vector(31 downto 0);
+      --! UDP RX ID to be recovered
+      signal udp_rx_id  : std_logic_vector(15 downto 0);
       --! @}
     begin
 
@@ -582,6 +584,14 @@ begin
         end if;
       end process proc_store_ip_id_relation;
 
+      --! Account for 1 cycle clock delay from ip_header_module for generating reco_en
+      proc_udp_rx_id : process (clk)
+      begin
+        if rising_edge(clk) then
+          udp_rx_id <= udp_rx_id_i;
+        end if;
+      end process proc_udp_rx_id;
+
       --! Instantiate port_io_table to store pair of discovered IP and package ID
       inst_id_ip_table : entity xgbe_lib.port_io_table
       generic map (
@@ -600,7 +610,7 @@ begin
 
         -- Recovery interface for reading pair of associated addresses/ports
         reco_en_i    => reco_en,
-        reco_port_i  => udp_rx_id_i,
+        reco_port_i  => udp_rx_id,
         reco_found_o => reco_ip_found,
         reco_port_o  => reco_ip,
 
