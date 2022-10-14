@@ -89,6 +89,19 @@ entity dhcp_module is
     udp_tx_id_o      : out   std_logic_vector(15 downto 0);
     --! @}
 
+    --! @name Interface for recovering MAC address from given IP address
+    --! @{
+
+    --! Recovery enable
+    reco_en_o        : out   std_logic;
+    --! IP address to recover
+    reco_ip_o        : out   std_logic_vector(31 downto 0);
+    --! Recovery success: 1 = found, 0 = not found (time out)
+    reco_done_i      : in    std_logic;
+    --! Failed to recovered MAC address
+    reco_fail_i      : in    std_logic;
+    --! @}
+
     --! MAC address of the module
     my_mac_i         : in    std_logic_vector(47 downto 0);
     --! IP address of the module
@@ -101,13 +114,14 @@ entity dhcp_module is
 
     --! @brief Status of the module
     --! @details Status of the module
+    --! - 6: declining offered IP address
     --! - 5: request timeout
     --! - 4: discover timeout
     --! - 3: lease expired
     --! - 2: t2_expired
     --! - 1: t1_expired
     --! - 0: IP address configured (DHCP module in BOUND or RENEWING state)
-    status_vector_o  : out   std_logic_vector(5 downto 0)
+    status_vector_o  : out   std_logic_vector(6 downto 0)
   );
 end entity dhcp_module;
 
@@ -174,7 +188,16 @@ architecture behavioral of dhcp_module is
   --!                             |          |----------------------------+
   --!                              ----------
   --! @endcode
-  type t_dhcp_state is (INIT, INIT_REBOOT, REBOOTING, SELECTING, REQUESTING, DECLINING, REBINDING, BOUND, RENEWING);
+  --!
+  --! Two additional states are introduced in order to implement the SHOULD
+  --! checking of the IP address provided by the DHCP server:
+  --! - CHECKING:
+  --!    - Invokes ARP to test the availability of the provided IP
+  --!    - Transitions to DECLINING if already in use, else to BOUND
+  --! - DECLINING:
+  --!    - Sends the DECLINE message and waits for 10 seconds
+  --!    - Transitions to INIT
+  type t_dhcp_state is (INIT, INIT_REBOOT, REBOOTING, SELECTING, REQUESTING, CHECKING, DECLINING, REBINDING, BOUND, RENEWING);
 
   --! State of the TX FSM
 
@@ -226,10 +249,13 @@ architecture behavioral of dhcp_module is
 
   --! DHCP offer selected (while in SELECTING)
   signal dhcp_offer_selected : std_logic;
-  --! DHCP acknowledge received (while in REQUESTING, RENEWING, REBINDING, REBOOTING)
+  --! DHCP acknowledge received (while in REQUESTING)
+  signal dhcp_preacknowledge : std_logic;
+  --! DHCP acknowledge received (while in RENEWING, REBINDING, REBOOTING)
+  --! or after checking dhcp_preacknowledge from REQUESTING for IP address
   signal dhcp_acknowledge    : std_logic;
-  --! Filter on accepting acknowledged config (while in REQESTING)
-  signal dhcp_accept         : std_logic;
+  --! Registered reco_done_i
+  signal reco_done           : std_logic;
   --! Timeout from REQUESTING to fall back to INIT (after timeout + margin for possible reply)
   signal dhcp_timedout       : std_logic;
   --! DHCP decline message sent
@@ -305,19 +331,12 @@ begin
                 send_dhcp_discover <= '1';
               end if;
 
-              --dhcp_state <= INIT;
               dhcp_state <= SELECTING;
             end if;
 
           when REQUESTING =>
-            if dhcp_acknowledge = '1' then
-              if dhcp_accept = '1' then
-                dhcp_state <= BOUND;
-              else
-                dhcp_state <= DECLINING;
-
-                send_dhcp_decline <= '1';
-              end if;
+            if dhcp_preacknowledge = '1' then
+              dhcp_state <= CHECKING;
             elsif dhcp_nack = '1' or dhcp_timedout = '1' then
               dhcp_state <= INIT;
             else
@@ -328,6 +347,19 @@ begin
               end if;
 
               dhcp_state <= REQUESTING;
+            end if;
+
+          when CHECKING =>
+            if reco_done = '1' then
+              if dhcp_acknowledge = '1' then
+                dhcp_state <= BOUND;
+              else
+                dhcp_state <= DECLINING;
+
+                send_dhcp_decline <= '1';
+              end if;
+            else
+              dhcp_state <= CHECKING;
             end if;
 
           when DECLINING =>
@@ -403,9 +435,14 @@ begin
     end if;
   end process proc_dhcp_state;
 
-  -- indicate dhcp_state to status_vector
+  -- indicate dhcp bound-ish state to status_vector
   with dhcp_state select status_vector_o(0) <=
     '1' when BOUND | RENEWING,
+    '0' when others;
+
+  -- indicate dhcp decline state to status_vector
+  with dhcp_state select status_vector_o(6) <=
+    '1' when DECLINING,
     '0' when others;
 
   --! @brief Create a new xid for every new request
@@ -543,9 +580,6 @@ begin
 
     --! Place holder for DHCP options, filled in from options FIFO
     signal dhcp_options : std_logic_vector(63 downto 0);
-
-    --! Register to temporarily store target MAC, used in TX path only and fed by FIFO
-    signal config_tg_mac : std_logic_vector(47 downto 0);
 
     --! Counter for outgoing DHCP response packet
     signal tx_count : integer range 0 to 63;
@@ -878,7 +912,7 @@ begin
         if rising_edge(clk) then
           if (rst = '1') then
             tx_state <= IDLE;
-          elsif dhcp_tx_ready_i = '1' then
+          else
 
             case tx_state is
 
@@ -1028,9 +1062,6 @@ begin
     type   t_rx_state is (IDLE, HEADER, SKIP, STORING_OPTS, PARSING_OPTS);
     --! States of the RX FSM
     signal rx_state : t_rx_state;
-
-    --! DHCP package type
-    signal rx_type : std_logic_vector(3 downto 0);
 
     --! Internal ready signal
     signal dhcp_rx_ready_i : std_logic;
@@ -1482,16 +1513,7 @@ begin
 
     --! @brief Finally evaluate the received packet once parsing is done
     --! @todo 4.4.1:
-    --! The client SHOULD perform a
-    --! check on the suggested address to ensure that the address is not
-    --! already in use.  For example, if the client is on a network that
-    --! supports ARP, the client may issue an ARP request for the suggested
-    --! request.When broadcasting an ARP request for the suggested address,
-    --! the client must fill in its own hardware address as the sender's
-    --! hardware address, and 0 as the sender's IP address, to avoid
-    --! confusing ARP caches in other hosts on the same subnet.  If the
-    --! network address appears to be in use, the client MUST send a
-    --! DHCPDECLINE message to the server.The client SHOULD broadcast an ARP
+    --! The client SHOULD broadcast an ARP
     --! reply to announce the client's new IP address and clear any outdated
     --! ARP cache entries in hosts on the client's subnet.
     proc_evaluate_rx_packet : process (clk)
@@ -1502,10 +1524,19 @@ begin
         -- this is needed for retransmission of the request message (re-looping once to state SELECTING)
         dhcp_offer_selected <= '0' when dhcp_state = INIT;
 
-        dhcp_acknowledge <= '0';
-        dhcp_nack        <= '0';
+        dhcp_preacknowledge <= '0';
+        dhcp_acknowledge    <= '0';
+        dhcp_nack           <= '0';
 
-        if parse_options_done = '1' then
+        reco_en_o <= '0';
+        reco_ip_o <= (others => '0');
+        reco_done <= reco_done_i;
+
+        -- Once recovery is done, we evaluate failure of reconstruction as success in configuration
+        if dhcp_state = CHECKING and reco_done_i = '1' then
+          dhcp_acknowledge <= reco_fail_i;
+        -- but by default we're here to parse options
+        elsif parse_options_done = '1' then
           -- check (relevant) DHCP message type:
           --   2: DHCPOFFER
           --   5: DHCPACK
@@ -1532,8 +1563,6 @@ begin
             if offered_yiaddr = yourid then
               -- we finally have an acknowledge from the server we requested
               if dhcp_state = REQUESTING or dhcp_state = RENEWING or dhcp_state = REBINDING then
-                dhcp_acknowledge <= '1';
-
                 -- no need to re-extract yourid, we just checked it to be the same ...
                 -- but this time finally get the lease time
                 leasetime <= dhcp_lease_time;
@@ -1543,17 +1572,17 @@ begin
                 udp_tx_id <= udp_rx_id;
               end if;
 
+              -- We may set the acknowledge only in RENEWING and REBINDING as for
+              -- REQUESTING the ARP check needs to kick in:
               if dhcp_state = REQUESTING then
-                -- note that this is where actually the ARP check should kick in and the client should
-                -- ultimately check if the IP address is already in use to possibly send a DECLINE
-                --
-                -- so for now we simply do
-                -- some (arbitrary) IP accept criteria when initially accepting the IP:
-                if offered_yiaddr(31 downto 24) = x"FF" then
-                  dhcp_accept <= '0';
-                else
-                  dhcp_accept <= '1';
-                end if;
+                -- we try to reconstruct the offered IP address
+                -- (and evaluate it in proc_check_offered_ip)
+                reco_en_o <= '1';
+                reco_ip_o <= offered_yiaddr;
+
+                dhcp_preacknowledge <= '1';
+              else
+                dhcp_acknowledge <= '1';
               end if;
             end if;
           -- in case of not acknowledge

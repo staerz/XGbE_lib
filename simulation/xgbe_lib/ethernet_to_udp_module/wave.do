@@ -17,9 +17,9 @@ add wave -noupdate /ethernet_to_udp_module_tb/clk
 add wave -noupdate /ethernet_to_udp_module_tb/rst
 add wave -noupdate -radix decimal -radixshowbase 0 /ethernet_to_udp_module_tb/cnt
 add wave -noupdate -color Yellow /ethernet_to_udp_module_tb/uut/eth_rx_ready_o
-add wave -noupdate -color Yellow /ethernet_to_udp_module_tb/uut/eth_rx_packet_i
+add wave -noupdate -color Yellow -expand -subitemconfig {/ethernet_to_udp_module_tb/uut/eth_rx_packet_i.data {-color Yellow -height 17} /ethernet_to_udp_module_tb/uut/eth_rx_packet_i.valid {-color Yellow -height 17} /ethernet_to_udp_module_tb/uut/eth_rx_packet_i.sop {-color Yellow -height 17} /ethernet_to_udp_module_tb/uut/eth_rx_packet_i.eop {-color Yellow -height 17} /ethernet_to_udp_module_tb/uut/eth_rx_packet_i.empty {-color Yellow -height 17} /ethernet_to_udp_module_tb/uut/eth_rx_packet_i.error {-color Yellow -height 17}} /ethernet_to_udp_module_tb/uut/eth_rx_packet_i
 add wave -noupdate -color Orange /ethernet_to_udp_module_tb/uut/eth_tx_ready_i
-add wave -noupdate -color Orange /ethernet_to_udp_module_tb/uut/eth_tx_packet_o
+add wave -noupdate -color Orange -expand -subitemconfig {/ethernet_to_udp_module_tb/uut/eth_tx_packet_o.data {-color Orange -height 17} /ethernet_to_udp_module_tb/uut/eth_tx_packet_o.valid {-color Orange -height 17} /ethernet_to_udp_module_tb/uut/eth_tx_packet_o.sop {-color Orange -height 17} /ethernet_to_udp_module_tb/uut/eth_tx_packet_o.eop {-color Orange -height 17} /ethernet_to_udp_module_tb/uut/eth_tx_packet_o.empty {-color Orange -height 17} /ethernet_to_udp_module_tb/uut/eth_tx_packet_o.error {-color Orange -height 17}} /ethernet_to_udp_module_tb/uut/eth_tx_packet_o
 add wave -noupdate -color Cyan /ethernet_to_udp_module_tb/uut/udp_rx_ready_o
 add wave -noupdate -color Cyan /ethernet_to_udp_module_tb/uut/udp_rx_packet_i
 add wave -noupdate -color Cyan /ethernet_to_udp_module_tb/uut/udp_rx_id_i
@@ -32,6 +32,10 @@ add wave -noupdate -group {ethernet module internals} /ethernet_to_udp_module_tb
 add wave -noupdate -group {ethernet module internals} /ethernet_to_udp_module_tb/uut/inst_ethernet_module/blk_stripoff_header/rx_ready
 add wave -noupdate -group {ethernet module internals} /ethernet_to_udp_module_tb/uut/inst_ethernet_module/blk_stripoff_header/rx_state
 add wave -noupdate -group {ethernet module internals} /ethernet_to_udp_module_tb/uut/inst_ethernet_module/blk_stripoff_header/tx_mux
+add wave -noupdate -expand -group {arp module} /ethernet_to_udp_module_tb/uut/inst_arp_module/reco_done_o
+add wave -noupdate -expand -group {arp module} /ethernet_to_udp_module_tb/uut/inst_arp_module/reco_en_i
+add wave -noupdate -expand -group {arp module} /ethernet_to_udp_module_tb/uut/inst_arp_module/reco_ip_i
+add wave -noupdate -expand -group {arp module} /ethernet_to_udp_module_tb/uut/inst_arp_module/reco_mac_o
 add wave -noupdate -expand -group {arp module} -color Yellow /ethernet_to_udp_module_tb/uut/inst_arp_module/arp_rx_ready_o
 add wave -noupdate -expand -group {arp module} -color Yellow /ethernet_to_udp_module_tb/uut/inst_arp_module/arp_rx_packet_i
 add wave -noupdate -expand -group {arp module} -color Orange /ethernet_to_udp_module_tb/uut/inst_arp_module/arp_tx_ready_i
@@ -92,7 +96,7 @@ add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_t
 add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/inst_interface_splitter/first_port
 add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/inst_interface_splitter/port_info
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {826649 ps} 0}
+WaveRestoreCursors {{Cursor 1} {2940284 ps} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 227
 configure wave -valuecolwidth 178
@@ -108,4 +112,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {0 ps} {4 us}
+WaveRestoreZoom {1953200 ps} {5953200 ps}

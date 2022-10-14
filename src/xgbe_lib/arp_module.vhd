@@ -69,9 +69,9 @@ entity arp_module is
     reco_en_i       : in    std_logic;
     --! IP address to recover
     reco_ip_i       : in    std_logic_vector(31 downto 0);
-    --! Recovered MAC address
+    --! Recovered MAC address (MAC_BROADCAST_ADDR upon timeout)
     reco_mac_o      : out   std_logic_vector(47 downto 0);
-    --! Recovery success: 1 = found, 0 = not found (time out)
+    --! Recovery done indicator: 1 = found or timeout
     reco_done_o     : out   std_logic;
     --! @}
 

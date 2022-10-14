@@ -63,7 +63,7 @@ entity ethernet_to_udp_module_tb is
     --! Timeout in milliseconds
     ARP_TIMEOUT       : integer range 2 to 1000 := 10;
     --! Cycle time in milliseconds for APR requests (when repetitions are needed)
-    ARP_REQUEST_CYCLE : integer range 1 to 1000 := 2;
+    ARP_REQUEST_CYCLE : integer range 1 to 1000 := 3;
     --! Depth of ARP table (number of stored connections)
     ARP_TABLE_DEPTH   : integer range 1 to 1024 := 4;
 
@@ -151,7 +151,7 @@ architecture tb of ethernet_to_udp_module_tb is
   --! @}
 
   --! Status of the module
-  signal status_vector : std_logic_vector(32 downto 0);
+  signal status_vector : std_logic_vector(33 downto 0);
 
 begin
 
