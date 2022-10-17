@@ -1512,10 +1512,6 @@ begin
     end block blk_dhcp_rx_options_fifo_handler;
 
     --! @brief Finally evaluate the received packet once parsing is done
-    --! @todo 4.4.1:
-    --! The client SHOULD broadcast an ARP
-    --! reply to announce the client's new IP address and clear any outdated
-    --! ARP cache entries in hosts on the client's subnet.
     proc_evaluate_rx_packet : process (clk)
     begin
       if rising_edge(clk) then
