@@ -13,10 +13,12 @@ containing data
 % IP packet:
 % IP src = C0A8 0101 (DHCP server 192.168.1.1)
 % IP dst = FFFF FFFF (broadcast)
+% IP length and IP CRC are usually wrong (not set) as it's not checked by the implementation
 
 % UDP header:
 % xxxx xxxx 0043 0044
 % 011E 0000
+% UDP length and CRC are usually wrong (not set) as it's not checked by the implementation
 
 % actual DHCP data is everything from 0201 on
 
@@ -82,7 +84,9 @@ C0A8 0101 3304 0001
 % from another server
 @ 220
 % IP header
-4500 001D 093C 4000
+% IP length is not correct! (but that's ignored)
+4500 0000 093C 4000
+% IP checksum is also incorrect (but also ignored)
 8011 0000 C0A8 0201
 % UDP header: SRC DST length CRC
 FFFF FFFF 0043 0044
