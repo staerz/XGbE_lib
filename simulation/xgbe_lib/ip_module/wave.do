@@ -1,6 +1,6 @@
 onerror {resume}
 quietly WaveActivateNextPane {} 0
-add wave -noupdate -group {Constants and Config} -radix binary -radixshowbase 0 /ip_module_tb/EOF_CHECK_EN
+add wave -noupdate -group {Constants and Config} -radix binary -radixshowbase 0 /ip_module_tb/EOP_CHECK_EN
 add wave -noupdate -group {Constants and Config} -radixshowbase 0 /ip_module_tb/udp_crc_en
 add wave -noupdate -group {Constants and Config} -radix binary -radixshowbase 0 /ip_module_tb/IP_FILTER_EN
 add wave -noupdate -group {Constants and Config} -radix decimal -radixshowbase 0 /ip_module_tb/ID_TABLE_DEPTH

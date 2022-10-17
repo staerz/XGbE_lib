@@ -8,13 +8,13 @@
 --------------------------------------------------------------------------------
 --! @details
 --! Buffers incoming packets in a FIFO to guaranty a stable "rx_ready = '1'"
---! during a frame reception for the connected outer module.
+--! during a packet reception for the connected outer module.
 --!
---! Does NOT support jumbo frames.
+--! Does NOT support jumbo packets.
 --!
---! @todo on eof check error: if set, drop the packet from the FIFO...
---! @todo in not locked case (LOCK_FIFO = false): check if the outcoming frame is complete:
---! the frame might be dropped whilst writing into FIFO...
+--! @todo on eop check error: if set, drop the packet from the FIFO...
+--! @todo in not locked case (LOCK_FIFO = false): check if the outcoming packet is complete:
+--! the packet might be dropped whilst writing into FIFO...
 --! @todo Rename rx_fifo_in_* to FIFO_RX_*, rx_fifo_out_* to FIFO_TX_*
 --! @todo Rename module to avst_fifo_module
 --------------------------------------------------------------------------------
@@ -36,13 +36,13 @@ entity rx_fifo_module is
     --!
     --! If the rx_ready = '0' indication is not respected whilst in LOCK state,
     --! the packet is simply discarded.
-    --! After recovery from the LOCK state, only full frames (re-starting on sof)
-    --! will be captured to ensure frame integrity.
+    --! After recovery from the LOCK state, only full packets (re-starting on sop)
+    --! will be captured to ensure packet integrity.
     --!
     --! LOCK_FIFO = false:
     --!
     --! The FIFO is locked (rx_ready = '0') for 1 cycle only to add an empty word.
-    --! After that, the next frame can be stored into the FIFO.
+    --! After that, the next packet can be stored into the FIFO.
     --! Nevertheless, upon a filled FIFO, rx_ready will return to '1'.
     --! If still data is forced in, it is lost.
     --! @todo Rename to LOCK_FIFO_RX
@@ -51,8 +51,8 @@ entity rx_fifo_module is
     --! @details
     --! LOCK_FIFO_OUT = true:
     --!
-    --! Reading of the FIFO may only start after the reception of a full frame
-    --! (capturing the end-of-frame delimiter) to ensure frame integrity.
+    --! Reading of the FIFO may only start after the reception of a full packet
+    --! (capturing the end-of-packet delimiter) to ensure packet integrity.
     --!
     --! LOCK_FIFO_OUT = true:
     --!
@@ -158,9 +158,9 @@ begin
 
   --! @brief Instantiate the generic_fifo to store incoming data
   --! @details
-  --! Depth requirements for this FIFO = maximum length of an incoming frame
-  --! - Normal frame: 1520 byte, at 8 bytes per clk = 190
-  --! - Jumbo frames: 9000 byte, at 8 bytes per clk = 1125
+  --! Depth requirements for this FIFO = maximum length of an incoming packet
+  --! - Normal packet: 1520 byte, at 8 bytes per clk = 190
+  --! - Jumbo packets: 9000 byte, at 8 bytes per clk = 1125
   --!
   --! Width: data width (64 bit) + width of all controls (7)
   inst_fifo : entity memory.generic_fifo
@@ -221,7 +221,7 @@ begin
         -- insert one empty word into the FIFO
         -- upon reset to have clear zero output
         (fifo_rst = '1') or
-        -- and at the end of a frame
+        -- and at the end of a packet
         (rx_fifo_wr_full = '0' and rx_fifo_din(68) = '1')
       then
         rx_fifo_din <= (others => '0');
@@ -326,7 +326,7 @@ begin
     signal read_ready : std_logic;
   begin
 
-    --! FIFO is read locked: It can only be read as soon as having detected the eof in the incoming frame
+    --! FIFO is read locked: It can only be read as soon as having detected the eop in the incoming packet
     proc_fifo_out_locker : process (clk_i)
     begin
       if rising_edge(clk_i) then

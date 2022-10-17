@@ -38,8 +38,8 @@ entity dhcp_in_ip_module_tb is
     COMMENT_FLAG   : character := '%';
     --! Flat to use to indicate counters
     COUNTER_FLAG   : character := '@';
-    --! End of frame check
-    EOF_CHECK_EN   : std_logic := '1';
+    --! End of packet check
+    EOP_CHECK_EN   : std_logic := '1';
 
     --! MAC address
     MY_MAC         : std_logic_vector(47 downto 0) := x"00_22_8F_02_41_EE";
@@ -53,7 +53,7 @@ entity dhcp_in_ip_module_tb is
     IP_FILTER_EN   : std_logic               := '1';
     --! Depth of table (number of stored connections)
     ID_TABLE_DEPTH : integer range 1 to 1024 := 5;
-    --! The minimal number of clock cycles between two outgoing frames.
+    --! The minimal number of clock cycles between two outgoing packets.
     PAUSE_LENGTH   : integer range 0 to 1024 := 2
   );
 end entity dhcp_in_ip_module_tb;
@@ -184,7 +184,7 @@ begin
   --! Instantiate the secondary Unit Under Test (UUT): IP module
   uut2 : entity xgbe_lib.ip_module
   generic map (
-    EOF_CHECK_EN   => EOF_CHECK_EN,
+    EOP_CHECK_EN   => EOP_CHECK_EN,
     UDP_CRC_EN     => UDP_CRC_EN,
     IP_FILTER_EN   => IP_FILTER_EN,
     ID_TABLE_DEPTH => ID_TABLE_DEPTH,
