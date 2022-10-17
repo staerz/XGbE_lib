@@ -232,6 +232,8 @@ architecture behavioral of dhcp_module is
   signal dhcp_acknowledge    : std_logic;
   --! Filter on accepting acknowledged config (while in REQESTING)
   signal dhcp_accept         : std_logic;
+  --! Timeout from REQUESTING to fall back to INIT (after timeout + margin for possible reply)
+  signal dhcp_timedout       : std_logic;
   --! DHCP decline message sent
   signal decline_sent        : std_logic;
   --! Expiration of T1
@@ -318,7 +320,7 @@ begin
 
                 send_dhcp_decline <= '1';
               end if;
-            elsif dhcp_nack = '1' then
+            elsif dhcp_nack = '1' or dhcp_timedout = '1' then
               dhcp_state <= INIT;
             else
               -- in addition to the specified state transitions,
@@ -1773,10 +1775,20 @@ begin
         sig_out => resend_dhcp_request
       );
 
+      -- abort requesting and initiate to go back to INIT state after timeout + margin for possible reply
+      proc_dhcp_timedout : process (clk)
+      begin
+        if rising_edge(clk) then
+          if timer_pos = 6 and seconds(timer_pos - 1) = '1' then
+            dhcp_timedout <= '1';
+          else
+            dhcp_timedout <= '0';
+          end if;
+        end if;
+      end process proc_dhcp_timedout;
+
       -- propagate request timeout indicator to status vector
-      with timer_pos select status_vector_o(5) <=
-        '1' when 6,
-        '0' when others;
+      status_vector_o(5) <= dhcp_timedout;
 
     end block blk_backoff_request;
 
