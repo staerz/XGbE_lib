@@ -27,7 +27,7 @@ add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/dhcp_offer_se
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/dhcp_acknowledge
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/dhcp_nack
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/dhcp_accept
-add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/decline_sent
+add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/dhcp_timedout
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/t1_expired
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/t2_expired
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/lease_expired
