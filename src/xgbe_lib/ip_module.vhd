@@ -7,7 +7,7 @@
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
 --------------------------------------------------------------------------------
 --! @details
---! Creates/descrambles the IP header from/to a UDP frame.
+--! Creates/descrambles the IP header from/to a UDP packet.
 --!
 --! Only IPv4 with header length of 20 bytes is supported.
 --!
@@ -27,10 +27,10 @@ library fpga;
 --! IP module
 entity ip_module is
   generic (
-    --! @brief End of frame check
+    --! @brief End of packet check
     --! @details If enabled, the module counter checks the UDP length indication and
-    --! raises the error indicator upon eof if not matching.
-    EOF_CHECK_EN   : std_logic               := '1';
+    --! raises the error indicator upon eop if not matching.
+    EOP_CHECK_EN   : std_logic               := '1';
     --! @brief Post-UDP-module UDP CRC calculation
     --! @details If enabled, the UDP check sum will be (re)calculated from the UDP
     --! pseudo header.
@@ -44,7 +44,7 @@ entity ip_module is
     IP_FILTER_EN   : std_logic               := '1';
     --! Depth of table (number of stored connections)
     ID_TABLE_DEPTH : integer range 1 to 1024 := 4;
-    --! The minimal number of clock cycles between two outgoing frames.
+    --! The minimal number of clock cycles between two outgoing packets.
     PAUSE_LENGTH   : integer range 0 to 10   := 2
   );
   port (
@@ -114,8 +114,8 @@ entity ip_module is
     --! - 5: Interface merger: module in IDLE
     --! - 4: TX FSM in UDP mode (transmission ongoing)
     --! - 3: TX FSM in IDLE (transmission may still be fading out)
-    --! - 2: RX FSM: UDP frame is being received
-    --! - 1: RX FSM: ICMP frame is being received
+    --! - 2: RX FSM: UDP packet is being received
+    --! - 1: RX FSM: ICMP packet is being received
     --! - 0: RX FSM: IDLE mode
     status_vector_o : out   std_logic_vector(12 downto 0)
   );
@@ -171,10 +171,10 @@ begin
     --! @}
   begin
 
-    --! Instantiate the ip_header_module to generate header for incoming UPD frames
+    --! Instantiate the ip_header_module to generate header for incoming UPD packets
     inst_ip_header_module : entity xgbe_lib.ip_header_module
     generic map (
-      EOF_CHECK_EN => EOF_CHECK_EN,
+      EOP_CHECK_EN => EOP_CHECK_EN,
       UDP_CRC_EN   => UDP_CRC_EN,
       PAUSE_LENGTH => PAUSE_LENGTH
     )
@@ -236,7 +236,7 @@ begin
     --! State definition for the RX FSM
     --! - HEADER: Expecting IP header
     --! - RX:     Packet forwarding
-    --! - SKIP:   Skips all frames until EOF (if header is wrong)
+    --! - SKIP:   Skips all packets until EOF (if header is wrong)
 
     type t_rx_state is (HEADER, RX, SKIP);
 
@@ -535,7 +535,7 @@ begin
       end generate gen_with_ip_filter;
 
       --! @brief Generate an ID counter for each incoming package
-      --! @details For each package the ID is increased with each start of frame.
+      --! @details For each package the ID is increased with each start of packet.
       --! The ID is used for port_io_table and forwarded to the udp_module.
       --! @todo Test if the overflow is needed/useful: It looks like we could simply always
       --! increase, udp_tx_id_r'left seems to actually half the available addresses.
@@ -553,7 +553,7 @@ begin
           -- Once protocol matches (but tx to udp is just not yet started):
           elsif rx_ready = '1' and protocol = UDP and rx_count = 2 and src_ip_accept = '1' then
             -- Increase the ID, so 1 is the actual first possible ID as the ID is
-            -- 'discovered' only at the 3rd clock cycle of the incoming frame
+            -- 'discovered' only at the 3rd clock cycle of the incoming packet
             if udp_tx_id_r(udp_tx_id_r'left) = '1' then
               -- Watch overflow: if table is already filled, use 1 as the first id, not 0
               udp_tx_id_r <= to_unsigned(1, udp_tx_id_r'length);

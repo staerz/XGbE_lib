@@ -182,7 +182,7 @@ begin
       rx_packet_i => icmp_rx_packet
     );
 
-    -- mark any frame as valid icmp frame
+    -- mark any packet as valid icmp packet
     is_icmp_request <= '1';
 
   end block blk_simulation;

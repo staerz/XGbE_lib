@@ -43,7 +43,7 @@ add wave -noupdate -expand -group {DHCP module} -group {Global FSM} /dhcp_in_ip_
 add wave -noupdate -expand -group {DHCP module} -group {Global FSM} /dhcp_in_ip_module_tb/uut1/xid
 add wave -noupdate -expand -group {DHCP module} -expand -group {TX FSM} -color Cyan /dhcp_in_ip_module_tb/uut1/blk_make_tx_interface/tx_state
 add wave -noupdate -expand -group {DHCP module} -expand -group {TX FSM} -radix decimal /dhcp_in_ip_module_tb/uut1/blk_make_tx_interface/tx_count
-add wave -noupdate -expand -group {DHCP module} -expand -group {TX FSM} /dhcp_in_ip_module_tb/uut1/blk_make_tx_interface/dhcp_frame
+add wave -noupdate -expand -group {DHCP module} -expand -group {TX FSM} /dhcp_in_ip_module_tb/uut1/blk_make_tx_interface/dhcp_packet
 add wave -noupdate -expand -group {DHCP module} -expand -group {TX FSM} /dhcp_in_ip_module_tb/uut1/blk_make_tx_interface/udp_crc
 add wave -noupdate -expand -group {DHCP module} -expand -group {TX FSM} /dhcp_in_ip_module_tb/uut1/blk_make_tx_interface/udp_length
 add wave -noupdate -expand -group {DHCP module} -expand -group {TX FSM} /dhcp_in_ip_module_tb/uut1/blk_make_tx_interface/fifo_state

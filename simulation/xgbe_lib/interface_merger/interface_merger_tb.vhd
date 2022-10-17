@@ -47,7 +47,7 @@ entity interface_merger_tb is
 
     --! Enable or disable interface interruption (interface locking)
     INTERRUPT_ENABLE : boolean := false;
-    --! If true, a one clock idle is generated after each frame.
+    --! If true, a one clock idle is generated after each packet.
     GAP_ENABLE       : boolean := false
   );
 end entity interface_merger_tb;

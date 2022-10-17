@@ -7,7 +7,7 @@
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
 --------------------------------------------------------------------------------
 --! @details
---! Watches for incoming IP frames and checks them being ICMP echo requests.
+--! Watches for incoming IP packets and checks them being ICMP echo requests.
 --! If detected as such, an ICMP response is being produced.
 --!
 --! Not to block the RX interface, a FIFO is used to store the ICMP request.
@@ -80,7 +80,7 @@ architecture behavioral of icmp_module is
   --! CRC of the ICMP response
   signal icmp_crc    : std_logic_vector(15 downto 0);
   --! replacement of counter
-  signal sof_buffer  : std_logic_vector(1 downto 0);
+  signal sop_buffer  : std_logic_vector(1 downto 0);
 
 begin
 
@@ -93,10 +93,10 @@ begin
     if rising_edge(clk) then
       if rst = '1' then
         icmp_buffer <= (others => (others => '0'));
-        sof_buffer  <= (others => '0');
+        sop_buffer  <= (others => '0');
       else
-        -- shift sof bit:
-        sof_buffer <= sof_buffer(0) & icmp_buffer(ICMP_BUFFER_DEPTH - 1)(69);
+        -- shift sop bit:
+        sop_buffer <= sop_buffer(0) & icmp_buffer(ICMP_BUFFER_DEPTH - 1)(69);
 
         -- MAC produces error on interruption => ignore error by inserting '0' instead;
         icmp_buffer(0) <= avst_ctrl(ip_rx_packet_i) & ip_rx_packet_i.data;
@@ -113,7 +113,7 @@ begin
     signal crc_in  : std_logic_vector(15 downto 0);
   begin
 
-    -- combine with the registered sof flag:
+    -- combine with the registered sop flag:
     crc_in <=
       -- subtract 8 (corresponding from changing type from 8 to 0) (inverted byte order)
       x"F7FF" when icmp_buffer(0)(69) = '1' else
@@ -165,7 +165,7 @@ begin
         -- if the outer module indicated valid data: mark it
         if is_icmp_request_i = '1' then
           valid_data <= '1';
-        -- when the frame is over: unmark it
+        -- when the packet is over: unmark it
         elsif icmp_buffer(ICMP_BUFFER_DEPTH - 1)(68) = '1' then
           valid_data <= '0';
         end if;
@@ -175,10 +175,10 @@ begin
     icmp_tx_data <=
       -- new source IP addresses = old destination IP address:
       icmp_buffer(ICMP_BUFFER_DEPTH - 1)(63 downto 32) & icmp_buffer(ICMP_BUFFER_DEPTH - 2)(63 downto 32)
-      when sof_buffer(0) = '1' else
+      when sop_buffer(0) = '1' else
       -- new destination IP address = old source IP address, ICMP code = x"00";
       icmp_buffer(ICMP_BUFFER_DEPTH)(31 downto 0) & x"00" & icmp_buffer(ICMP_BUFFER_DEPTH - 1)(23 downto 16) & icmp_crc
-      when sof_buffer(1) = '1' else
+      when sop_buffer(1) = '1' else
       icmp_buffer(ICMP_BUFFER_DEPTH - 1)(63 downto 0);
 
     icmp_tx_ctrl <=

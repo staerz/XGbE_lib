@@ -10,9 +10,9 @@
 --! Provides an IP address in #my_ip_o after negotiating it with a DHCP
 --! server.
 --! The MAC address of the core has to be provided at all times to #my_mac_i.
---! The incoming interface #dhcp_rx_packet_i expects the raw UDP frame (Ethernet
+--! The incoming interface #dhcp_rx_packet_i expects the raw UDP packet (Ethernet
 --! and IP header already stripped off), but including the full UDP header.
---! The outgoing interface #dhcp_tx_packet_o provides a full UDP frame,
+--! The outgoing interface #dhcp_tx_packet_o provides a full UDP packet,
 --! including UDP header with UDP CRC field.
 --! The UDP CRC field is set to the checksum over the UDP data if #UDP_CRC_EN
 --! is enabled, otherwise set to `x"0000"`.
@@ -263,11 +263,11 @@ architecture behavioral of dhcp_module is
 
   --! @brief Size (length in words of 64 bits) of DHCP fixed header
   --! @details
-  --! The fixed size part of a DHCP frame consists of the UDP header
+  --! The fixed size part of a DHCP packet consists of the UDP header
   --! (2 words of 32 bits) and another (11 + 16 + 32 + 1) 32-bit words.
-  --! In total, the frame comprises 62 32-bit, or 31 64-bit words.
+  --! In total, the packet comprises 62 32-bit, or 31 64-bit words.
   --!
-  --! Compare to #dhcp_frame.
+  --! Compare to #dhcp_packet.
   constant DHCP_WORDS : integer := 31;
 
 begin
@@ -456,15 +456,15 @@ begin
     -- vsg_disable_next_line signal_007
     signal tx_state : t_tx_state := IDLE;
 
-    --! @brief Fixed size part of a DHCP frame
+    --! @brief Fixed size part of a DHCP packet
     --! @details
     --! Note that for simplicity the mandatory `MAGIC_COOKIE` option is
-    --! considered part of this fixed size DHCP frame although RFC 2131
+    --! considered part of this fixed size DHCP packet although RFC 2131
     --! defines it as an option.
     --! Adding this magic cookie also makes the fixed header a multiple
     --! of 8 bytes which is convenient for an 8-byte-based implementation.
     --!
-    --! Words of the frame are from left (high) to right (low), i.e. the
+    --! Words of the packet are from left (high) to right (low), i.e. the
     --! leftmost 32-bit word is transmitted first,
     --! according to the following diagram.
     --!
@@ -506,9 +506,9 @@ begin
     --!   |                   (more) options (variable)                   |
     --!   +---------------------------------------------------------------+
     --! @endcode
-    signal dhcp_frame : std_logic_vector((DHCP_WORDS * 64) - 1 downto 0);
+    signal dhcp_packet : std_logic_vector((DHCP_WORDS * 64) - 1 downto 0);
 
-    --! @name Elements of the DHCP frame
+    --! @name Elements of the DHCP packet
     --! @{
 
     --! UDP source port (68)
@@ -547,7 +547,7 @@ begin
     --! Register to temporarily store target MAC, used in TX path only and fed by FIFO
     signal config_tg_mac : std_logic_vector(47 downto 0);
 
-    --! Counter for outgoing DHCP response frame
+    --! Counter for outgoing DHCP response packet
     signal tx_count : integer range 0 to 63;
 
     --! EOP indicator
@@ -656,8 +656,8 @@ begin
 
     chaddr <= my_mac_i & x"00_00" & x"00_00_00_00" & x"00_00_00_00";
 
-    -- constructing the dhcp_frame (constant part): Fixed structure
-    dhcp_frame <=
+    -- constructing the dhcp_packet (constant part): Fixed structure
+    dhcp_packet <=
       UDP_SRC_PORT & UDP_DST_PORT & std_logic_vector(udp_length) & udp_crc &
       DHCP_HEADER &
       std_logic_vector(xid) & secs & flags &
@@ -815,7 +815,7 @@ begin
           end if;
         end process proc_write_fifo;
 
-        --! Read FIFO (= add DHCP options for appending to the fixed frame)
+        --! Read FIFO (= add DHCP options for appending to the fixed packet)
         proc_read_fifo : process (clk)
         begin
           if rising_edge(clk) then
@@ -862,7 +862,7 @@ begin
       -- or chose options from fifo
       with tx_count select dhcp_tx_packet_o.data <=
         -- tx_count-relative slice of constant part of the DHCP packet
-        dhcp_frame((DHCP_WORDS + 1 - tx_count) * 64 - 1 downto (DHCP_WORDS - tx_count) * 64)
+        dhcp_packet((DHCP_WORDS + 1 - tx_count) * 64 - 1 downto (DHCP_WORDS - tx_count) * 64)
           when 1 to DHCP_WORDS,
         dhcp_options
           when others;
@@ -1021,7 +1021,7 @@ begin
     --! State definition for the RX FSM
     --! - IDLE: no ongoing reception
     --! - HEADER: checks all requirement of the incoming DHCP packet
-    --! - SKIP: skips all frames until EOP (if header is wrong)
+    --! - SKIP: skips all packets until EOP (if header is wrong)
     --! - STORING_OPTS: storing the options in FIFO
     --! - PARSING_OPTS: parsing the options from the FIFO
 
@@ -1035,7 +1035,7 @@ begin
     --! Internal ready signal
     signal dhcp_rx_ready_i : std_logic;
 
-    --! Counter for incoming packets: max possible = jumbo frame (9000 bytes = 1125 frames)
+    --! Counter for incoming packets: max possible = jumbo packet (9000 bytes = 1125 packets)
     signal rx_count      : integer range 0 to 1125;
     --! Register receiving data
     signal rx_packet_reg : dhcp_rx_packet_i'subtype;
@@ -1077,7 +1077,7 @@ begin
 
     dhcp_rx_ready_o <= dhcp_rx_ready_i;
 
-    --! Counting the frames of 8 bytes received
+    --! Counting the packets of 8 bytes received
     proc_manage_rx_count_from_rx_sop : process (clk)
     begin
       if rising_edge(clk) then
@@ -1200,7 +1200,7 @@ begin
               end case;
 
             when STORING_OPTS =>
-              -- end of frame concludes package
+              -- end of packet concludes package
               if rx_packet_reg.eop = '1' then
                 rx_state <= PARSING_OPTS;
               else
@@ -1247,7 +1247,7 @@ begin
       --! @name Signals controlling the RX options FIFO data flow
       --! @{
 
-      --! FIFO data in: full frame segment
+      --! FIFO data in: full packet segment
       signal dhcp_rx_options_fifo_din   : std_logic_vector(63 downto 0);
       --! FIRO write enable
       signal dhcp_rx_options_fifo_wen   : std_logic;

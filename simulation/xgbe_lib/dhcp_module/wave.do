@@ -34,7 +34,7 @@ add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/lease_expired
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/xid
 add wave -noupdate -group {TX FSM} -color Cyan /dhcp_module_tb/uut/blk_make_tx_interface/tx_state
 add wave -noupdate -group {TX FSM} -radix decimal /dhcp_module_tb/uut/blk_make_tx_interface/tx_count
-add wave -noupdate -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/dhcp_frame
+add wave -noupdate -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/dhcp_packet
 add wave -noupdate -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/udp_crc
 add wave -noupdate -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/udp_length
 add wave -noupdate -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/fifo_state
