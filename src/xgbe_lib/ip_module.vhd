@@ -10,6 +10,11 @@
 --! Creates/descrambles the IP header from/to a UDP frame.
 --!
 --! Only IPv4 with header length of 20 bytes is supported.
+--!
+--! Some further limitations for a slim implementation apply to the IP RX path:
+--! - No check of the IP length field is done.
+--! - No check of the IP checksum field is done.
+--! - Hence no consistency check of the eop delimiter is done.
 --! @todo Introduce a packet_null constant that sets data to don't care,
 --! controls to all zero.
 --------------------------------------------------------------------------------
