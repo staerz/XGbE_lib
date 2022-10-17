@@ -36,6 +36,7 @@ add wave -noupdate -expand -group {arp module} /ethernet_to_udp_module_tb/uut/in
 add wave -noupdate -expand -group {arp module} /ethernet_to_udp_module_tb/uut/inst_arp_module/reco_en_i
 add wave -noupdate -expand -group {arp module} /ethernet_to_udp_module_tb/uut/inst_arp_module/reco_ip_i
 add wave -noupdate -expand -group {arp module} /ethernet_to_udp_module_tb/uut/inst_arp_module/reco_mac_o
+add wave -noupdate -expand -group {arp module} /ethernet_to_udp_module_tb/uut/inst_arp_module/my_ip_announce
 add wave -noupdate -expand -group {arp module} -color Yellow /ethernet_to_udp_module_tb/uut/inst_arp_module/arp_rx_ready_o
 add wave -noupdate -expand -group {arp module} -color Yellow /ethernet_to_udp_module_tb/uut/inst_arp_module/arp_rx_packet_i
 add wave -noupdate -expand -group {arp module} -color Orange /ethernet_to_udp_module_tb/uut/inst_arp_module/arp_tx_ready_i

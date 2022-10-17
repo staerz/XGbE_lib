@@ -149,8 +149,9 @@ begin
     reco_mac_o  => reco_mac,
     reco_done_o => reco_done,
 
-    my_mac_i => MY_MAC,
-    my_ip_i  => MY_IP,
+    my_mac_i      => MY_MAC,
+    my_ip_i       => MY_IP,
+    my_ip_valid_i => '1',
 
     one_ms_tick_i => one_ms_tick,
 
