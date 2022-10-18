@@ -10,9 +10,9 @@
 --! Provides an IP address in #my_ip_o after negotiating it with a DHCP
 --! server.
 --! The MAC address of the core has to be provided at all times to #my_mac_i.
---! The incoming interface #dhcp_rx_packet_i expects the raw UDP frame (Ethernet
+--! The incoming interface #dhcp_rx_packet_i expects the raw UDP packet (Ethernet
 --! and IP header already stripped off), but including the full UDP header.
---! The outgoing interface #dhcp_tx_packet_o provides a full UDP frame,
+--! The outgoing interface #dhcp_tx_packet_o provides a full UDP packet,
 --! including UDP header with UDP CRC field.
 --! The UDP CRC field is set to the checksum over the UDP data if #UDP_CRC_EN
 --! is enabled, otherwise set to `x"0000"`.
@@ -31,15 +31,10 @@
 --! an AVMM interface (register access).
 --!
 --! @todo DHCP Discover:
---! - The client then broadcasts the DHCPDISCOVER on the local hardware
---!   broadcast address to the 0xffffffff IP broadcast address.
 --! - The client SHOULD include the 'maximum DHCP message size' option to
 --!   let the server know how large the server may make its DHCP messages.
 --!
 --! @todo DHCP Request:
---! - Request from SELECTING: broadcast the 0xffffffff IP broadcast address
---! - Request from RENEWING: unicast
---! - Request from REBINDING: broadcast the 0xffffffff IP broadcast address
 --! - Request from INIT_REBOOT: broadcast the 0xffffffff IP broadcast address
 --!
 --! @todo Calculation of the UDP CRC field is currently not implemented.
@@ -81,6 +76,8 @@ entity dhcp_module is
     dhcp_rx_ready_o  : out   std_logic;
     --! RX data and controls
     dhcp_rx_packet_i : in    t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+    --! RX packet ID (to restore IP address in IP module)
+    udp_rx_id_i      : in    std_logic_vector(15 downto 0) := (others => '0');
     --! @}
 
     --! @name Avalon-ST to DHCP core
@@ -90,20 +87,29 @@ entity dhcp_module is
     dhcp_tx_ready_i  : in    std_logic;
     --! TX data and controls
     dhcp_tx_packet_o : out   t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+    --! TX packet ID (to restore IP address in IP module)
+    udp_tx_id_o      : out   std_logic_vector(15 downto 0);
     --! @}
 
     --! MAC address of the module
     my_mac_i         : in    std_logic_vector(47 downto 0);
     --! IP address of the module
     my_ip_o          : out   std_logic_vector(31 downto 0);
+    --! IP subnet mask
+    ip_netmask_o     : out   std_logic_vector(31 downto 0);
 
     --! Clock cycle when 1 millisecond is passed
     one_ms_tick_i    : in    std_logic;
 
     --! @brief Status of the module
     --! @details Status of the module
-    --! @todo to be defined
-    status_vector_o  : out   std_logic_vector(4 downto 0)
+    --! - 5 : request timeout
+    --! - 4 : discover timeout
+    --! - 3 : lease expired
+    --! - 2 : t2_expired
+    --! - 1 : t1_expired
+    --! - 0 : IP address configured (DHCP module in BOUND or RENEWING state)
+    status_vector_o  : out   std_logic_vector(5 downto 0)
   );
 end entity dhcp_module;
 
@@ -194,6 +200,8 @@ architecture behavioral of dhcp_module is
   signal serverid  : std_logic_vector(31 downto 0);
   --! Granted least time (in seconds)
   signal leasetime : std_logic_vector(31 downto 0);
+  --! IP subnet mask
+  signal netmask   : std_logic_vector(31 downto 0);
 
   --! @}
 
@@ -224,6 +232,8 @@ architecture behavioral of dhcp_module is
   signal dhcp_acknowledge    : std_logic;
   --! Filter on accepting acknowledged config (while in REQESTING)
   signal dhcp_accept         : std_logic;
+  --! Timeout from REQUESTING to fall back to INIT (after timeout + margin for possible reply)
+  signal dhcp_timedout       : std_logic;
   --! DHCP decline message sent
   signal decline_sent        : std_logic;
   --! Expiration of T1
@@ -243,20 +253,28 @@ architecture behavioral of dhcp_module is
   --! XID used for client-server interaction
   signal xid : unsigned(31 downto 0);
 
+  --! @brief UDP packet ID from RX packets of IP module
+  --! @details
+  --! This is the way of the IP module to relate UDP replies to the
+  --! appropriate initial sender of a request.
+  signal udp_rx_id : std_logic_vector(15 downto 0);
+  --! UDP packet ID to be used for TX packets to IP module
+  signal udp_tx_id : std_logic_vector(15 downto 0);
+
   --! @}
 
   --! @brief Size (length in words of 64 bits) of DHCP fixed header
   --! @details
-  --! The fixed size part of a DHCP frame consists of the UDP header
+  --! The fixed size part of a DHCP packet consists of the UDP header
   --! (2 words of 32 bits) and another (11 + 16 + 32 + 1) 32-bit words.
-  --! In total, the frame comprises 62 32-bit, or 31 64-bit words.
+  --! In total, the packet comprises 62 32-bit, or 31 64-bit words.
   --!
-  --! Compare to #dhcp_frame.
+  --! Compare to #dhcp_packet.
   constant DHCP_WORDS : integer := 31;
 
 begin
 
-  proc_dchp_state : process (clk)
+  proc_dhcp_state : process (clk)
   begin
     if rising_edge(clk) then
       -- defaults:
@@ -302,7 +320,7 @@ begin
 
                 send_dhcp_decline <= '1';
               end if;
-            elsif dhcp_nack = '1' then
+            elsif dhcp_nack = '1' or dhcp_timedout = '1' then
               dhcp_state <= INIT;
             else
               -- in addition to the specified state transitions,
@@ -385,7 +403,12 @@ begin
 
       end if;
     end if;
-  end process proc_dchp_state;
+  end process proc_dhcp_state;
+
+  -- indicate dhcp_state to status_vector
+  with dhcp_state select status_vector_o(0) <=
+    '1' when BOUND | RENEWING,
+    '0' when others;
 
   --! @brief Create a new xid for every new request
   --! @details RFC 2131:
@@ -435,15 +458,15 @@ begin
     -- vsg_disable_next_line signal_007
     signal tx_state : t_tx_state := IDLE;
 
-    --! @brief Fixed size part of a DHCP frame
+    --! @brief Fixed size part of a DHCP packet
     --! @details
     --! Note that for simplicity the mandatory `MAGIC_COOKIE` option is
-    --! considered part of this fixed size DHCP frame although RFC 2131
+    --! considered part of this fixed size DHCP packet although RFC 2131
     --! defines it as an option.
     --! Adding this magic cookie also makes the fixed header a multiple
     --! of 8 bytes which is convenient for an 8-byte-based implementation.
     --!
-    --! Words of the frame are from left (high) to right (low), i.e. the
+    --! Words of the packet are from left (high) to right (low), i.e. the
     --! leftmost 32-bit word is transmitted first,
     --! according to the following diagram.
     --!
@@ -485,9 +508,9 @@ begin
     --!   |                   (more) options (variable)                   |
     --!   +---------------------------------------------------------------+
     --! @endcode
-    signal dhcp_frame : std_logic_vector((DHCP_WORDS * 64) - 1 downto 0);
+    signal dhcp_packet : std_logic_vector((DHCP_WORDS * 64) - 1 downto 0);
 
-    --! @name Elements of the DHCP frame
+    --! @name Elements of the DHCP packet
     --! @{
 
     --! UDP source port (68)
@@ -526,7 +549,7 @@ begin
     --! Register to temporarily store target MAC, used in TX path only and fed by FIFO
     signal config_tg_mac : std_logic_vector(47 downto 0);
 
-    --! Counter for outgoing DHCP response frame
+    --! Counter for outgoing DHCP response packet
     signal tx_count : integer range 0 to 63;
 
     --! EOP indicator
@@ -550,10 +573,10 @@ begin
     -- Note: a more general approach would be to check the number of words
     -- in the tx options FIFO (once written), but then we'd have to wait for that
     -- to happen first which would delay the process
-    with tx_state select udp_length <=
-      to_unsigned((1 + 8 * (DHCP_WORDS + 1)), 16) when DHCP_DISCOVER,
-      to_unsigned((1 + 8 * (DHCP_WORDS + 3)), 16) when DHCP_REQUEST | DHCP_DECLINE,
-      (others => '-') when others;
+    udp_length <=
+      to_unsigned((1 + 8 * (DHCP_WORDS + 2)), 16) when tx_state = DHCP_DISCOVER or dhcp_state = RENEWING or dhcp_state = REBINDING else
+      to_unsigned((1 + 8 * (DHCP_WORDS + 4)), 16) when tx_state = DHCP_REQUEST or tx_state = DHCP_DECLINE else
+      (others => '-');
 
     gen_udp_crc : if UDP_CRC_EN generate
       -- Will need major rework as first the package will have to be generated and
@@ -610,9 +633,7 @@ begin
 
     end block blk_secs;
 
-    -- TODO: Check what the outer world does: We may also just send unicasts
-    -- and instead add an auxiliary interface to indicate to it which addresses to use!
-    --
+    -- The RFC state:
     -- A client that cannot receive unicast IP datagrams until its protocol
     -- software has been configured with an IP address SHOULD set the
     -- BROADCAST bit in the 'flags' field to 1 in any DHCPDISCOVER or
@@ -621,10 +642,10 @@ begin
     -- If this bit is set to 1, the DHCP message SHOULD be sent as
     -- an IP broadcast using an IP broadcast address (preferably 0xffffffff)
     --
-    -- TODO: we should also separate out the case of DHCP_REQUEST when in RENEWING or REBINDING (we have a valid IP then...)
-    with tx_state select flags <=
-      (0 => '1', others => '0') when DHCP_DISCOVER | DHCP_REQUEST,
-      (others => '0') when others;
+    -- So we set the flag when ever we are not configured.
+    flags <=
+      (0 => '1', others => '0') when dhcp_state /= RENEWING and (tx_state = DHCP_DISCOVER or tx_state = DHCP_REQUEST) else
+      (others => '0');
 
     ciaddr <=
       -- vsg_off concurrent_009
@@ -637,8 +658,8 @@ begin
 
     chaddr <= my_mac_i & x"00_00" & x"00_00_00_00" & x"00_00_00_00";
 
-    -- constructing the dhcp_frame (constant part): Fixed structure
-    dhcp_frame <=
+    -- constructing the dhcp_packet (constant part): Fixed structure
+    dhcp_packet <=
       UDP_SRC_PORT & UDP_DST_PORT & std_logic_vector(udp_length) & udp_crc &
       DHCP_HEADER &
       std_logic_vector(xid) & secs & flags &
@@ -647,8 +668,6 @@ begin
       chaddr &
       SNAME & BFILE &
       MAGIC_COOKIE;
-
-    status_vector_o(0) <= '1' when dhcp_tx_ready_i = '0' else '0';
 
     dhcp_tx_packet_o.valid <= '1' when tx_count >= 1 and tx_state /= IDLE else '0';
     dhcp_tx_packet_o.sop   <= '1' when tx_count = 1 else '0';
@@ -780,6 +799,11 @@ begin
                     dhcp_options_fifo_din <= x"3604" & serverid & x"00_00";
                     dhcp_options_fifo_wen <= '1';
                   end if;
+                -- Parameter Request List (if short enough, this could be stuffed into case 1)
+                when 4 =>
+                  -- Requesting: 1 = IP subnet mask, x1A = d26 = MTU, x1C = d28 = Broadcast address
+                  dhcp_options_fifo_din <= x"3703" & x"01" & x"1A" & x"1C" & x"00_00_00";
+                  dhcp_options_fifo_wen <= '1';
                 -- END option
                 when DHCP_WORDS - 1 =>
                   dhcp_options_fifo_din <= x"FF" & x"00_00_00_00_00_00_00";
@@ -793,7 +817,7 @@ begin
           end if;
         end process proc_write_fifo;
 
-        --! Read FIFO (= add DHCP options for appending to the fixed frame)
+        --! Read FIFO (= add DHCP options for appending to the fixed packet)
         proc_read_fifo : process (clk)
         begin
           if rising_edge(clk) then
@@ -840,7 +864,7 @@ begin
       -- or chose options from fifo
       with tx_count select dhcp_tx_packet_o.data <=
         -- tx_count-relative slice of constant part of the DHCP packet
-        dhcp_frame((DHCP_WORDS + 1 - tx_count) * 64 - 1 downto (DHCP_WORDS - tx_count) * 64)
+        dhcp_packet((DHCP_WORDS + 1 - tx_count) * 64 - 1 downto (DHCP_WORDS - tx_count) * 64)
           when 1 to DHCP_WORDS,
         dhcp_options
           when others;
@@ -911,6 +935,24 @@ begin
 
       decline_sent <= '1' when tx_state = DHCP_DECLINE and last_tx_word = '1' else '0';
 
+      --! Create udp_tx_id_o from udp_tx_id for a reply
+      --! @todo This process can possibly be simplified as only in some special cases we do not (IP) broadcast.
+      proc_set_udp_tx_id : process (clk)
+      begin
+        if rising_edge(clk) then
+          if send_dhcp_request = '1' or send_dhcp_decline = '1' then
+            -- The protocol states that in rebinding, we must send a broadcast
+            if dhcp_state = REBINDING then
+              udp_tx_id_o <= (others => '0');
+            else
+              udp_tx_id_o <= udp_tx_id;
+            end if;
+          elsif send_dhcp_discover = '1' then
+            udp_tx_id_o <= (others => '0');
+          end if;
+        end if;
+      end process proc_set_udp_tx_id;
+
     end block blk_gen_tx_data;
 
     blk_backoff_discover : block
@@ -965,7 +1007,10 @@ begin
         sig_out => resend_dhcp_discover
       );
 
-      -- TODO: with timer_pos select status_vector(x) <= '1' when 6 else '0';
+      -- propagate discover timeout indicator to status vector
+      with timer_pos select status_vector_o(4) <=
+        '1' when 6,
+        '0' when others;
 
     end block blk_backoff_discover;
 
@@ -978,7 +1023,7 @@ begin
     --! State definition for the RX FSM
     --! - IDLE: no ongoing reception
     --! - HEADER: checks all requirement of the incoming DHCP packet
-    --! - SKIP: skips all frames until EOP (if header is wrong)
+    --! - SKIP: skips all packets until EOP (if header is wrong)
     --! - STORING_OPTS: storing the options in FIFO
     --! - PARSING_OPTS: parsing the options from the FIFO
 
@@ -992,7 +1037,7 @@ begin
     --! Internal ready signal
     signal dhcp_rx_ready_i : std_logic;
 
-    --! Counter for incoming packets: max possible = jumbo frame (9000 bytes = 1125 frames)
+    --! Counter for incoming packets: max possible = jumbo packet (9000 bytes = 1125 packets)
     signal rx_count      : integer range 0 to 1125;
     --! Register receiving data
     signal rx_packet_reg : dhcp_rx_packet_i'subtype;
@@ -1017,6 +1062,13 @@ begin
     signal dhcp_lease_time   : std_logic_vector(31 downto 0);
     --! DHCP server IP address
     signal dhcp_server_ip    : std_logic_vector(31 downto 0);
+    --! DHCP provided IP subnet mask
+    signal dhcp_netmask      : std_logic_vector(31 downto 0);
+
+    --! DHCP broadcast address (extracted but not used)
+    signal dhcp_broadcast_addr : std_logic_vector(31 downto 0);
+    --! Interface MTU (extracted but not used)
+    signal dhcp_mtu            : std_logic_vector(15 downto 0);
 
     --! @}
   begin
@@ -1027,7 +1079,7 @@ begin
 
     dhcp_rx_ready_o <= dhcp_rx_ready_i;
 
-    --! Counting the frames of 8 bytes received
+    --! Counting the packets of 8 bytes received
     proc_manage_rx_count_from_rx_sop : process (clk)
     begin
       if rising_edge(clk) then
@@ -1048,6 +1100,18 @@ begin
       end if;
     end process proc_manage_rx_count_from_rx_sop;
 
+    --! Store the (permanently valid) UDP RX ID as a possible ID candidate for later re-usage
+    proc_save_udp_rx_id : process (clk)
+    begin
+      if rising_edge(clk) then
+        if rx_state = STORING_OPTS and dhcp_rx_packet_i.valid = '1' then
+          udp_rx_id <= udp_rx_id_i;
+        else
+          udp_rx_id <= udp_rx_id;
+        end if;
+      end if;
+    end process proc_save_udp_rx_id;
+
     --! @brief Storing the relevant data (yiaddr) from incoming DHCP packet blindly
     --! @details The fields `secs` and `ciaddr` are rather irrelevant.
     proc_extract_yiaddr : process (clk)
@@ -1064,6 +1128,7 @@ begin
     --! @brief FSM to handle incoming DHCP messages
     --! @details
     --! Analysing incoming data packets and checking them for DHCP content.
+    --! @todo Implementation of check for UDP length is currently missing.
     proc_rx_state : process (clk)
     begin
 
@@ -1137,7 +1202,7 @@ begin
               end case;
 
             when STORING_OPTS =>
-              -- end of frame concludes package
+              -- end of packet concludes package
               if rx_packet_reg.eop = '1' then
                 rx_state <= PARSING_OPTS;
               else
@@ -1184,7 +1249,7 @@ begin
       --! @name Signals controlling the RX options FIFO data flow
       --! @{
 
-      --! FIFO data in: full frame segment
+      --! FIFO data in: full packet segment
       signal dhcp_rx_options_fifo_din   : std_logic_vector(63 downto 0);
       --! FIRO write enable
       signal dhcp_rx_options_fifo_wen   : std_logic;
@@ -1219,10 +1284,8 @@ begin
       --! @details Information we are interested in is 4 bytes long, that's 6 with option and length field.
       signal value_buffer : std_logic_vector(6 * 8 - 1 downto 0);
 
-      --! Different options we want to extract
-      type   t_dhcp_option is (SKIP, OPERATION, LEASE_TIME, SERVER_IP);
       --! Current option being extracted
-      signal dhcp_option : t_dhcp_option;
+      signal dhcp_option : std_logic_vector(7 downto 0);
 
       --! @}
     begin
@@ -1370,29 +1433,13 @@ begin
         end if;
       end process proc_parse_options;
 
-      --! Detect a useful (= supported) DHCP option for later evaluation
+      --! Store DHCP option for later evaluation
       proc_detect_option : process (clk)
       begin
         if rising_edge(clk) then
-          -- default:
-          dhcp_option <= dhcp_option;
-
-          -- only once an option is read, interpret it
+          -- only once an option is read, store it
           if option_state = OPTION then
-
-            case dhcp_rx_options_fifo_dout is
-
-              when x"35" => -- DHCP operation
-                dhcp_option <= OPERATION;
-              when x"33" => -- IP address lease time
-                dhcp_option <= LEASE_TIME;
-              when x"36" => -- server identifier
-                dhcp_option <= SERVER_IP;
-              when others =>
-                dhcp_option <= SKIP;
-
-            end case;
-
+            dhcp_option <= dhcp_rx_options_fifo_dout;
           end if;
         end if;
       end process proc_detect_option;
@@ -1403,18 +1450,32 @@ begin
       begin
         if rising_edge(clk) then
           if value_length = 0 then
-            -- not using case construct here on purpose as individual cases do actually set independent targets
-            if dhcp_option = OPERATION then
-              dhcp_rx_operation <= value_buffer(3 downto 0);
-            end if;
 
-            if dhcp_option = LEASE_TIME then
-              dhcp_lease_time <= value_buffer(31 downto 0);
-            end if;
+            case dhcp_option is
 
-            if dhcp_option = SERVER_IP then
-              dhcp_server_ip <= value_buffer(31 downto 0);
-            end if;
+              when x"01" =>
+                dhcp_netmask <= value_buffer(31 downto 0);
+
+              when x"1A" =>
+                dhcp_mtu <= value_buffer(15 downto 0);
+
+              when x"1C" =>
+                dhcp_broadcast_addr <= value_buffer(31 downto 0);
+
+              when x"33" =>
+                dhcp_lease_time <= value_buffer(31 downto 0);
+
+              when x"35" =>
+                dhcp_rx_operation <= value_buffer(3 downto 0);
+
+              when x"36" =>
+                dhcp_server_ip <= value_buffer(31 downto 0);
+
+              when others =>
+                null;
+
+            end case;
+
           end if;
         end if;
       end process proc_extract_dhcp_options;
@@ -1462,6 +1523,9 @@ begin
               serverid  <= dhcp_server_ip;
               -- TODO: check again if we have to calculate back to initial discover time ...
               leasetime <= dhcp_lease_time;
+
+              -- while IP address is not yet configured, we must use broadcast!
+              udp_tx_id <= (others => '0');
             end if;
           -- in case of an acknowledge
           elsif dhcp_rx_operation = x"5" then
@@ -1475,6 +1539,10 @@ begin
                 -- no need to re-extract yourid, we just checked it to be the same ...
                 -- but this time finally get the lease time
                 leasetime <= dhcp_lease_time;
+                netmask   <= dhcp_netmask;
+
+                -- store the intermediate UPD RX ID for later re-usage in tx path
+                udp_tx_id <= udp_rx_id;
               end if;
 
               if dhcp_state = REQUESTING then
@@ -1512,9 +1580,14 @@ begin
     begin
       if rising_edge(clk) then
         if dhcp_acknowledge = '1' then
-          my_ip_o <= yourid;
+          my_ip_o      <= yourid;
+          ip_netmask_o <= netmask;
         elsif lease_expired = '1' then
-          my_ip_o <= (others => '0');
+          my_ip_o      <= (others => '0');
+          ip_netmask_o <= (others => '0');
+        -- RFC requires to use a IP broadcast for all requests in REBINDING
+        elsif dhcp_state <= REBINDING then
+          ip_netmask_o <= (others => '0');
         end if;
       end if;
     end process proc_capture_my_ip;
@@ -1604,6 +1677,9 @@ begin
           -- upon reset we only need to reset the lease time
           -- this will reset my_ip_o as a consequence (in the next cycle)
           lease(lease'high) <= '1';
+
+          t1(t1'high) <= '1';
+          t2(t2'high) <= '1';
         -- DHCP acknowledge resets the lease timers
         elsif dhcp_acknowledge = '1' then
           lt := unsigned(leasetime) - resize(unsigned(seconds), lt'length);
@@ -1632,6 +1708,11 @@ begin
     t1_expired    <= t1(t1'high);
     t2_expired    <= t2(t2'high);
     lease_expired <= lease(lease'high);
+
+    -- indicate these 'timers' to status vector
+    status_vector_o(1) <= t1_expired;
+    status_vector_o(2) <= t2_expired;
+    status_vector_o(3) <= lease_expired;
 
     blk_backoff_request : block
       --! Position to check on the #secs timer to evaluate if timeout is reached:
@@ -1694,7 +1775,20 @@ begin
         sig_out => resend_dhcp_request
       );
 
-      -- TODO: with timer_pos select status_vector(x) <= '1' when 6 else '0';
+      -- abort requesting and initiate to go back to INIT state after timeout + margin for possible reply
+      proc_dhcp_timedout : process (clk)
+      begin
+        if rising_edge(clk) then
+          if timer_pos = 6 and seconds(timer_pos - 1) = '1' then
+            dhcp_timedout <= '1';
+          else
+            dhcp_timedout <= '0';
+          end if;
+        end if;
+      end process proc_dhcp_timedout;
+
+      -- propagate request timeout indicator to status vector
+      status_vector_o(5) <= dhcp_timedout;
 
     end block blk_backoff_request;
 

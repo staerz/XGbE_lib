@@ -45,9 +45,9 @@ entity ethernet_to_udp_module_tb is
     --! Flat to use to indicate counters
     COUNTER_FLAG      : character := '@';
 
-    --! End of frame check
-    EOF_CHECK_EN      : std_logic                := '1';
-    --! The minimal number of clock cycles between two outgoing frames.
+    --! End of packet check
+    EOP_CHECK_EN      : std_logic                := '1';
+    --! The minimal number of clock cycles between two outgoing packets.
     PAUSE_LENGTH      : integer range 0 to 1024  := 2;
     --! Timeout to reconstruct MAC from IP in milliseconds
     MAC_TIMEOUT       : integer range 1 to 10000 := 1000;
@@ -58,7 +58,7 @@ entity ethernet_to_udp_module_tb is
     IP_FILTER_EN      : std_logic               := '1';
     --! Depth of table (number of stored connections)
     ID_TABLE_DEPTH    : integer range 1 to 1024 := 5;
-    --! The minimal number of clock cycles between two outgoing frames.
+    --! The minimal number of clock cycles between two outgoing packets.
 
     --! Timeout in milliseconds
     ARP_TIMEOUT       : integer range 2 to 1000 := 10;
@@ -149,7 +149,7 @@ architecture tb of ethernet_to_udp_module_tb is
   signal my_mac     : std_logic_vector(47 downto 0) := x"00_22_8f_02_41_ee";
   --! IP address
   signal my_ip      : std_logic_vector(31 downto 0) := x"c0_a8_00_1e";
-  --! Net mask
+  --! IP subnet mask
   signal ip_netmask : std_logic_vector(31 downto 0) := x"ff_ff_00_00";
   -- vsg_on signal_007
   --! @}
@@ -162,7 +162,7 @@ begin
   --! Instantiate the Unit Under Test (UUT)
   uut : entity xgbe_lib.ethernet_to_udp_module
   generic map (
-    EOF_CHECK_EN      => EOF_CHECK_EN,
+    EOP_CHECK_EN      => EOP_CHECK_EN,
     PAUSE_LENGTH      => PAUSE_LENGTH,
     MAC_TIMEOUT       => MAC_TIMEOUT,
     UDP_CRC_EN        => UDP_CRC_EN,
@@ -235,7 +235,7 @@ begin
 
     rst <= sim_rst or mnl_rst;
 
-    --! Instantiate av_st_sender to read eth_tx from ETH_RXD_FILE
+    --! Instantiate avst_packet_sender to read eth_tx from ETH_RXD_FILE
     inst_eth_tx : entity xgbe_lib.avst_packet_sender
     generic map (
       FILENAME     => ETH_RXD_FILE,

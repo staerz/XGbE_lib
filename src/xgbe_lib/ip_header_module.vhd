@@ -8,8 +8,8 @@
 --------------------------------------------------------------------------------
 --! @details
 --! Constructs the IP header from an incoming (UDP) packet
---! and forwards the enclosed (UDP) frames with re-arranged eof flags.
---! Only supports incoming frames up to a length of 1500 bytes (= 187 cycles)
+--! and forwards the enclosed (UDP) packets with re-arranged eop flags.
+--! Only supports incoming packets up to a length of 1500 bytes (= 187 cycles)
 --------------------------------------------------------------------------------
 
 --! @cond
@@ -20,10 +20,10 @@ library fpga;
 --! IP header module
 entity ip_header_module is
   generic (
-    --! @brief End of frame check:
+    --! @brief End of packet check:
     --! @details If enabled, the module counter checks the UDP length indication and
-    --! raises the error indicator upon eof if not matching
-    EOF_CHECK_EN : std_logic             := '1';
+    --! raises the error indicator upon eop if not matching
+    EOP_CHECK_EN : std_logic             := '1';
     --! @brief Post-UDP-module UDP CRC calculation
     --! @details If enabled, the UDP check sum will be (re)calculated from the pseudo
     --! header.
@@ -31,7 +31,7 @@ entity ip_header_module is
     --! UDP CRC field.
     --! If disabled, the check sum is omitted and set to x"0000".
     UDP_CRC_EN   : boolean               := true;
-    --! The minimal number of clock cycles between two outgoing frames.
+    --! The minimal number of clock cycles between two outgoing packets.
     PAUSE_LENGTH : integer range 0 to 10 := 2
   );
   port (
@@ -74,7 +74,7 @@ entity ip_header_module is
 
     --! IP address
     my_ip_i         : in    std_logic_vector(31 downto 0);
-    --! Net mask
+    --! IP subnet mask
     ip_netmask_i    : in    std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
     --! @}
 
@@ -127,20 +127,20 @@ architecture behavioral of ip_header_module is
   --! @name Avalon-ST rx controls (for better readability)
   --! @{
 
-  --! Start of frame
-  signal udp_rx_sof   : std_logic;
-  --! end of frame
-  signal udp_rx_eof   : std_logic;
-  --! end of frame empty indicator
+  --! Start of packet
+  signal udp_rx_sop   : std_logic;
+  --! end of packet
+  signal udp_rx_eop   : std_logic;
+  --! end of packet empty indicator
   signal udp_rx_empty : std_logic_vector(2 downto 0);
-  --! end of frame error indicator
+  --! end of packet error indicator
   signal udp_rx_error : std_logic;
   --! @}
 
 begin
 
-  udp_rx_sof   <= udp_rx_packet_i.sop;
-  udp_rx_eof   <= udp_rx_packet_i.eop;
+  udp_rx_sop   <= udp_rx_packet_i.sop;
+  udp_rx_eop   <= udp_rx_packet_i.eop;
   udp_rx_error <= udp_rx_packet_i.error(0);
   udp_rx_empty <= udp_rx_packet_i.empty(2 downto 0);
 
@@ -171,7 +171,7 @@ begin
           case tx_state is
 
             when IDLE =>
-              if udp_rx_sof = '1' then
+              if udp_rx_sop = '1' then
                 tx_state <= UDP;
                 tx_count <= 1;
               else
@@ -180,7 +180,7 @@ begin
               end if;
 
             when UDP =>
-              if udp_rx_eof = '1' then
+              if udp_rx_eop = '1' then
                 tx_state <= TRAILER;
               elsif overflow = '1' then
                 tx_state <= ABORT;
@@ -225,7 +225,7 @@ begin
           case request is
 
             when "00" =>
-              if ip_tx_ready_i = '1' and tx_state = IDLE and udp_rx_sof = '1' then
+              if ip_tx_ready_i = '1' and tx_state = IDLE and udp_rx_sop = '1' then
                 reco_en_o <= '1';
                 request   <= "01";
               else
@@ -266,7 +266,7 @@ begin
       if (rst = '1') then
         ip_length <= (others => '0');
       else
-        if ip_tx_ready_i = '1' and tx_state = IDLE and udp_rx_sof = '1' then
+        if ip_tx_ready_i = '1' and tx_state = IDLE and udp_rx_sop = '1' then
           ip_length <= to_unsigned(20, 16) + unsigned(udp_rx_packet_i.data(31 downto 16));
         end if;
       end if;
@@ -301,7 +301,7 @@ begin
       type t_tx_ctrl_sr is array(1 to SR_DEPTH) of std_logic_vector(4 downto 0);
 
       signal tx_data_sr : t_tx_data_sr;
-      -- controls for end of frame: eof & error & empty
+      -- controls for end of packet: eop & error & empty
       signal tx_ctrl_sr : t_tx_ctrl_sr;
 
       signal tx_valid : std_logic_vector(0 to SR_DEPTH);
@@ -382,7 +382,7 @@ begin
 
             -- now take care of the controls
             -- default: shift UDP controls into register,
-            -- depending on conditions (abort or eof) that may change
+            -- depending on conditions (abort or eop) that may change
             tx_ctrl_sr(2 to SR_DEPTH) <= tx_ctrl_sr(1 to SR_DEPTH - 1);
 
             -- default for valid: also just shift, but conditions (later) apply
@@ -393,7 +393,7 @@ begin
             -- with proper re-calculation of the end position and empty value
             if tx_state = ABORT then
               tx_ctrl_sr(1) <= "11000";
-            elsif tx_state /= IDLE and udp_rx_eof = '1' then
+            elsif tx_state /= IDLE and udp_rx_eop = '1' then
               -- calculate new ip_rx_empty from udp_rx_empty
               -- the one bit more in empty will also make "overflow" correct in comparison
               empty := unsigned('0' & udp_rx_empty(2 downto 0)) + 4;
@@ -403,10 +403,10 @@ begin
               byte_count := ip_length + empty;
 
               -- do length check on the packet and set error, eventually
-              if EOF_CHECK_EN = '1' then
+              if EOP_CHECK_EN = '1' then
                 if (ip_length < 64 - 4 - 14) and (tx_count = 3) and (udp_rx_empty = "110") then
                   -- ... but only if it is not padded:
-                  -- signature is maximum 49 data bytes but still 6 empty bytes in the eof frame due to padding
+                  -- signature is maximum 49 data bytes but still 6 empty bytes in the eop packet due to padding
                   error := '0';
                 elsif (to_unsigned(tx_count + 4, 13) & "000") /= byte_count then
                   error := '1';
@@ -420,11 +420,11 @@ begin
               if unsigned(udp_rx_empty) >= 8 - 4 then
                 -- skip one register due to IP-header insertion
                 tx_ctrl_sr(1) <= (others => '0');
-                tx_ctrl_sr(2) <= udp_rx_eof & error & std_logic_vector(empty(2 downto 0));
+                tx_ctrl_sr(2) <= udp_rx_eop & error & std_logic_vector(empty(2 downto 0));
 
                 tx_valid(1 to 2) <= "01";
               else
-                tx_ctrl_sr(1) <= udp_rx_eof & error & std_logic_vector(empty(2 downto 0));
+                tx_ctrl_sr(1) <= udp_rx_eop & error & std_logic_vector(empty(2 downto 0));
                 tx_ctrl_sr(2) <= (others => '0');
 
                 tx_valid(1 to 2) <= "11";
@@ -434,9 +434,9 @@ begin
             end if;
 
             -- handling of the valid bit
-            -- mark fall by udp eof or abort
+            -- mark fall by udp eop or abort
             -- mark rise by started transmission
-            if udp_rx_eof = '1' or tx_state = ABORT then
+            if udp_rx_eop = '1' or tx_state = ABORT then
               tx_valid(0) <= '0';
             elsif tx_count = 2 and tx_state /= TRAILER then
               tx_valid(0 to 2) <= (others => '1');
@@ -467,10 +467,10 @@ begin
       -- set valid
       ip_tx_packet_o.valid <= tx_valid(SR_DEPTH);
 
-      -- set sof
+      -- set sop
       ip_tx_packet_o.sop <= '1' when tx_count = 3 else '0';
 
-      -- set eof indicators from shift register
+      -- set eop indicators from shift register
       ip_tx_packet_o.eop   <= tx_ctrl_sr(SR_DEPTH)(4);
       ip_tx_packet_o.error <= tx_ctrl_sr(SR_DEPTH)(3 downto 3);
       ip_tx_packet_o.empty <= tx_ctrl_sr(SR_DEPTH)(2 downto 0);
@@ -520,7 +520,7 @@ begin
           if (rst = '1') then
             udp_header <= (others => '0');
           else
-            if ip_tx_ready_i = '1' and tx_state = IDLE and udp_rx_sof = '1' then
+            if ip_tx_ready_i = '1' and tx_state = IDLE and udp_rx_sop = '1' then
               udp_header <= udp_rx_packet_i.data;
             end if;
           end if;
@@ -574,7 +574,7 @@ begin
           if (rst = '1') then
             udp_crc_out <= (others => '0');
           else
-            if ip_tx_ready_i = '1' and tx_state = IDLE and udp_rx_sof = '1' then
+            if ip_tx_ready_i = '1' and tx_state = IDLE and udp_rx_sop = '1' then
               udp_crc_out <= udp_rx_packet_i.data(15 downto 0);
             end if;
           end if;

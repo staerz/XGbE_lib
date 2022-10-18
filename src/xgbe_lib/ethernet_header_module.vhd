@@ -18,11 +18,11 @@ library fpga;
 --! Ethernet header module
 entity ethernet_header_module is
   generic (
-    --! @brief End of frame check
+    --! @brief End of packet check
     --! @details If enabled, the module counter checks the IP length indication and
-    --! raises the error indicator upon eof if not matching.
-    EOF_CHECK_EN : std_logic                := '1';
-    --! The minimal number of clock cycles between two outgoing frames.
+    --! raises the error indicator upon eop if not matching.
+    EOP_CHECK_EN : std_logic                := '1';
+    --! The minimal number of clock cycles between two outgoing packets.
     PAUSE_LENGTH : integer range 0 to 10    := 0;
     --! Timeout to reconstruct MAC from IP in milliseconds
     MAC_TIMEOUT  : integer range 1 to 10000 := 1000
@@ -73,7 +73,7 @@ entity ethernet_header_module is
     --! @brief Status of the module
     --! @details Status of the module
     --! - 2: Waiting for MAC address
-    --! - 1: IP frame is being forwarded
+    --! - 1: IP packet is being forwarded
     --! - 0: IDLE mode
     status_vector_o : out   std_logic_vector(2 downto 0)
   );
@@ -173,7 +173,7 @@ begin
   end process proc_tx_state;
 
   blk_make_tx_interface : block
-    signal eth_frame_length : unsigned(15 downto 0);
+    signal eth_packet_length : unsigned(15 downto 0);
 
     constant SR_DEPTH : integer := 7;
 
@@ -208,19 +208,19 @@ begin
 
     end block blk_make_tx_done;
 
-    --! Set ETH frame length from IP length indication
-    proc_set_eth_frame_length : process (clk)
+    --! Set ETH packet length from IP length indication
+    proc_set_eth_packet_length : process (clk)
     begin
       if rising_edge(clk) then
         if (rst = '1') then
-          eth_frame_length <= (others => '0');
+          eth_packet_length <= (others => '0');
         else
           if ip_tx_ready_r = '1' and tx_state = IDLE and ip_rx_packet_i.sop = '1' then
-            eth_frame_length <= to_unsigned(14, 16) + unsigned(ip_rx_packet_i.data(47 downto 32));
+            eth_packet_length <= to_unsigned(14, 16) + unsigned(ip_rx_packet_i.data(47 downto 32));
           end if;
         end if;
       end if;
-    end process proc_set_eth_frame_length;
+    end process proc_set_eth_packet_length;
 
     --! @brief Main process to assemble output packet from incoming IP data stream
     --! @details
@@ -256,13 +256,13 @@ begin
             empty := unsigned('0' & ip_rx_packet_i.empty) + 2;
 
             -- total number of bytes is multiple of 8: number in empty gives 'fill up' bytes
-            byte_count := eth_frame_length + empty;
+            byte_count := eth_packet_length + empty;
 
             -- do length check on the packet and set error, eventually
-            if EOF_CHECK_EN = '1' then
-              if (eth_frame_length < 64 - 4) and (tx_count = 5) and (ip_rx_packet_i.empty = "010") then
+            if EOP_CHECK_EN = '1' then
+              if (eth_packet_length < 64 - 4) and (tx_count = 5) and (ip_rx_packet_i.empty = "010") then
                 -- ... but only if it is not padded:
-                -- signature is maximum 49 data bytes but still 6 empty bytes in the eof frame due to padding
+                -- signature is maximum 49 data bytes but still 6 empty bytes in the eop packet due to padding
                 error := '0';
               elsif (to_unsigned(tx_count + 3, 13) & "000") /= byte_count then
                 error := '1';
@@ -328,10 +328,10 @@ begin
     -- set valid
     eth_tx_packet_o.valid <= tx_valid(SR_DEPTH);
 
-    -- set sof
+    -- set sop
     eth_tx_packet_o.sop <= '1' when tx_count = 5 else '0';
 
-    -- set eof indicators from shift register
+    -- set eop indicators from shift register
     eth_tx_packet_o.eop   <= tx_ctrl_sr(SR_DEPTH)(4);
     eth_tx_packet_o.error <= tx_ctrl_sr(SR_DEPTH)(3 downto 3);
     eth_tx_packet_o.empty <= tx_ctrl_sr(SR_DEPTH)(2 downto 0);

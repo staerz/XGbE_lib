@@ -7,10 +7,10 @@
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
 --------------------------------------------------------------------------------
 --! @details
---! Watches out for incoming Ethernet frames on the ETH interface, removes
---! Ethernet and IP layer and forwards blank UDP frames to enclosed module.
---! Watches out for incoming UDP frames on the UDP interface, adds
---! Ethernet and IP layer and forwards full Ethernet frames to enclosed module.
+--! Watches out for incoming Ethernet packets on the ETH interface, removes
+--! Ethernet and IP layer and forwards blank UDP packets to enclosed module.
+--! Watches out for incoming UDP packets on the UDP interface, adds
+--! Ethernet and IP layer and forwards full Ethernet packets to enclosed module.
 --! Incorporates ARP and ICMP functionality as internal modules.
 --------------------------------------------------------------------------------
 
@@ -25,13 +25,13 @@ entity ethernet_to_udp_module is
     --! @name Configuration of the internal ethernet_module
     --! @{
 
-    --! @brief End of frame check
+    --! @brief End of packet check
     --! @details If enabled, the module counter checks the IP length indication and
-    --! raises the error indicator upon eof if not matching.
+    --! raises the error indicator upon eop if not matching.
     --!
     --! Also used in the ip_module.
-    EOF_CHECK_EN      : std_logic                := '1';
-    --! @brief The minimal number of clock cycles between two outgoing frames.
+    EOP_CHECK_EN      : std_logic                := '1';
+    --! @brief The minimal number of clock cycles between two outgoing packets.
     --! @ details
     --! Also used in the ip_module.
     PAUSE_LENGTH      : integer range 0 to 10    := 0;
@@ -124,7 +124,7 @@ entity ethernet_to_udp_module is
     my_mac_i        : in    std_logic_vector(47 downto 0);
     --! IP address
     my_ip_i         : in    std_logic_vector(31 downto 0);
-    --! Net mask
+    --! IP subnet mask
     ip_netmask_i    : in    std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
     --! @}
 
@@ -134,10 +134,10 @@ entity ethernet_to_udp_module is
     --! - 25: ETH module: Interface merger: ETH is being forwarded
     --! - 24: ETH module: Interface merger: module in idle
     --! - 23: ETH module: ETH TX: Waiting for MAC address
-    --! - 22: ETH module: ETH TX: IP frame is being forwarded
+    --! - 22: ETH module: ETH TX: IP packet is being forwarded
     --! - 21: ETH module: ETH TX: IDLE mode
-    --! - 20: ETH module: RX FSM: ARP frame is being received
-    --! - 19: ETH module: RX FSM:  IP frame is being received
+    --! - 20: ETH module: RX FSM: ARP packet is being received
+    --! - 19: ETH module: RX FSM:  IP packet is being received
     --! - 18: ETH module: RX FSM: IDLE mode
     --! - 17: ARP table full
     --! - 16: ARP table empty
@@ -154,8 +154,8 @@ entity ethernet_to_udp_module is
     --! - 5: IP module: Interface merger: module in IDLE
     --! - 4: IP module: TX FSM in UDP mode (transmission ongoing)
     --! - 3: IP module: TX FSM in IDLE (transmission may still be fading out)
-    --! - 2: IP module: RX FSM: UDP frame is being received
-    --! - 1: IP module: RX FSM: ICMP frame is being received
+    --! - 2: IP module: RX FSM: UDP packet is being received
+    --! - 1: IP module: RX FSM: ICMP packet is being received
     --! - 0: IP module: RX FSM: IDLE mode
     status_vector_o : out   std_logic_vector(26 downto 0)
   );
@@ -243,7 +243,7 @@ begin
   --! Instantiate the ethernet_module
   inst_ethernet_module : entity xgbe_lib.ethernet_module
   generic map (
-    EOF_CHECK_EN => EOF_CHECK_EN,
+    EOP_CHECK_EN => EOP_CHECK_EN,
     PAUSE_LENGTH => PAUSE_LENGTH,
     MAC_TIMEOUT  => MAC_TIMEOUT
   )
@@ -317,7 +317,7 @@ begin
   --! Instantiate the ip_module
   inst_ip_module : entity xgbe_lib.ip_module
   generic map (
-    EOF_CHECK_EN   => EOF_CHECK_EN,
+    EOP_CHECK_EN   => EOP_CHECK_EN,
     UDP_CRC_EN     => UDP_CRC_EN,
     IP_FILTER_EN   => IP_FILTER_EN,
     ID_TABLE_DEPTH => ID_TABLE_DEPTH,

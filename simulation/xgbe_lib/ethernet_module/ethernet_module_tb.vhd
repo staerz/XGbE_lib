@@ -53,9 +53,9 @@ entity ethernet_module_tb is
     --! Flat to use to indicate counters
     COUNTER_FLAG : character := '@';
 
-    --! End of frame check
-    EOF_CHECK_EN : std_logic                := '1';
-    --! The minimal number of clock cycles between two outgoing frames.
+    --! End of packet check
+    EOP_CHECK_EN : std_logic                := '1';
+    --! The minimal number of clock cycles between two outgoing packets.
     PAUSE_LENGTH : integer range 0 to 1024  := 2;
     --! Timeout to reconstruct MAC from IP in milliseconds
     MAC_TIMEOUT  : integer range 1 to 10000 := 1000
@@ -175,7 +175,7 @@ begin
   --! Instantiate the Unit Under Test (UUT)
   uut : entity xgbe_lib.ethernet_module
   generic map (
-    EOF_CHECK_EN => EOF_CHECK_EN,
+    EOP_CHECK_EN => EOP_CHECK_EN,
     PAUSE_LENGTH => PAUSE_LENGTH,
     MAC_TIMEOUT  => MAC_TIMEOUT
   )
@@ -253,7 +253,7 @@ begin
     reco_done <= '1';
     reco_mac  <= x"AB_CD_EF_01_23_45";
 
-    --! Instantiate av_st_sender to read eth_tx from ETH_RXD_FILE
+    --! Instantiate avst_packet_sender to read eth_tx from ETH_RXD_FILE
     inst_eth_tx : entity xgbe_lib.avst_packet_sender
     generic map (
       FILENAME     => ETH_RXD_FILE,
@@ -271,7 +271,7 @@ begin
       eof_o => eof(0)
     );
 
-    --! Instantiate av_st_sender to read arp_tx from ARP_RXD_FILE
+    --! Instantiate avst_packet_sender to read arp_tx from ARP_RXD_FILE
     inst_arp_tx : entity xgbe_lib.avst_packet_sender
     generic map (
       FILENAME     => ARP_RXD_FILE,
