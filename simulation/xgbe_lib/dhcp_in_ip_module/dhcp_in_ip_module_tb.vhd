@@ -129,6 +129,19 @@ architecture tb of dhcp_in_ip_module_tb is
 
   --! @}
 
+  --! @name Interface for recovering MAC address from given IP address
+  --! @{
+
+  --! Recovery enable to ARP module
+  signal reco_en   : std_logic;
+  --! IP address to recover to ARP module
+  signal reco_ip   : std_logic_vector(31 downto 0);
+  --! Recovery done indicator: 1 = found or timeout
+  signal reco_done : std_logic;
+  --! recovery failure: 1 = not found (time out), 0 = found
+  signal reco_fail : std_logic;
+  --! @}
+
   --! @name Configuration of the module
   --! @{
   --! Assigned (retrieved) IP address
@@ -144,7 +157,7 @@ architecture tb of dhcp_in_ip_module_tb is
   signal status_vector_ip : std_logic_vector(12 downto 0);
 
   --! Status of the DHCP module
-  signal status_vector_dhcp : std_logic_vector(5 downto 0);
+  signal status_vector_dhcp : std_logic_vector(6 downto 0);
 
 begin
 
@@ -168,6 +181,12 @@ begin
     dhcp_tx_packet_o => udp_rx_packet,
     udp_tx_id_o      => udp_rx_id,
 
+    -- interface for recovering mac address from given ip address
+    reco_en_o   => reco_en,
+    reco_ip_o   => reco_ip,
+    reco_done_i => reco_done,
+    reco_fail_i => reco_fail,
+
     my_mac_i     => MY_MAC,
     my_ip_o      => my_ip,
     ip_netmask_o => ip_netmask,
@@ -177,6 +196,19 @@ begin
     -- status of the DHCP module, see definitions below
     status_vector_o => status_vector_dhcp
   );
+
+  proc_reco : process (clk)
+  begin
+    if rising_edge(clk) then
+      if reco_en = '1' then
+        reco_done <= '1';
+        reco_fail <= '1';
+      else
+        reco_done <= '0';
+        reco_fail <= '0';
+      end if;
+    end if;
+  end process proc_reco;
 
   --! Instantiate the secondary Unit Under Test (UUT): IP module
   uut2 : entity xgbe_lib.ip_module

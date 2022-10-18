@@ -100,16 +100,34 @@ architecture tb of dhcp_module_tb is
 
   --! @}
 
+  --! @name Interface for recovering MAC address from given IP address
+  --! @{
+
+  --! Recovery enable to ARP module
+  signal reco_en   : std_logic;
+  --! IP address to recover to ARP module
+  signal reco_ip   : std_logic_vector(31 downto 0);
+  --! Recovery done indicator: 1 = found or timeout
+  signal reco_done : std_logic;
+  --! recovery failure: 1 = not found (time out), 0 = found
+  signal reco_fail : std_logic;
+  --! @}
+
   --! Assigned (retrieved) IP address
   signal my_ip      : std_logic_vector(31 downto 0);
   --! IP subnet mask
   signal ip_netmask : std_logic_vector(31 downto 0);
 
+  --! UDP TX ID (for IP module)
+  signal dhcp_tx_id : std_logic_vector(15 downto 0);
+  --! UDP RX ID (for IP module)
+  signal dhcp_rx_id : std_logic_vector(15 downto 0);
+
   --! Clock cycle when 1 millisecond is passed
   signal one_ms_tick : std_logic;
 
   --! Status of the module
-  signal status_vector : std_logic_vector(5 downto 0);
+  signal status_vector : std_logic_vector(6 downto 0);
 
 begin
 
@@ -126,10 +144,18 @@ begin
     -- signals from dhcp requester
     dhcp_rx_ready_o  => dhcp_tx_ready,
     dhcp_rx_packet_i => dhcp_tx_packet,
+    udp_rx_id_i      => dhcp_tx_id,
 
     -- signals to dhcp requester
     dhcp_tx_ready_i  => dhcp_rx_ready,
     dhcp_tx_packet_o => dhcp_rx_packet,
+    udp_tx_id_o      => dhcp_rx_id,
+
+    -- interface for recovering mac address from given ip address
+    reco_en_o   => reco_en,
+    reco_ip_o   => reco_ip,
+    reco_done_i => reco_done,
+    reco_fail_i => reco_fail,
 
     my_mac_i     => MY_MAC,
     my_ip_o      => my_ip,
@@ -140,6 +166,21 @@ begin
     -- status of the DHCP module, see definitions below
     status_vector_o => status_vector
   );
+
+  dhcp_tx_id <= dhcp_rx_id;
+
+  proc_reco : process (clk)
+  begin
+    if rising_edge(clk) then
+      if reco_en = '1' then
+        reco_done <= '1';
+        reco_fail <= '1';
+      else
+        reco_done <= '0';
+        reco_fail <= '0';
+      end if;
+    end if;
+  end process proc_reco;
 
   -- Simulation part
   -- generating stimuli based on cnt
@@ -257,9 +298,7 @@ begin
 
     -- We expect 1 error from the reset cutting into the started transmission:
     -- The reader cuts off with eop, but not the dhcp module
-    -- Then to simplify the testbench, we don't actively check any more output after cnt = 6800
-    -- so we "blindly" ignore all errors (613)
-    increment_expected_alerts(ERROR, 1 + 613);
+    increment_expected_alerts(ERROR, 1);
 
     --! UVVM check
     proc_uvvm : process

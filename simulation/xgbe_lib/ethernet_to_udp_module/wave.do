@@ -36,7 +36,8 @@ add wave -noupdate -expand -group {arp module} /ethernet_to_udp_module_tb/uut/in
 add wave -noupdate -expand -group {arp module} /ethernet_to_udp_module_tb/uut/inst_arp_module/reco_en_i
 add wave -noupdate -expand -group {arp module} /ethernet_to_udp_module_tb/uut/inst_arp_module/reco_ip_i
 add wave -noupdate -expand -group {arp module} /ethernet_to_udp_module_tb/uut/inst_arp_module/reco_mac_o
-add wave -noupdate -expand -group {arp module} /ethernet_to_udp_module_tb/uut/inst_arp_module/my_ip_announce
+add wave -noupdate -expand -group {arp module} /ethernet_to_udp_module_tb/uut/inst_arp_module/my_ip_valid_i
+add wave -noupdate -expand -group {arp module} /ethernet_to_udp_module_tb/uut/inst_arp_module/blk_make_rx_interface/my_ip_announce
 add wave -noupdate -expand -group {arp module} -color Yellow /ethernet_to_udp_module_tb/uut/inst_arp_module/arp_rx_ready_o
 add wave -noupdate -expand -group {arp module} -color Yellow /ethernet_to_udp_module_tb/uut/inst_arp_module/arp_rx_packet_i
 add wave -noupdate -expand -group {arp module} -color Orange /ethernet_to_udp_module_tb/uut/inst_arp_module/arp_tx_ready_i
@@ -113,4 +114,5 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {1953200 ps} {5953200 ps}
+WaveRestoreZoom {0 ps} {5953200 ps}
+run -all

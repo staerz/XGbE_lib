@@ -35,7 +35,8 @@ add wave -noupdate -expand -group {DHCP module} -group {Global FSM} /dhcp_in_ip_
 add wave -noupdate -expand -group {DHCP module} -group {Global FSM} /dhcp_in_ip_module_tb/uut1/dhcp_offer_selected
 add wave -noupdate -expand -group {DHCP module} -group {Global FSM} /dhcp_in_ip_module_tb/uut1/dhcp_acknowledge
 add wave -noupdate -expand -group {DHCP module} -group {Global FSM} /dhcp_in_ip_module_tb/uut1/dhcp_nack
-add wave -noupdate -expand -group {DHCP module} -group {Global FSM} /dhcp_in_ip_module_tb/uut1/dhcp_accept
+add wave -noupdate -expand -group {DHCP module} -group {Global FSM} /dhcp_in_ip_module_tb/uut1/reco_done
+add wave -noupdate -expand -group {DHCP module} -group {Global FSM} /dhcp_in_ip_module_tb/uut1/dhcp_timedout
 add wave -noupdate -expand -group {DHCP module} -group {Global FSM} /dhcp_in_ip_module_tb/uut1/decline_sent
 add wave -noupdate -expand -group {DHCP module} -group {Global FSM} /dhcp_in_ip_module_tb/uut1/t1_expired
 add wave -noupdate -expand -group {DHCP module} -group {Global FSM} /dhcp_in_ip_module_tb/uut1/t2_expired
@@ -57,7 +58,6 @@ add wave -noupdate -expand -group {DHCP module} -expand -group {TX FSM} -expand 
 add wave -noupdate -expand -group {DHCP module} -expand -group {TX FSM} /dhcp_in_ip_module_tb/uut1/blk_make_tx_interface/dhcp_options
 add wave -noupdate -expand -group {DHCP module} -expand -group RX -color Cyan /dhcp_in_ip_module_tb/uut1/blk_make_rx_interface/rx_state
 add wave -noupdate -expand -group {DHCP module} -expand -group RX -color {Medium Orchid} /dhcp_in_ip_module_tb/uut1/udp_rx_id
-add wave -noupdate -expand -group {DHCP module} -expand -group RX /dhcp_in_ip_module_tb/uut1/blk_make_rx_interface/rx_type
 add wave -noupdate -expand -group {DHCP module} -expand -group RX /dhcp_in_ip_module_tb/uut1/blk_make_rx_interface/dhcp_rx_ready_i
 add wave -noupdate -expand -group {DHCP module} -expand -group RX /dhcp_in_ip_module_tb/uut1/blk_make_rx_interface/rx_count
 add wave -noupdate -expand -group {DHCP module} -expand -group RX -expand /dhcp_in_ip_module_tb/uut1/blk_make_rx_interface/rx_packet_reg
@@ -75,10 +75,10 @@ add wave -noupdate -expand -group {DHCP module} -expand -group RX -color Cyan /d
 add wave -noupdate -expand -group {DHCP module} -expand -group RX -color Cyan /dhcp_in_ip_module_tb/uut1/blk_make_rx_interface/blk_dhcp_rx_options_fifo_handler/option_state
 add wave -noupdate -expand -group {DHCP module} -expand -group RX /dhcp_in_ip_module_tb/uut1/blk_make_rx_interface/parse_options_done
 add wave -noupdate -expand -group {DHCP module} -expand -group {Lease timers} /dhcp_in_ip_module_tb/uut1/one_ms_tick_i
+add wave -noupdate -expand -group {DHCP module} -expand -group {Lease timers} /dhcp_in_ip_module_tb/uut1/second_tick
 add wave -noupdate -expand -group {DHCP module} -expand -group {Lease timers} -radix decimal /dhcp_in_ip_module_tb/uut1/blk_manage_lease_times/lease
 add wave -noupdate -expand -group {DHCP module} -expand -group {Lease timers} -radix decimal /dhcp_in_ip_module_tb/uut1/blk_manage_lease_times/t1
 add wave -noupdate -expand -group {DHCP module} -expand -group {Lease timers} -radix decimal /dhcp_in_ip_module_tb/uut1/blk_manage_lease_times/t2
-add wave -noupdate -expand -group {DHCP module} -expand -group {Lease timers} /dhcp_in_ip_module_tb/uut1/blk_manage_lease_times/second_tick
 add wave -noupdate -expand -group {DHCP module} -expand -group {Lease timers} /dhcp_in_ip_module_tb/uut1/blk_manage_lease_times/seconds
 add wave -noupdate -group {IP module} /dhcp_in_ip_module_tb/uut2/ip_netmask_i
 add wave -noupdate -group {IP module} /dhcp_in_ip_module_tb/uut2/ip_broadcast_addr
@@ -109,5 +109,5 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {2943661 ps} {4995959 ps}
+WaveRestoreZoom {0 ps} {4995959 ps}
 run -all
