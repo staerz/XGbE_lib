@@ -9,7 +9,7 @@
 --! @details
 --! Watches out for a reset request being sent via IPbus and generates a
 --! response.
---! The full Ethernet frame is expected (rx) and constructed (tx).
+--! The full Ethernet packet is expected (rx) and constructed (tx).
 --!
 --! IPbus write transactions on RESET_REGISTER_ADD with WRITE_SIZE = 1 are
 --! interpreted as reset request.
@@ -140,7 +140,7 @@ begin
 
   -- Transmitter part
   blk_make_tx_interface : block
-    --! Counter for outgoing response frame
+    --! Counter for outgoing response packet
 
     -- vsg_disable_next_line signal_007
     signal tx_count : unsigned(4 downto 0) := (others => '1');
@@ -162,7 +162,7 @@ begin
       "000" when others;
 
     --! @brief Counting the clock cycles being in the sending mode
-    --! (the frames of 8 bytes to be sent)
+    --! (the packets of 8 bytes to be sent)
     proc_cnt : process (clk)
     begin
       if rising_edge(clk) then
@@ -204,7 +204,7 @@ begin
       --! @}
     begin
 
-      -- Create reset response packet as the complete Ethernet frame
+      -- Create reset response packet as the complete Ethernet packet
       with to_integer(tx_count) select tx_packet_o.data <=
         -- destination mac (6 bytes)
         tg_mac &
@@ -363,7 +363,7 @@ begin
     --! State definition for the RX FSM
     --! - IDLE:       no transmission running
     --! - HEADER:     header is being analysed (and still valid)
-    --! - SKIP:       frame is skipped until eof (due to invalid header data)
+    --! - SKIP:       packet is skipped until eop (due to invalid header data)
     --! - RESETTING:  reset is successfully recognised
     type t_rx_state is (IDLE, HEADER, SKIP, RESETTING);
 
@@ -377,7 +377,7 @@ begin
     --! Internal valid (delayed)
     signal rx_valid_d : std_logic;
 
-    --! Counter for incoming frame
+    --! Counter for incoming packet
 
     -- vsg_disable_next_line signal_007
     signal rx_count     : unsigned(7 downto 0) := to_unsigned(0, 8);
@@ -450,7 +450,7 @@ begin
       end if;
     end process proc_initiate_reset;
 
-    --! Introduce delay of rx_packet_i.valid to keep counting one frame after the packet
+    --! Introduce delay of rx_packet_i.valid to keep counting one packet after the packet
     proc_rx_valid_d : process (clk)
     begin
       if rising_edge(clk) then
@@ -462,8 +462,8 @@ begin
       end if;
     end process proc_rx_valid_d;
 
-    --! Counting the frames of 8 bytes received
-    proc_manage_rx_count_from_rx_sof : process (clk)
+    --! Counting the packets of 8 bytes received
+    proc_manage_rx_count_from_rx_sop : process (clk)
     begin
       if rising_edge(clk) then
         -- reset counter
@@ -472,7 +472,7 @@ begin
           rx_count         <= (others => '0');
           ipbus_big_endian <= '0';
         elsif (rx_packet_i.valid = '1' or rx_valid_d = '1') and rx_ready = '1' then
-          -- ... sof initializes counter and endian-ness
+          -- ... sop initializes counter and endian-ness
           if rx_packet_i.sop = '1' then
             -- rx_count <= to_unsigned(1, 8);
             -- with new reg stage, make it from 0
@@ -522,7 +522,7 @@ begin
           end if;
         end if;
       end if;
-    end process proc_manage_rx_count_from_rx_sof;
+    end process proc_manage_rx_count_from_rx_sop;
 
     --! @brief Retrieve relevant data from the reset packet blindly.
     --! @details Data will be applied only if it actually was a reset request.
@@ -579,7 +579,7 @@ begin
           case rx_state is
 
             when IDLE =>
-              -- check for start of frame
+              -- check for start of packet
               if rx_packet_i.sop = '1' then
                 rx_state <= HEADER;
               else
@@ -653,7 +653,7 @@ begin
                   end if;
 
                 when others =>
-                  -- may be padded: wait for eof
+                  -- may be padded: wait for eop
                   -- error indication
                   if rx_ctrl_reg(4) = '1' and rx_ctrl_reg(3) = '0' then
                     rx_state <= RESETTING;
@@ -666,7 +666,7 @@ begin
               soft_resets(15 downto 0) <= rx_data_reg(63 downto 48);
               rx_state                 <= IDLE;
 
-            -- just let pass all other data, wait for eof
+            -- just let pass all other data, wait for eop
             when SKIP =>
               if rx_packet_i.eop = '1' then
                 rx_state <= IDLE;

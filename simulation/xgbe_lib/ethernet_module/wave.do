@@ -10,7 +10,7 @@ add wave -noupdate -group {Constants and Config} /ethernet_module_tb/IP_RDY_FILE
 add wave -noupdate -group {Constants and Config} /ethernet_module_tb/IP_RXD_FILE
 add wave -noupdate -group {Constants and Config} /ethernet_module_tb/IP_TXD_FILE
 add wave -noupdate -group {Constants and Config} /ethernet_module_tb/MNL_RST_FILE
-add wave -noupdate -group {Constants and Config} -radix binary -radixshowbase 0 /ethernet_module_tb/EOF_CHECK_EN
+add wave -noupdate -group {Constants and Config} -radix binary -radixshowbase 0 /ethernet_module_tb/EOP_CHECK_EN
 add wave -noupdate -group {Constants and Config} /ethernet_module_tb/MAC_TIMEOUT
 add wave -noupdate -group {Constants and Config} /ethernet_module_tb/PAUSE_LENGTH
 add wave -noupdate -group {Constants and Config} -radix hexadecimal -radixshowbase 0 /ethernet_module_tb/my_mac

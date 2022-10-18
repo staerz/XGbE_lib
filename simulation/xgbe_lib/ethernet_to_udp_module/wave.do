@@ -7,7 +7,7 @@ add wave -noupdate -group {Constants and Config} /ethernet_to_udp_module_tb/UDP_
 add wave -noupdate -group {Constants and Config} /ethernet_to_udp_module_tb/UDP_RXD_FILE
 add wave -noupdate -group {Constants and Config} /ethernet_to_udp_module_tb/UDP_TXD_FILE
 add wave -noupdate -group {Constants and Config} /ethernet_to_udp_module_tb/MNL_RST_FILE
-add wave -noupdate -group {Constants and Config} -radix binary -radixshowbase 0 /ethernet_to_udp_module_tb/EOF_CHECK_EN
+add wave -noupdate -group {Constants and Config} -radix binary -radixshowbase 0 /ethernet_to_udp_module_tb/EOP_CHECK_EN
 add wave -noupdate -group {Constants and Config} /ethernet_to_udp_module_tb/MAC_TIMEOUT
 add wave -noupdate -group {Constants and Config} /ethernet_to_udp_module_tb/PAUSE_LENGTH
 add wave -noupdate /ethernet_to_udp_module_tb/uut/my_mac_i

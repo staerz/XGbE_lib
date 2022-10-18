@@ -10,7 +10,7 @@
 --! Watches for ARP requests dedicated to this client, referred by the
 --! IP address configured in "my_ip_i".
 --! The MAC address of the core has to be provided at all times to "my_mac_i".
---! The incoming interface expects the raw ARP frame (Ethernet header
+--! The incoming interface expects the raw ARP packet (Ethernet header
 --! already stripped off), but will respond with the Ethernet header for
 --! an easier implementation in the hierarchy upper module.
 --!
@@ -151,8 +151,8 @@ begin
     --! @brief FIFO to store MAC and IP addresses of requesting ARP packets
     --! @details
     --! Depth requirements for this FIFO = maximum number of requests during TX forwarding
-    --! normal frame: 1500 byte: 42 bytes unpadded, 64 bytes padded = 36 .. 24 packets
-    --! jumbo frames: 9000 byte: 42 bytes unpadded, 64 bytes padded = 215 .. 140 packets
+    --! normal packet: 1500 byte: 42 bytes unpadded, 64 bytes padded = 36 .. 24 packets
+    --! jumbo packets: 9000 byte: 42 bytes unpadded, 64 bytes padded = 215 .. 140 packets
     --!
     --! Width: storing MAC (6 bytes) + IP (4 bytes) requires 10 bytes = 80 bit)
     inst_arp_fifo : entity memory.generic_fifo
@@ -204,7 +204,7 @@ begin
     --! Register to temporarily store target IP, used in TX path only and fed by FIFO
     signal config_tg_ip  : std_logic_vector(31 downto 0);
 
-    --! Counter for outgoing ARP response frame
+    --! Counter for outgoing ARP response packet
     signal tx_count : integer range 0 to 9;
 
     --! Indicator if pair of MAC and IP address have been received
@@ -241,7 +241,7 @@ begin
       "000" when others;
 
     --! @brief Counting the clks being in the ARP mode
-    --! which is similar to the frames of 8 bytes to be sent
+    --! which is similar to the packets of 8 bytes to be sent
     proc_count : process (clk)
     begin
       if rising_edge(clk) then
@@ -312,7 +312,7 @@ begin
         x"0001" when others; -- ARP_REQUEST
 
       -- creates ARP response packet
-      -- the complete Ethernet frame is created for easiness of the upper layer module
+      -- the complete Ethernet packet is created for easiness of the upper layer module
       with tx_count select arp_tx_packet_o.data <=
         -- destination mac (6 bytes)
         target_mac &
@@ -458,7 +458,7 @@ begin
     --! @details
     --! State definition for the RX FSM
     --! - HEADER: checks all requirement of the incoming ARP packet
-    --! - SKIP: skips all frames until EOF (if header is wrong)
+    --! - SKIP: skips all packets until EOF (if header is wrong)
     --! - STORING_TG: indicates successful extraction of ARP target MAC and IP
 
     type   t_rx_state is (HEADER, SKIP, STORING_TG);
@@ -471,7 +471,7 @@ begin
     --! Internal ready signal
     signal arp_rx_ready_r : std_logic;
 
-    --! Counter for incoming packets: max possible = jumbo frame (9000 bytes = 1125 frames)
+    --! Counter for incoming packets: max possible = jumbo packet (9000 bytes = 1125 packets)
     signal rx_count    : integer range 0 to 1125;
     --! Register receiving data
     signal rx_data_reg : std_logic_vector(63 downto 0);
@@ -499,8 +499,8 @@ begin
 
     arp_rx_ready_o <= arp_rx_ready_r;
 
-    --! Counting the frames of 8 bytes received
-    proc_manage_rx_count_from_rx_sof : process (clk)
+    --! Counting the packets of 8 bytes received
+    proc_manage_rx_count_from_rx_sop : process (clk)
     begin
       if rising_edge(clk) then
         -- reset counter
@@ -512,7 +512,7 @@ begin
         elsif arp_rx_packet_i.valid = '1' and arp_rx_ready_r = '1' then
           rx_data_reg <= arp_rx_packet_i.data;
           rx_ctrl_reg <= avst_ctrl(arp_rx_packet_i);
-          -- ... sof initializes counter
+          -- ... sop initializes counter
           if arp_rx_packet_i.sop = '1' then
             rx_count <= 1;
           -- ... otherwise keep counting
@@ -521,7 +521,7 @@ begin
           end if;
         end if;
       end if;
-    end process proc_manage_rx_count_from_rx_sof;
+    end process proc_manage_rx_count_from_rx_sop;
 
     --! Storing the relevant data from the ARP packet blindly
     proc_extract_rx_data_copy : process (clk)
@@ -594,7 +594,7 @@ begin
     begin
 
       if rising_edge(clk) then
-        -- reset or sof indicate new header
+        -- reset or sop indicate new header
         if (rst = '1') or (arp_rx_packet_i.sop = '1') then
           rx_state <= HEADER;
         elsif arp_rx_ready_r = '1' then
@@ -634,7 +634,7 @@ begin
 
                   end if;
                 when 4 =>
-                  -- requested IP address must match and it mustn't be an error frame
+                  -- requested IP address must match and it mustn't be an error packet
                   if rx_data_reg(63 downto 32) /= my_ip_i or rx_ctrl_reg(4 downto 3) = "11" then
                     rx_state <= SKIP;
                   else

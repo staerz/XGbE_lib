@@ -101,7 +101,7 @@ architecture tb of ip_header_module_tb is
   -- vsg_off signal_007
   --! IP address
   signal my_ip      : std_logic_vector(31 downto 0) := x"c0_a8_00_95";
-  --! Net mask
+  --! IP subnet mask
   signal ip_netmask : std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
   -- vsg_on signal_007
   --! @}

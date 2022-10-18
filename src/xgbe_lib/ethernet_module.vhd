@@ -7,8 +7,8 @@
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
 --------------------------------------------------------------------------------
 --! @details
---! Watches out for incoming Ethernet frames and descrambles MACs,
---! forwards blank IP frames or ARP frames to enclosed modules.
+--! Watches out for incoming Ethernet packets and descrambles MACs,
+--! forwards blank IP packets or ARP packets to enclosed modules.
 --! @todo Introduce a packet_null constant that sets data to don't care,
 --! controls to all zero.
 --------------------------------------------------------------------------------
@@ -21,11 +21,11 @@ library fpga;
 --! Ethernet module
 entity ethernet_module is
   generic (
-    --! @brief End of frame check
+    --! @brief End of packet check
     --! @details If enabled, the module counter checks the IP length indication and
-    --! raises the error indicator upon eof if not matching.
-    EOF_CHECK_EN : std_logic                := '1';
-    --! The minimal number of clock cycles between two outgoing frames.
+    --! raises the error indicator upon eop if not matching.
+    EOP_CHECK_EN : std_logic                := '1';
+    --! The minimal number of clock cycles between two outgoing packets.
     PAUSE_LENGTH : integer range 0 to 10    := 0;
     --! Timeout to reconstruct MAC from IP in milliseconds
     MAC_TIMEOUT  : integer range 1 to 10000 := 1000
@@ -115,10 +115,10 @@ entity ethernet_module is
     --! - 7: Interface merger: ETH is being forwarded
     --! - 6: Interface merger: module in idle
     --! - 5: ETH TX: Waiting for MAC address
-    --! - 4: ETH TX: IP frame is being forwarded
+    --! - 4: ETH TX: IP packet is being forwarded
     --! - 3: ETH TX: IDLE mode
-    --! - 2: RX FSM: ARP frame is being received
-    --! - 1: RX FSM:  IP frame is being received
+    --! - 2: RX FSM: ARP packet is being received
+    --! - 1: RX FSM:  IP packet is being received
     --! - 0: RX FSM: IDLE mode
     status_vector_o : out   std_logic_vector(8 downto 0)
   );
@@ -150,7 +150,7 @@ begin
     --! Instantiate the ethernet_header_module to construct Ethernet header from IP RX interface.
     inst_ethernet_header_module : entity xgbe_lib.ethernet_header_module
     generic map (
-      EOF_CHECK_EN => EOF_CHECK_EN,
+      EOP_CHECK_EN => EOP_CHECK_EN,
       PAUSE_LENGTH => PAUSE_LENGTH,
       MAC_TIMEOUT  => MAC_TIMEOUT
     )
@@ -214,7 +214,7 @@ begin
     --! State definition for the RX FSM
     --! - HEADER: Expecting Ethernet header
     --! - RX:     Packet forwarding
-    --! - SKIP:   Skips all frames until EOF (if header is wrong)
+    --! - SKIP:   Skips all packets until EOF (if header is wrong)
 
     type t_rx_state is (HEADER, RX, SKIP);
 

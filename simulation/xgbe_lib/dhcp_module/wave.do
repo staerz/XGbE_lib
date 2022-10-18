@@ -10,6 +10,7 @@ add wave -noupdate -color Gold -radix hexadecimal -childformat {{/dhcp_module_tb
 add wave -noupdate -color Khaki /dhcp_module_tb/blk_uvvm/dhcp_rx_expect
 add wave -noupdate -radix hexadecimal -radixshowbase 0 /dhcp_module_tb/uut/my_mac_i
 add wave -noupdate -radix hexadecimal -radixshowbase 0 /dhcp_module_tb/uut/my_ip_o
+add wave -noupdate /dhcp_module_tb/uut/ip_netmask_o
 add wave -noupdate /dhcp_module_tb/uut/one_ms_tick_i
 add wave -noupdate -radix binary -radixshowbase 0 /dhcp_module_tb/uut/status_vector_o
 add wave -noupdate -expand -group {Global FSM} -color Cyan /dhcp_module_tb/uut/dhcp_state
@@ -26,14 +27,14 @@ add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/dhcp_offer_se
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/dhcp_acknowledge
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/dhcp_nack
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/dhcp_accept
-add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/decline_sent
+add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/dhcp_timedout
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/t1_expired
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/t2_expired
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/lease_expired
 add wave -noupdate -expand -group {Global FSM} /dhcp_module_tb/uut/xid
 add wave -noupdate -group {TX FSM} -color Cyan /dhcp_module_tb/uut/blk_make_tx_interface/tx_state
 add wave -noupdate -group {TX FSM} -radix decimal /dhcp_module_tb/uut/blk_make_tx_interface/tx_count
-add wave -noupdate -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/dhcp_frame
+add wave -noupdate -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/dhcp_packet
 add wave -noupdate -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/udp_crc
 add wave -noupdate -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/udp_length
 add wave -noupdate -group {TX FSM} /dhcp_module_tb/uut/blk_make_tx_interface/fifo_state
@@ -73,7 +74,7 @@ add wave -noupdate -expand -group {Lease timers} -radix decimal /dhcp_module_tb/
 add wave -noupdate -expand -group {Lease timers} /dhcp_module_tb/uut/blk_manage_lease_times/second_tick
 add wave -noupdate -expand -group {Lease timers} /dhcp_module_tb/uut/blk_manage_lease_times/seconds
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {18949206 ps} 0}
+WaveRestoreCursors {{Cursor 1} {20159407 ps} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 211
 configure wave -valuecolwidth 156

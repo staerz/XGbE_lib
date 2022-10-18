@@ -22,24 +22,24 @@ library fpga;
 entity trailer_module_tb is
   generic (
     --! Clock period
-    CLK_PERIOD     : time   := 6.4 ns;
+    CLK_PERIOD      : time   := 6.4 ns;
     --! File containing the AVST RX data
-    AVST_RXD_FILE  : string := "sim_data_files/AVST_rx_in.dat";
+    AVST_RXD_FILE   : string := "sim_data_files/AVST_rx_in.dat";
     --! File containing counters on which the TX interface is not ready
-    AVST_RDY_FILE  : string := "sim_data_files/AVST_tx_ready_in.dat";
+    AVST_RDY_FILE   : string := "sim_data_files/AVST_tx_ready_in.dat";
     --! File to write out the response of the module
-    AVST_TXD_FILE  : string := "sim_data_files/AVST_tx_out.dat";
+    AVST_TXD_FILE   : string := "sim_data_files/AVST_tx_out.dat";
     --! File to read expected AVST response of the module
-    AVST_CHK_FILE  : string := "sim_data_files/AVST_tx_expect.dat";
+    AVST_CHK_FILE   : string := "sim_data_files/AVST_tx_expect.dat";
 
     --! Flag to use to indicate comments
-    COMMENT_FLAG   : character := '%';
+    COMMENT_FLAG    : character := '%';
     --! Flat to use to indicate counters
-    COUNTER_FLAG   : character := '@';
+    COUNTER_FLAG    : character := '@';
     --! Number of bytes of the header to be cut off
-    HEADER_LENGTH  : integer   := 3;
-    --! (Maximum) frame size in bytes
-    MAX_FRAME_SIZE : integer   := 1500
+    HEADER_LENGTH   : integer   := 3;
+    --! (Maximum) packet size in bytes
+    MAX_PACKET_SIZE : integer   := 1500
   );
 end entity trailer_module_tb;
 
@@ -99,9 +99,9 @@ begin
   --! Instantiate the Unit Under Test (UUT)
   uut : entity xgbe_lib.trailer_module
   generic map (
-    HEADER_LENGTH  => HEADER_LENGTH,
-    N_INTERFACES   => N_INTERFACES,
-    MAX_FRAME_SIZE => MAX_FRAME_SIZE
+    HEADER_LENGTH   => HEADER_LENGTH,
+    N_INTERFACES    => N_INTERFACES,
+    MAX_PACKET_SIZE => MAX_PACKET_SIZE
   )
   port map (
     clk => clk,

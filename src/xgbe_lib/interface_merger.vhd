@@ -28,11 +28,11 @@ entity interface_merger is
     --! @brief Enable or disable interface interruption (interface locking)
     --! @details
     --! If true, the second (lower priority) interface will be interrupted
-    --! (eof with error) upon start of transmission of the first interface.
+    --! (eop with error) upon start of transmission of the first interface.
     --! If false, the first interface will be halted until the transmission
     --! of the first interface has finished.
     INTERRUPT_ENABLE : boolean                := false;
-    --! If true, a one clock idle is generated after each frame.
+    --! If true, a one clock idle is generated after each packet.
     GAP_ENABLE       : boolean                := true
   );
   port (
@@ -86,7 +86,7 @@ architecture behavioral of interface_merger is
   --! - IDLE:      No transmission running.
   --! - AVST1:     Data from avst1 is being received and transmission is started.
   --! - AVST2:     Data from avst2 is being received and transmission is started.
-  --! - INTERRUPT: Data from avst2 is interrupted, sending eof and error flags
+  --! - INTERRUPT: Data from avst2 is interrupted, sending eop and error flags
   --!              (only used for INTERRUPT_ENABLE is true)
   --! - IGAP:      Insert idle clock after INTERRUPT.
   --!              (only used for GAP_ENABLE is true)
@@ -99,8 +99,8 @@ architecture behavioral of interface_merger is
   -- vsg_disable_next_line signal_007
   signal tx_state : t_tx_state := IDLE;
 
-  --! AVST end of frame
-  signal avst_tx_eof : std_logic;
+  --! AVST end of packet
+  signal avst_tx_eop : std_logic;
   --! Indicator if avst2 wants to send a packet next
   signal avst2_next  : std_logic;
 
@@ -134,10 +134,10 @@ begin
               end if;
 
             when AVST1 =>
-              -- once chosen the interface, only quit it upon end_of_frame
-              if avst_tx_eof = '1' then
+              -- once chosen the interface, only quit it upon end_of_packet
+              if avst_tx_eop = '1' then
                 -- watch out if second interface started transmission simultaneously with first
-                -- start_of_frame is then still hold at the register
+                -- start_of_packet is then still hold at the register
                 if avst2_next = '1' then
                   -- so chose second interface state then directly
                   if GAP_ENABLE then
@@ -156,18 +156,18 @@ begin
               if INTERRUPT_ENABLE then
                 -- if interrupt_enable is active:
                 -- watch out for first interface and interrupt second if required,
-                -- otherwise watch out for end_of_frame of second interface
-                if avst1_rx_packet_i.sop = '1' and avst_tx_eof = '0' then
+                -- otherwise watch out for end_of_packet of second interface
+                if avst1_rx_packet_i.sop = '1' and avst_tx_eop = '0' then
                   tx_state <= INTERRUPT;
-                elsif avst_tx_eof = '1' then
+                elsif avst_tx_eop = '1' then
                   tx_state <= IDLE;
                 else
                   tx_state <= AVST2;
                 end if;
               else
                 -- if interrupt_enable is inactive:
-                -- watch out for end_of_frame of second interface only
-                if avst_tx_eof = '1' then
+                -- watch out for end_of_packet of second interface only
+                if avst_tx_eop = '1' then
                   tx_state <= IDLE;
                 else
                   tx_state <= AVST2;
@@ -207,7 +207,7 @@ begin
 
     --! Data word to inject when interrupting a transmission (don't care)
     constant DONTCARE_DATA  : std_logic_vector(DATA_W - 1 downto 0) := (others => '-');
-    --! Data word controls to inject when interrupting a transmission (eof with error)
+    --! Data word controls to inject when interrupting a transmission (eop with error)
     constant INTERRUPT_CTRL : std_logic_vector(EMPTY_W + 3 downto 0) := "1011" & (EMPTY_W - 1 downto 0 => '0');
     --! Data word controls when output interface inactive
     constant IDLE_CTRL      : std_logic_vector(EMPTY_W + 3 downto 0) := (others => '0');
@@ -295,8 +295,8 @@ begin
         empty => avst_tx_dnc(EMPTY_W - 1 + DATA_W downto DATA_W)
       );
 
-      -- extract the eof (used in the TX FSM)
-      avst_tx_eof <= avst_tx_dnc(EMPTY_W - 1 + DATA_W + 2);
+      -- extract the eop (used in the TX FSM)
+      avst_tx_eop <= avst_tx_dnc(EMPTY_W - 1 + DATA_W + 2);
 
     end block blk_avst_tx_interface;
 

@@ -7,18 +7,18 @@
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
 --------------------------------------------------------------------------------
 --! @details
---! Cuts off the first 'HEADER_LENGTH' bytes of an incoming frame (header) and
---! recreates a new packet only containing the rest of the frame (payload).
+--! Cuts off the first 'HEADER_LENGTH' bytes of an incoming packet (header) and
+--! recreates a new packet only containing the rest of the packet (payload).
 --! Proper data shifting and assertion of control flags is done, as well as
 --! an overflow protection:
---! The frame will be terminated with an error if the number of transmitted bytes
---! exceeds 'MAX_FRAME_SIZE', all incoming data onwards is discarded.
+--! The packet will be terminated with an error if the number of transmitted bytes
+--! exceeds 'MAX_PACKET_SIZE', all incoming data onwards is discarded.
 --!
 --! The control signals to be connected are:
 --!
 --! - rx/tx_ctrl(6)           <= rx/tx_valid
---! - rx/tx_ctrl(5)           <= rx/tx_sof
---! - rx/tx_ctrl(4)           <= rx/tx_eof
+--! - rx/tx_ctrl(5)           <= rx/tx_sop
+--! - rx/tx_ctrl(4)           <= rx/tx_eop
 --! - rx/tx_ctrl(3)           <= rx/tx_error
 --! - rx/tx_ctrl(2 downto 0)  <= rx/tx_empty
 --------------------------------------------------------------------------------
@@ -32,11 +32,11 @@ library fpga;
 entity trailer_module is
   generic (
     --! Number of bytes of the header to be cut off
-    HEADER_LENGTH  : integer  := 14;
+    HEADER_LENGTH   : integer  := 14;
     --! Number of interfaces (if multiple interfaces are used)
-    N_INTERFACES   : positive := 1;
-    --! (Maximum) frame size in bytes
-    MAX_FRAME_SIZE : integer  := 1500
+    N_INTERFACES    : positive := 1;
+    --! (Maximum) packet size in bytes
+    MAX_PACKET_SIZE : integer  := 1500
   );
   port (
     --! Clock
@@ -79,16 +79,16 @@ architecture behavioral of trailer_module is
   constant DATA_START : integer := HEADER_LENGTH / 8 + 1;
   --! If header is not a multiple of 8, a shift is needed
   constant BYTE_SHIFT : integer := 8 - (HEADER_LENGTH mod 8);
-  --! Maximum number of expected clock cycles for a frame to last
-  constant RX_CNT_MAX : integer := (HEADER_LENGTH + MAX_FRAME_SIZE) / 8 + 1;
+  --! Maximum number of expected clock cycles for a packet to last
+  constant RX_CNT_MAX : integer := (HEADER_LENGTH + MAX_PACKET_SIZE) / 8 + 1;
 
-  --! Frame word counter
+  --! Packet word counter
   signal rx_count_r : integer range 0 to RX_CNT_MAX;
 
   --! Condensed version of controls:
   --! - 11: valid
-  --! - 10: sof
-  --! - 9, 4: eof (now, next)
+  --! - 10: sop
+  --! - 9, 4: eop (now, next)
   --! - 8, 3: error (now, next)
   --! - 7 downto 5, 2 downto 0: empty (now, next)
 
@@ -100,7 +100,7 @@ architecture behavioral of trailer_module is
   --! Valid register
   signal valid_reg  : std_logic;
   --! Eof register
-  signal rx_eof_reg : std_logic;
+  signal rx_eop_reg : std_logic;
 
   --! Overflow indicator
 
@@ -148,20 +148,20 @@ begin
     tx_mux_reg2 when '1',
     (others => '0') when others;
 
-  --! Count the incoming data words (don't care about sof, that's handled by valid)
-  proc_rx_count_from_rx_sof : process (clk)
+  --! Count the incoming data words (don't care about sop, that's handled by valid)
+  proc_rx_count_from_rx_sop : process (clk)
   begin
     if rising_edge(clk) then
       if rst = '1' then
         rx_count_r <= 0;
       elsif tx_ready_i = '1' then
         -- default: shift flags and reset counter
-        rx_eof_reg <= rx_packet_i.eop;
+        rx_eop_reg <= rx_packet_i.eop;
         rx_of_reg  <= rx_overflow;
         rx_count_r <= 0;
 
-        -- reset overflow on eof(reg) of incoming packet
-        if rx_eof_reg = '1' then
+        -- reset overflow on eop(reg) of incoming packet
+        if rx_eop_reg = '1' then
           rx_overflow <= '0';
         elsif rx_packet_i.valid = '1' and rx_overflow = '0' then
           if rx_count_r < RX_CNT_MAX then
@@ -172,9 +172,9 @@ begin
         end if;
       end if;
     end if;
-  end process proc_rx_count_from_rx_sof;
+  end process proc_rx_count_from_rx_sop;
 
-  --! Generate end of frame indicators (eof, empty)
+  --! Generate end of packet indicators (eop, empty)
   --! @todo replace tx_data assignment by function (to prevent warning for BYTE_SHIFT = 8)
   proc_make_trailer : process (clk)
     variable empty  : signed(2 downto 0);
@@ -202,22 +202,22 @@ begin
 
         -- take care of the valid flag:
         -- the default is to derive it from the counter (the difference to DATA_START)
-        -- but if the eof (= ctrl(9)) has been set, the next is not valid
+        -- but if the eop (= ctrl(9)) has been set, the next is not valid
         -- (the avst interface foresees one empty clk between two packets
         diff := to_signed(DATA_START, 15) - to_signed(rx_count_r + 1, 15);
         ctrl(11)  <= not ctrl(9) and diff(diff'left);
-        -- register valid to determine sof
+        -- register valid to determine sop
         valid_reg <= ctrl(11);
 
         -- check on rising edge of overflow
         if rx_overflow = '1' and rx_of_reg = '0' then
-          -- indicate eof with error
+          -- indicate eop with error
           ctrl(11)         <= '1';
           ctrl(9 downto 5) <= "11000";
           ctrl(4 downto 0) <= (others => '0');
-        -- in the end: watch out for eof, empty and error
+        -- in the end: watch out for eop, empty and error
         elsif rx_packet_i.eop = '1' then
-          -- take care of the flags to be set at the end of a frame
+          -- take care of the flags to be set at the end of a packet
           -- according to the given numbers:
           --
           --    empty from shift and given rx_packet_i.empty
@@ -242,7 +242,7 @@ begin
     end if;
   end process proc_make_trailer;
 
-  -- independently, look for the sof flag: it's to be set only if the valid rises
+  -- independently, look for the sop flag: it's to be set only if the valid rises
   ctrl(10) <= not valid_reg and ctrl(11);
 
 end architecture behavioral;
