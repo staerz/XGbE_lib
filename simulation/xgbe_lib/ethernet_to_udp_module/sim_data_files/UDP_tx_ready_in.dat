@@ -4,19 +4,20 @@
 % decimal numbers
 
 % interrupt 1st UPD rx packet
-@27
-@31
+@1557
+@1561
 
 % interrupt 2nd UPD rx packet
-@45-52
+@1570
 
 % interrupt 3rd UPD rx packet
-@85-87
-@89
-
-% interrupt 4th UPD rx packet
-@103-106
-@109-114
+@1585-1587
+@1589
 
 % interrupt 5th UPD rx packet
-@131
+@1795-1797
+@1799
+
+% interrupt 6th UPD rx packet
+@1908-1911
+@1914-1919
