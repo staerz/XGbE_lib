@@ -234,6 +234,8 @@ architecture behavioral of ethernet_to_udp_module is
   signal udp_rx_ready_dhcp : std_logic;
   --! Internal UDP RX ready: udp_rx_ready_o is not ready unless IP address is configured
   signal udp_rx_ready      : std_logic;
+  --! UDP data that goes into the interface merger (from UDP module)
+  signal udp_rx_packet     : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
 
   --! UDP RX ID of IP module
   signal udp_to_ip_id   : std_logic_vector(15 downto 0);
@@ -442,12 +444,6 @@ begin
     status_vector_o => dhcp_status_vector
   );
 
-  -- block UDP RX interface when IP address is not properly configured
-  -- this allows exclusive access to the reco interface for the DHCP module during that time
-  with dhcp_status_vector(0) select udp_rx_ready_o <=
-    udp_rx_ready when '1',
-    '0' when others;
-
   -- switch recovery interface to ethernet module when not needed by dhcp module
   -- i.e. it's needed while requesting (= not while (bound or declining))
   with dhcp_status_vector(0) or dhcp_status_vector(6) select reco_en <=
@@ -489,6 +485,16 @@ begin
     udp_rx_id_i when '1',
     dhcp_udp_tx_id when others;
 
+  -- block UDP RX interface when IP address is not properly configured
+  -- this allows exclusive access to the reco interface for the DHCP module during that time
+  with dhcp_status_vector(0) select udp_rx_ready_o <=
+    udp_rx_ready when '1',
+    '0' when others;
+
+  with dhcp_status_vector(0) select udp_rx_packet <=
+    udp_rx_packet_i when '1',
+    (valid => '0', sop => '0', eop => '0', others => (others => '-')) when others;
+
   --! Instantiate the interface_merger to merge reply from dhcp_module and ARP RX interface
   inst_interface_merger : entity xgbe_lib.interface_merger
   port map (
@@ -502,7 +508,7 @@ begin
 
     -- avalon-st from second priority module
     avst2_rx_ready_o  => udp_rx_ready,
-    avst2_rx_packet_i => udp_rx_packet_i,
+    avst2_rx_packet_i => udp_rx_packet,
 
     -- avalon-st to outer module
     avst_tx_ready_i  => udp_to_ip_ready,
