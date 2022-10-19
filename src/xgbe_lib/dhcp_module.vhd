@@ -138,6 +138,9 @@ architecture behavioral of dhcp_module is
   --! @details In simulation we want the time to pass quickly!
   constant MSPERS : positive := ite(SIMULATION, 8, 1000);
 
+  --! Timer when a second is over (from counting ms)
+  signal second_tick : std_logic;
+
   --! @brief State definition of the DHCP module
   --! @details
   --! The following is Figure 5 (State-transition diagram for DHCP clients)
@@ -474,6 +477,18 @@ begin
     end if;
   end process proc_xid;
 
+  inst_second_tick : entity misc.counting
+  generic map (
+    COUNTER_MAX_VALUE => MSPERS
+  )
+  port map (
+    clk => clk,
+    rst => rst,
+    en  => one_ms_tick_i,
+
+    cycle_done => second_tick
+  );
+
   -- Transmitter part
   blk_make_tx_interface : block
     --! @brief State definition for the TX FSM
@@ -621,32 +636,13 @@ begin
     end generate gen_udp_crc;
 
     blk_secs : block
-      --! @name Counting 'seconds since DHCP request started'
-      --! @{
-
-      --! Reset of counters
-      signal cnt_rst     : std_logic;
-      --! Timer when a second is over (from counting ms)
-      signal second_tick : std_logic;
-
-      --! @}
+      --! Reset of secs counters
+      signal cnt_rst : std_logic;
     begin
 
       -- RFC 2131, page 37 has "seconds since DHCP process started"
       -- so we need a dedicated counter for this field, independent of the lease time calculation
       cnt_rst <= rst or send_dhcp_discover;
-
-      inst_second_tick : entity misc.counting
-      generic map (
-        COUNTER_MAX_VALUE => MSPERS
-      )
-      port map (
-        clk => clk,
-        rst => cnt_rst,
-        en  => one_ms_tick_i,
-
-        cycle_done => second_tick
-      );
 
       inst_secs : entity misc.counter
       generic map (
@@ -965,7 +961,35 @@ begin
         end if;
       end process proc_tx_state;
 
-      decline_sent <= '1' when tx_state = DHCP_DECLINE and last_tx_word = '1' else '0';
+      -- Implementing "The client SHOULD wait a minimum of ten seconds before restarting the configuration process"
+      blk_decline : block
+        signal seconds : std_logic_vector(3 downto 0);
+        signal cnt_rst : std_logic;
+      begin
+
+        -- Once the DECLINE packet is sent, we start the counter
+        cnt_rst <= '1' when tx_state = DHCP_DECLINE and last_tx_word = '1' else '0';
+
+        --! Counting of #seconds from #second_tick
+        inst_seconds : entity misc.counter
+        generic map (
+          COUNTER_MAX_VALUE => 2**(seconds'length) - 1
+        )
+        port map (
+          clk => clk,
+          rst => cnt_rst,
+          inc => second_tick,
+          dec => '0',
+
+          empty => open,
+          full  => open,
+          count => seconds
+        );
+
+        -- After 10 seconds we finally declare the decline state over
+        decline_sent <= '1' when to_integer(seconds) = 10 else '0';
+
+      end block blk_decline;
 
       --! Create udp_tx_id_o from udp_tx_id for a reply
       --! @todo This process can possibly be simplified as only in some special cases we do not (IP) broadcast.
@@ -1625,41 +1649,26 @@ begin
     --! @{
 
     --! Granted lease time in seconds
-    signal lease       : unsigned(32 downto 0);
+    signal lease   : unsigned(32 downto 0);
     --! Timer T1: Time until to request RENEWING
-    signal t1          : lease'subtype;
+    signal t1      : lease'subtype;
     --! Timer T2: Time until to request REBINDING
-    signal t2          : lease'subtype;
-    --! Timer when a second is over (from counting ms)
-    signal second_tick : std_logic;
+    signal t2      : lease'subtype;
     --! @brief Number of seconds since "the original request was sent"
     --! @details MUST fit the positive range but 8 bit is sufficient to span the time needed:
     --! Maximum re-requesting time is 64 seconds, so we have even 1 bit margin.
-    signal seconds     : std_logic_vector(7 downto 0);
+    signal seconds : std_logic_vector(7 downto 0);
 
     --! @}
   begin
 
-    -- To be sure to be independent, we re-implement a second time counter: secs /= least_time!
+    -- To be sure to be independent, we re-implement a second time counter: secs /= lease_time!
     -- count "seconds since DHCP request started"
     blk_seconds : block
       signal cnt_rst : std_logic;
     begin
 
       cnt_rst <= send_dhcp_request;
-
-      --! Creation of #second_tick from #one_ms_tick_i, reset by #send_dhcp_request
-      inst_second_tick : entity misc.counting
-      generic map (
-        COUNTER_MAX_VALUE => MSPERS
-      )
-      port map (
-        clk => clk,
-        rst => cnt_rst,
-        en  => one_ms_tick_i,
-
-        cycle_done => second_tick
-      );
 
       --! Counting of #seconds from #second_tick
       inst_seconds : entity misc.counter
