@@ -118,10 +118,8 @@ architecture tb of dhcp_module_tb is
   --! IP subnet mask
   signal ip_netmask : std_logic_vector(31 downto 0);
 
-  --! UDP TX ID (for IP module)
-  signal dhcp_tx_id : std_logic_vector(15 downto 0);
-  --! UDP RX ID (for IP module)
-  signal dhcp_rx_id : std_logic_vector(15 downto 0);
+  --! IP address to be used for transmitting DHCP packets
+  signal dhcp_server_ip : std_logic_vector(31 downto 0);
 
   --! Clock cycle when 1 millisecond is passed
   signal one_ms_tick : std_logic;
@@ -144,12 +142,11 @@ begin
     -- signals from dhcp requester
     dhcp_rx_ready_o  => dhcp_tx_ready,
     dhcp_rx_packet_i => dhcp_tx_packet,
-    udp_rx_id_i      => dhcp_tx_id,
 
     -- signals to dhcp requester
     dhcp_tx_ready_i  => dhcp_rx_ready,
     dhcp_tx_packet_o => dhcp_rx_packet,
-    udp_tx_id_o      => dhcp_rx_id,
+    dhcp_server_ip_o => dhcp_server_ip,
 
     -- interface for recovering mac address from given ip address
     reco_en_o   => reco_en,
@@ -166,8 +163,6 @@ begin
     -- status of the DHCP module, see definitions below
     status_vector_o => status_vector
   );
-
-  dhcp_tx_id <= dhcp_rx_id;
 
   proc_reco : process (clk)
   begin

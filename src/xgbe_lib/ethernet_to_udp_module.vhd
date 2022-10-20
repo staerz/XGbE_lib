@@ -237,10 +237,8 @@ architecture behavioral of ethernet_to_udp_module is
   --! UDP data that goes into the interface merger (from UDP module)
   signal udp_rx_packet     : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
 
-  --! UDP RX ID of IP module
-  signal udp_to_ip_id   : std_logic_vector(15 downto 0);
-  --! UDP TX ID of DHCP module
-  signal dhcp_udp_tx_id : std_logic_vector(15 downto 0);
+  --! IP address to be used for transmitting DHCP packets
+  signal dhcp_server_ip : std_logic_vector(31 downto 0);
 
   --! IP address
   signal my_ip_i      : std_logic_vector(31 downto 0);
@@ -394,7 +392,7 @@ begin
 
     udp_rx_ready_o  => udp_to_ip_ready,
     udp_rx_packet_i => udp_to_ip_packet,
-    udp_rx_id_i     => udp_to_ip_id,
+    udp_rx_id_i     => udp_rx_id_i,
 
     udp_tx_ready_i  => udp_tx_ready_ip,
     udp_tx_packet_o => udp_tx_packet_ip,
@@ -402,6 +400,8 @@ begin
 
     my_ip_i      => my_ip_i,
     ip_netmask_i => ip_netmask_i,
+
+    dhcp_server_ip_i => dhcp_server_ip,
 
     status_vector_o => ip_status_vector
   );
@@ -421,12 +421,11 @@ begin
     -- signals from dhcp requester
     dhcp_rx_ready_o  => udp_rx_ready_dhcp,
     dhcp_rx_packet_i => udp_tx_packet_o,
-    udp_rx_id_i      => udp_tx_id_o,
 
     -- signals to dhcp requester
     dhcp_tx_ready_i  => dhcp_tx_ready,
     dhcp_tx_packet_o => dhcp_tx_packet,
-    udp_tx_id_o      => dhcp_udp_tx_id,
+    dhcp_server_ip_o => dhcp_server_ip,
 
     -- interface for recovering mac address from given ip address
     reco_en_o   => reco_en_dhcp,
@@ -479,11 +478,6 @@ begin
     -- status of the module
     status_vector_o => open
   );
-
-  -- todo: the IDs could be merged via the interface merger by simply concatenating the data part of the interface
-  with im_status_vector(2) select udp_to_ip_id <=
-    udp_rx_id_i when '1',
-    dhcp_udp_tx_id when others;
 
   -- block UDP RX interface when IP address is not properly configured
   -- this allows exclusive access to the reco interface for the DHCP module during that time
