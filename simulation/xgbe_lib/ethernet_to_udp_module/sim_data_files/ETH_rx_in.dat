@@ -282,7 +282,7 @@ BEF0 0000 0000 0000
 % IP subnet mask (6) & Router IP (6)
 FFFF 0000 0304 C0A8
 % IP lease time (6)
-0101 3304 0000 0050
+0101 3304 0000 0020
 % DHCP server (6)
 3604 C0A8 0101 0608
 % DNS server (10)

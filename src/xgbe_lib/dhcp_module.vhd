@@ -74,8 +74,6 @@ entity dhcp_module is
     dhcp_rx_ready_o  : out   std_logic;
     --! RX data and controls
     dhcp_rx_packet_i : in    t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
-    --! RX packet ID (to restore IP address in IP module)
-    udp_rx_id_i      : in    std_logic_vector(15 downto 0);
     --! @}
 
     --! @name Avalon-ST to DHCP core
@@ -85,8 +83,8 @@ entity dhcp_module is
     dhcp_tx_ready_i  : in    std_logic;
     --! TX data and controls
     dhcp_tx_packet_o : out   t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
-    --! TX packet ID (to restore IP address in IP module)
-    udp_tx_id_o      : out   std_logic_vector(15 downto 0);
+    --! IP address to be used for transmitting DHCP packets
+    dhcp_server_ip_o : out   std_logic_vector(31 downto 0);
     --! @}
 
     --! @name Interface for recovering MAC address from given IP address
@@ -279,14 +277,6 @@ architecture behavioral of dhcp_module is
 
   --! XID used for client-server interaction
   signal xid : unsigned(31 downto 0);
-
-  --! @brief UDP packet ID from RX packets of IP module
-  --! @details
-  --! This is the way of the IP module to relate UDP replies to the
-  --! appropriate initial sender of a request.
-  signal udp_rx_id : std_logic_vector(15 downto 0);
-  --! UDP packet ID to be used for TX packets to IP module
-  signal udp_tx_id : std_logic_vector(15 downto 0);
 
   --! @}
 
@@ -991,23 +981,28 @@ begin
 
       end block blk_decline;
 
-      --! Create udp_tx_id_o from udp_tx_id for a reply
+      --! @brief Set dhcp_server_ip_o to unicast or broadcast according to specs
+      --! @brief See table 4 and section 4.4.4 of RFC2131
+      --! - DHCP_RELEASE uses unicast
+      --! - Request in RENEWING uses unicast (may use)
+      --! - DHCP_INFORM can unicast but must revert to broadcast if no reply
+      --! - In any other case, messages are broadcast
       --! @todo This process can possibly be simplified as only in some special cases we do not (IP) broadcast.
-      proc_set_udp_tx_id : process (clk)
+      proc_set_dhcp_server_ip : process (clk)
       begin
         if rising_edge(clk) then
           if send_dhcp_request = '1' or send_dhcp_decline = '1' then
             -- The protocol states that in rebinding, we must send a broadcast
-            if dhcp_state = REBINDING then
-              udp_tx_id_o <= (others => '0');
+            if dhcp_state = REBINDING or dhcp_state = REQUESTING then
+              dhcp_server_ip_o <= (others => '1');
             else
-              udp_tx_id_o <= udp_tx_id;
+              dhcp_server_ip_o <= serverid;
             end if;
           elsif send_dhcp_discover = '1' then
-            udp_tx_id_o <= (others => '0');
+            dhcp_server_ip_o <= (others => '1');
           end if;
         end if;
-      end process proc_set_udp_tx_id;
+      end process proc_set_dhcp_server_ip;
 
     end block blk_gen_tx_data;
 
@@ -1152,18 +1147,6 @@ begin
         end if;
       end if;
     end process proc_manage_rx_count_from_rx_sop;
-
-    --! Store the (permanently valid) UDP RX ID as a possible ID candidate for later re-usage
-    proc_save_udp_rx_id : process (clk)
-    begin
-      if rising_edge(clk) then
-        if rx_state = STORING_OPTS and dhcp_rx_packet_i.valid = '1' then
-          udp_rx_id <= udp_rx_id_i;
-        else
-          udp_rx_id <= udp_rx_id;
-        end if;
-      end if;
-    end process proc_save_udp_rx_id;
 
     --! @brief Storing the relevant data (yiaddr) from incoming DHCP packet blindly
     --! @details The fields `secs` and `ciaddr` are rather irrelevant.
@@ -1572,9 +1555,6 @@ begin
               serverid  <= dhcp_server_ip;
               -- TODO: check again if we have to calculate back to initial discover time ...
               leasetime <= dhcp_lease_time;
-
-              -- while IP address is not yet configured, we must use broadcast!
-              udp_tx_id <= (others => '0');
             end if;
           -- in case of an acknowledge
           elsif dhcp_rx_operation = x"5" then
@@ -1587,9 +1567,6 @@ begin
                 -- but this time finally get the lease time
                 leasetime <= dhcp_lease_time;
                 netmask   <= dhcp_netmask;
-
-                -- store the intermediate UPD RX ID for later re-usage in tx path
-                udp_tx_id <= udp_rx_id;
               end if;
 
               -- We may set the acknowledge only in RENEWING and REBINDING as for
