@@ -1367,13 +1367,11 @@ begin
         if rising_edge(clk) then
           if rx_state = STORING_OPTS then
             rx_data := (others => '0');
-            if to_integer(rx_packet_reg.empty) > 0 then
-              for i in rx_packet_reg.data'high downto 8 * to_integer(rx_packet_reg.empty) loop
-                rx_data(i) := rx_packet_reg.data(i);
-              end loop;
-            else
-              rx_data := rx_packet_reg.data;
-            end if;
+
+            -- vsg_off variable_assignment_004
+            rx_data(rx_packet_reg.data'high downto 8 * to_integer(rx_packet_reg.empty)) :=
+              rx_packet_reg.data(rx_packet_reg.data'high downto 8 * to_integer(rx_packet_reg.empty));
+            -- vsg_on variable_assignment_004
 
             dhcp_rx_options_fifo_din <= swap(rx_data, 8);
             dhcp_rx_options_fifo_wen <= '1';
