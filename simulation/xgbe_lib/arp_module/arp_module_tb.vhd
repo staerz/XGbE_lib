@@ -32,6 +32,8 @@ entity arp_module_tb is
     ARP_CHK_FILE      : string := "sim_data_files/ARP_tx_expect.dat";
     --! File containing counters on which a manual reset is carried out
     MNL_RST_FILE      : string := "sim_data_files/MNL_RST_in.dat";
+    --! File containing IP addresses to be recovered
+    RECO_FILE         : string := "sim_data_files/RECO_in.dat";
 
     --! Definition how many clock cycles a millisecond is
     ONE_MILLISECOND   : integer := 7;
@@ -76,7 +78,7 @@ architecture tb of arp_module_tb is
   --! Counter for the simulation
   signal cnt : integer;
   --! End of File indicators of all readers (data sources and checkers)
-  signal eof : std_logic_vector(1 downto 0);
+  signal eof : std_logic_vector(2 downto 0);
 
   --! @name Avalon-ST (ARP with Ethernet header) to module (read from file)
   --! @{
@@ -101,6 +103,8 @@ architecture tb of arp_module_tb is
   --! @name Interface for recovering MAC address from given IP address
   --! @{
 
+  --! Data read from file
+  signal reco      : t_avst_packet(data(31 downto 0), empty(1 downto 0), error(0 downto 0));
   --! Recovery enable
   signal reco_en   : std_logic;
   --! IP address to recover
@@ -145,8 +149,9 @@ begin
     reco_mac_o  => reco_mac,
     reco_done_o => reco_done,
 
-    my_mac_i => MY_MAC,
-    my_ip_i  => MY_IP,
+    my_mac_i      => MY_MAC,
+    my_ip_i       => MY_IP,
+    my_ip_valid_i => '1',
 
     one_ms_tick_i => one_ms_tick,
 
@@ -226,13 +231,28 @@ begin
       '1' when 0,
       '0' when others;
 
-    with cnt select reco_ip <=
-      x"C0_A8_00_23" when 100,
-      (others => '0') when others;
+    inst_reco : entity xgbe_lib.avst_packet_sender
+    generic map (
+      FILENAME      => RECO_FILE,
+      COMMENT_FLAG  => COMMENT_FLAG,
+      COUNTER_FLAG  => COUNTER_FLAG,
+      BITSPERWORD   => 8,
+      WORDSPERLINE  => 4,
+      BITSPERSYMBOL => 8
+    )
+    port map (
+      clk   => clk,
+      rst   => rst,
+      cnt_i => cnt,
 
-    with cnt select reco_en <=
-      '1' when 100,
-      '0' when others;
+      tx_ready_i  => '1',
+      tx_packet_o => reco,
+
+      eof_o => eof(2)
+    );
+
+    reco_ip <= reco.data;
+    reco_en <= reco.sop;
 
   end block blk_simulation;
 

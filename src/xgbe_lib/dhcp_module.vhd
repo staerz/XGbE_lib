@@ -56,9 +56,7 @@ entity dhcp_module is
     --! If disabled, the check sum calculation is omitted
     --! and the UDP CRC field set to `x"0000"`.
     --! @todo CRC calculation is currently not implemented.
-    UDP_CRC_EN   : boolean                 := true;
-    --! Timeout in milliseconds
-    DHCP_TIMEOUT : integer range 2 to 1000 := 50
+    UDP_CRC_EN : boolean := true
   );
   port (
     --! Clock
@@ -76,8 +74,6 @@ entity dhcp_module is
     dhcp_rx_ready_o  : out   std_logic;
     --! RX data and controls
     dhcp_rx_packet_i : in    t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
-    --! RX packet ID (to restore IP address in IP module)
-    udp_rx_id_i      : in    std_logic_vector(15 downto 0) := (others => '0');
     --! @}
 
     --! @name Avalon-ST to DHCP core
@@ -87,8 +83,21 @@ entity dhcp_module is
     dhcp_tx_ready_i  : in    std_logic;
     --! TX data and controls
     dhcp_tx_packet_o : out   t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
-    --! TX packet ID (to restore IP address in IP module)
-    udp_tx_id_o      : out   std_logic_vector(15 downto 0);
+    --! IP address to be used for transmitting DHCP packets
+    dhcp_server_ip_o : out   std_logic_vector(31 downto 0);
+    --! @}
+
+    --! @name Interface for recovering MAC address from given IP address
+    --! @{
+
+    --! Recovery enable
+    reco_en_o        : out   std_logic;
+    --! IP address to recover
+    reco_ip_o        : out   std_logic_vector(31 downto 0);
+    --! Recovery success: 1 = found, 0 = not found (time out)
+    reco_done_i      : in    std_logic;
+    --! Failed to recovered MAC address
+    reco_fail_i      : in    std_logic;
     --! @}
 
     --! MAC address of the module
@@ -103,13 +112,14 @@ entity dhcp_module is
 
     --! @brief Status of the module
     --! @details Status of the module
-    --! - 5 : request timeout
-    --! - 4 : discover timeout
-    --! - 3 : lease expired
-    --! - 2 : t2_expired
-    --! - 1 : t1_expired
-    --! - 0 : IP address configured (DHCP module in BOUND or RENEWING state)
-    status_vector_o  : out   std_logic_vector(5 downto 0)
+    --! - 6: declining offered IP address
+    --! - 5: request timeout
+    --! - 4: discover timeout
+    --! - 3: lease expired
+    --! - 2: t2_expired
+    --! - 1: t1_expired
+    --! - 0: IP address configured (DHCP module in BOUND or RENEWING state)
+    status_vector_o  : out   std_logic_vector(6 downto 0)
   );
 end entity dhcp_module;
 
@@ -125,6 +135,9 @@ architecture behavioral of dhcp_module is
   --! @brief Number of milliseconds per second
   --! @details In simulation we want the time to pass quickly!
   constant MSPERS : positive := ite(SIMULATION, 8, 1000);
+
+  --! Timer when a second is over (from counting ms)
+  signal second_tick : std_logic;
 
   --! @brief State definition of the DHCP module
   --! @details
@@ -176,7 +189,16 @@ architecture behavioral of dhcp_module is
   --!                             |          |----------------------------+
   --!                              ----------
   --! @endcode
-  type t_dhcp_state is (INIT, INIT_REBOOT, REBOOTING, SELECTING, REQUESTING, DECLINING, REBINDING, BOUND, RENEWING);
+  --!
+  --! Two additional states are introduced in order to implement the SHOULD
+  --! checking of the IP address provided by the DHCP server:
+  --! - CHECKING:
+  --!    - Invokes ARP to test the availability of the provided IP
+  --!    - Transitions to DECLINING if already in use, else to BOUND
+  --! - DECLINING:
+  --!    - Sends the DECLINE message and waits for 10 seconds
+  --!    - Transitions to INIT
+  type t_dhcp_state is (INIT, INIT_REBOOT, REBOOTING, SELECTING, REQUESTING, CHECKING, DECLINING, REBINDING, BOUND, RENEWING);
 
   --! State of the TX FSM
 
@@ -228,10 +250,13 @@ architecture behavioral of dhcp_module is
 
   --! DHCP offer selected (while in SELECTING)
   signal dhcp_offer_selected : std_logic;
-  --! DHCP acknowledge received (while in REQUESTING, RENEWING, REBINDING, REBOOTING)
+  --! DHCP acknowledge received (while in REQUESTING)
+  signal dhcp_preacknowledge : std_logic;
+  --! DHCP acknowledge received (while in RENEWING, REBINDING, REBOOTING)
+  --! or after checking dhcp_preacknowledge from REQUESTING for IP address
   signal dhcp_acknowledge    : std_logic;
-  --! Filter on accepting acknowledged config (while in REQESTING)
-  signal dhcp_accept         : std_logic;
+  --! Registered reco_done_i
+  signal reco_done           : std_logic;
   --! Timeout from REQUESTING to fall back to INIT (after timeout + margin for possible reply)
   signal dhcp_timedout       : std_logic;
   --! DHCP decline message sent
@@ -252,14 +277,6 @@ architecture behavioral of dhcp_module is
 
   --! XID used for client-server interaction
   signal xid : unsigned(31 downto 0);
-
-  --! @brief UDP packet ID from RX packets of IP module
-  --! @details
-  --! This is the way of the IP module to relate UDP replies to the
-  --! appropriate initial sender of a request.
-  signal udp_rx_id : std_logic_vector(15 downto 0);
-  --! UDP packet ID to be used for TX packets to IP module
-  signal udp_tx_id : std_logic_vector(15 downto 0);
 
   --! @}
 
@@ -307,19 +324,12 @@ begin
                 send_dhcp_discover <= '1';
               end if;
 
-              --dhcp_state <= INIT;
               dhcp_state <= SELECTING;
             end if;
 
           when REQUESTING =>
-            if dhcp_acknowledge = '1' then
-              if dhcp_accept = '1' then
-                dhcp_state <= BOUND;
-              else
-                dhcp_state <= DECLINING;
-
-                send_dhcp_decline <= '1';
-              end if;
+            if dhcp_preacknowledge = '1' then
+              dhcp_state <= CHECKING;
             elsif dhcp_nack = '1' or dhcp_timedout = '1' then
               dhcp_state <= INIT;
             else
@@ -330,6 +340,19 @@ begin
               end if;
 
               dhcp_state <= REQUESTING;
+            end if;
+
+          when CHECKING =>
+            if reco_done = '1' then
+              if dhcp_acknowledge = '1' then
+                dhcp_state <= BOUND;
+              else
+                dhcp_state <= DECLINING;
+
+                send_dhcp_decline <= '1';
+              end if;
+            else
+              dhcp_state <= CHECKING;
             end if;
 
           when DECLINING =>
@@ -405,9 +428,14 @@ begin
     end if;
   end process proc_dhcp_state;
 
-  -- indicate dhcp_state to status_vector
+  -- indicate dhcp bound-ish state to status_vector
   with dhcp_state select status_vector_o(0) <=
     '1' when BOUND | RENEWING,
+    '0' when others;
+
+  -- indicate dhcp decline state to status_vector
+  with dhcp_state select status_vector_o(6) <=
+    '1' when DECLINING,
     '0' when others;
 
   --! @brief Create a new xid for every new request
@@ -438,6 +466,18 @@ begin
       end if;
     end if;
   end process proc_xid;
+
+  inst_second_tick : entity misc.counting
+  generic map (
+    COUNTER_MAX_VALUE => MSPERS
+  )
+  port map (
+    clk => clk,
+    rst => rst,
+    en  => one_ms_tick_i,
+
+    cycle_done => second_tick
+  );
 
   -- Transmitter part
   blk_make_tx_interface : block
@@ -546,9 +586,6 @@ begin
     --! Place holder for DHCP options, filled in from options FIFO
     signal dhcp_options : std_logic_vector(63 downto 0);
 
-    --! Register to temporarily store target MAC, used in TX path only and fed by FIFO
-    signal config_tg_mac : std_logic_vector(47 downto 0);
-
     --! Counter for outgoing DHCP response packet
     signal tx_count : integer range 0 to 63;
 
@@ -589,32 +626,13 @@ begin
     end generate gen_udp_crc;
 
     blk_secs : block
-      --! @name Counting 'seconds since DHCP request started'
-      --! @{
-
-      --! Reset of counters
-      signal cnt_rst     : std_logic;
-      --! Timer when a second is over (from counting ms)
-      signal second_tick : std_logic;
-
-      --! @}
+      --! Reset of secs counters
+      signal cnt_rst : std_logic;
     begin
 
       -- RFC 2131, page 37 has "seconds since DHCP process started"
       -- so we need a dedicated counter for this field, independent of the lease time calculation
       cnt_rst <= rst or send_dhcp_discover;
-
-      inst_second_tick : entity misc.counting
-      generic map (
-        COUNTER_MAX_VALUE => MSPERS
-      )
-      port map (
-        clk => clk,
-        rst => cnt_rst,
-        en  => one_ms_tick_i,
-
-        cycle_done => second_tick
-      );
 
       inst_secs : entity misc.counter
       generic map (
@@ -880,7 +898,7 @@ begin
         if rising_edge(clk) then
           if (rst = '1') then
             tx_state <= IDLE;
-          elsif dhcp_tx_ready_i = '1' then
+          else
 
             case tx_state is
 
@@ -933,25 +951,58 @@ begin
         end if;
       end process proc_tx_state;
 
-      decline_sent <= '1' when tx_state = DHCP_DECLINE and last_tx_word = '1' else '0';
+      -- Implementing "The client SHOULD wait a minimum of ten seconds before restarting the configuration process"
+      blk_decline : block
+        signal seconds : std_logic_vector(3 downto 0);
+        signal cnt_rst : std_logic;
+      begin
 
-      --! Create udp_tx_id_o from udp_tx_id for a reply
+        -- Once the DECLINE packet is sent, we start the counter
+        cnt_rst <= '1' when tx_state = DHCP_DECLINE and last_tx_word = '1' else '0';
+
+        --! Counting of #seconds from #second_tick
+        inst_seconds : entity misc.counter
+        generic map (
+          COUNTER_MAX_VALUE => 2**(seconds'length) - 1
+        )
+        port map (
+          clk => clk,
+          rst => cnt_rst,
+          inc => second_tick,
+          dec => '0',
+
+          empty => open,
+          full  => open,
+          count => seconds
+        );
+
+        -- After 10 seconds we finally declare the decline state over
+        decline_sent <= '1' when to_integer(seconds) = 10 else '0';
+
+      end block blk_decline;
+
+      --! @brief Set dhcp_server_ip_o to unicast or broadcast according to specs
+      --! @brief See table 4 and section 4.4.4 of RFC2131
+      --! - DHCP_RELEASE uses unicast
+      --! - Request in RENEWING uses unicast (may use)
+      --! - DHCP_INFORM can unicast but must revert to broadcast if no reply
+      --! - In any other case, messages are broadcast
       --! @todo This process can possibly be simplified as only in some special cases we do not (IP) broadcast.
-      proc_set_udp_tx_id : process (clk)
+      proc_set_dhcp_server_ip : process (clk)
       begin
         if rising_edge(clk) then
           if send_dhcp_request = '1' or send_dhcp_decline = '1' then
             -- The protocol states that in rebinding, we must send a broadcast
-            if dhcp_state = REBINDING then
-              udp_tx_id_o <= (others => '0');
+            if dhcp_state = REBINDING or dhcp_state = REQUESTING then
+              dhcp_server_ip_o <= (others => '1');
             else
-              udp_tx_id_o <= udp_tx_id;
+              dhcp_server_ip_o <= serverid;
             end if;
           elsif send_dhcp_discover = '1' then
-            udp_tx_id_o <= (others => '0');
+            dhcp_server_ip_o <= (others => '1');
           end if;
         end if;
-      end process proc_set_udp_tx_id;
+      end process proc_set_dhcp_server_ip;
 
     end block blk_gen_tx_data;
 
@@ -1031,9 +1082,6 @@ begin
     --! States of the RX FSM
     signal rx_state : t_rx_state;
 
-    --! DHCP package type
-    signal rx_type : std_logic_vector(3 downto 0);
-
     --! Internal ready signal
     signal dhcp_rx_ready_i : std_logic;
 
@@ -1099,18 +1147,6 @@ begin
         end if;
       end if;
     end process proc_manage_rx_count_from_rx_sop;
-
-    --! Store the (permanently valid) UDP RX ID as a possible ID candidate for later re-usage
-    proc_save_udp_rx_id : process (clk)
-    begin
-      if rising_edge(clk) then
-        if rx_state = STORING_OPTS and dhcp_rx_packet_i.valid = '1' then
-          udp_rx_id <= udp_rx_id_i;
-        else
-          udp_rx_id <= udp_rx_id;
-        end if;
-      end if;
-    end process proc_save_udp_rx_id;
 
     --! @brief Storing the relevant data (yiaddr) from incoming DHCP packet blindly
     --! @details The fields `secs` and `ciaddr` are rather irrelevant.
@@ -1331,13 +1367,11 @@ begin
         if rising_edge(clk) then
           if rx_state = STORING_OPTS then
             rx_data := (others => '0');
-            if to_integer(rx_packet_reg.empty) > 0 then
-              for i in rx_packet_reg.data'high downto 8 * to_integer(rx_packet_reg.empty) loop
-                rx_data(i) := rx_packet_reg.data(i);
-              end loop;
-            else
-              rx_data := rx_packet_reg.data;
-            end if;
+
+            -- vsg_off variable_assignment_004
+            rx_data(rx_packet_reg.data'high downto 8 * to_integer(rx_packet_reg.empty)) :=
+              rx_packet_reg.data(rx_packet_reg.data'high downto 8 * to_integer(rx_packet_reg.empty));
+            -- vsg_on variable_assignment_004
 
             dhcp_rx_options_fifo_din <= swap(rx_data, 8);
             dhcp_rx_options_fifo_wen <= '1';
@@ -1483,19 +1517,6 @@ begin
     end block blk_dhcp_rx_options_fifo_handler;
 
     --! @brief Finally evaluate the received packet once parsing is done
-    --! @todo 4.4.1:
-    --! The client SHOULD perform a
-    --! check on the suggested address to ensure that the address is not
-    --! already in use.  For example, if the client is on a network that
-    --! supports ARP, the client may issue an ARP request for the suggested
-    --! request.When broadcasting an ARP request for the suggested address,
-    --! the client must fill in its own hardware address as the sender's
-    --! hardware address, and 0 as the sender's IP address, to avoid
-    --! confusing ARP caches in other hosts on the same subnet.  If the
-    --! network address appears to be in use, the client MUST send a
-    --! DHCPDECLINE message to the server.The client SHOULD broadcast an ARP
-    --! reply to announce the client's new IP address and clear any outdated
-    --! ARP cache entries in hosts on the client's subnet.
     proc_evaluate_rx_packet : process (clk)
     begin
       if rising_edge(clk) then
@@ -1504,10 +1525,19 @@ begin
         -- this is needed for retransmission of the request message (re-looping once to state SELECTING)
         dhcp_offer_selected <= '0' when dhcp_state = INIT;
 
-        dhcp_acknowledge <= '0';
-        dhcp_nack        <= '0';
+        dhcp_preacknowledge <= '0';
+        dhcp_acknowledge    <= '0';
+        dhcp_nack           <= '0';
 
-        if parse_options_done = '1' then
+        reco_en_o <= '0';
+        reco_ip_o <= (others => '0');
+        reco_done <= reco_done_i;
+
+        -- Once recovery is done, we evaluate failure of reconstruction as success in configuration
+        if dhcp_state = CHECKING and reco_done_i = '1' then
+          dhcp_acknowledge <= reco_fail_i;
+        -- but by default we're here to parse options
+        elsif parse_options_done = '1' then
           -- check (relevant) DHCP message type:
           --   2: DHCPOFFER
           --   5: DHCPACK
@@ -1523,9 +1553,6 @@ begin
               serverid  <= dhcp_server_ip;
               -- TODO: check again if we have to calculate back to initial discover time ...
               leasetime <= dhcp_lease_time;
-
-              -- while IP address is not yet configured, we must use broadcast!
-              udp_tx_id <= (others => '0');
             end if;
           -- in case of an acknowledge
           elsif dhcp_rx_operation = x"5" then
@@ -1534,28 +1561,23 @@ begin
             if offered_yiaddr = yourid then
               -- we finally have an acknowledge from the server we requested
               if dhcp_state = REQUESTING or dhcp_state = RENEWING or dhcp_state = REBINDING then
-                dhcp_acknowledge <= '1';
-
                 -- no need to re-extract yourid, we just checked it to be the same ...
                 -- but this time finally get the lease time
                 leasetime <= dhcp_lease_time;
                 netmask   <= dhcp_netmask;
-
-                -- store the intermediate UPD RX ID for later re-usage in tx path
-                udp_tx_id <= udp_rx_id;
               end if;
 
+              -- We may set the acknowledge only in RENEWING and REBINDING as for
+              -- REQUESTING the ARP check needs to kick in:
               if dhcp_state = REQUESTING then
-                -- note that this is where actually the ARP check should kick in and the client should
-                -- ultimately check if the IP address is already in use to possibly send a DECLINE
-                --
-                -- so for now we simply do
-                -- some (arbitrary) IP accept criteria when initially accepting the IP:
-                if offered_yiaddr(31 downto 24) = x"FF" then
-                  dhcp_accept <= '0';
-                else
-                  dhcp_accept <= '1';
-                end if;
+                -- we try to reconstruct the offered IP address
+                -- (and evaluate it in proc_check_offered_ip)
+                reco_en_o <= '1';
+                reco_ip_o <= offered_yiaddr;
+
+                dhcp_preacknowledge <= '1';
+              else
+                dhcp_acknowledge <= '1';
               end if;
             end if;
           -- in case of not acknowledge
@@ -1602,41 +1624,26 @@ begin
     --! @{
 
     --! Granted lease time in seconds
-    signal lease       : unsigned(32 downto 0);
+    signal lease   : unsigned(32 downto 0);
     --! Timer T1: Time until to request RENEWING
-    signal t1          : lease'subtype;
+    signal t1      : lease'subtype;
     --! Timer T2: Time until to request REBINDING
-    signal t2          : lease'subtype;
-    --! Timer when a second is over (from counting ms)
-    signal second_tick : std_logic;
+    signal t2      : lease'subtype;
     --! @brief Number of seconds since "the original request was sent"
     --! @details MUST fit the positive range but 8 bit is sufficient to span the time needed:
     --! Maximum re-requesting time is 64 seconds, so we have even 1 bit margin.
-    signal seconds     : std_logic_vector(7 downto 0);
+    signal seconds : std_logic_vector(7 downto 0);
 
     --! @}
   begin
 
-    -- To be sure to be independent, we re-implement a second time counter: secs /= least_time!
+    -- To be sure to be independent, we re-implement a second time counter: secs /= lease_time!
     -- count "seconds since DHCP request started"
     blk_seconds : block
       signal cnt_rst : std_logic;
     begin
 
       cnt_rst <= send_dhcp_request;
-
-      --! Creation of #second_tick from #one_ms_tick_i, reset by #send_dhcp_request
-      inst_second_tick : entity misc.counting
-      generic map (
-        COUNTER_MAX_VALUE => MSPERS
-      )
-      port map (
-        clk => clk,
-        rst => cnt_rst,
-        en  => one_ms_tick_i,
-
-        cycle_done => second_tick
-      );
 
       --! Counting of #seconds from #second_tick
       inst_seconds : entity misc.counter

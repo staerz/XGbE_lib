@@ -390,9 +390,17 @@ begin
 
             when IDLE =>
               if ip_tx_ready_r = '1' and tx_count = 2 then
-                reco_en_o     <= '1';
-                reco_ip_o     <= ip_rx_packet_i.data(63 downto 32);
-                request_state <= WAITING;
+                -- treat special case of IP broadcast:
+                -- it can only come from a DHCP package and we cannot use the ARP table yet
+                -- as it is reserved for the DHCP module until an IP address is configured
+                if ip_rx_packet_i.data(63 downto 32) = x"FF_FF_FF_FF" then
+                  mac_dst_addr  <= MAC_BROADCAST_ADDR;
+                  request_state <= IDLE;
+                else
+                  reco_en_o     <= '1';
+                  reco_ip_o     <= ip_rx_packet_i.data(63 downto 32);
+                  request_state <= WAITING;
+                end if;
               else
                 request_state <= IDLE;
               end if;

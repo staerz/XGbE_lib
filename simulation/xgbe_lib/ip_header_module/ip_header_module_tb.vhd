@@ -69,9 +69,11 @@ architecture tb of ip_header_module_tb is
   --! @{
 
   --! TX ready
-  signal udp_tx_ready  : std_logic;
+  signal udp_tx_ready   : std_logic;
   --! TX data and controls
-  signal udp_tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal udp_tx_packet  : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  --! IP address to be used for transmitting DHCP packets
+  signal dhcp_server_ip : std_logic_vector(31 downto 0);
 
   --! @}
 
@@ -119,8 +121,9 @@ begin
     rst => rst,
 
     -- Avalon-ST RX interface
-    udp_rx_ready_o  => udp_tx_ready,
-    udp_rx_packet_i => udp_tx_packet,
+    udp_rx_ready_o   => udp_tx_ready,
+    udp_rx_packet_i  => udp_tx_packet,
+    dhcp_server_ip_i => dhcp_server_ip,
 
     -- Avalon-ST TX interface
     ip_tx_ready_i  => ip_rx_ready,

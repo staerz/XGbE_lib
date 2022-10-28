@@ -69,9 +69,9 @@ entity arp_module is
     reco_en_i       : in    std_logic;
     --! IP address to recover
     reco_ip_i       : in    std_logic_vector(31 downto 0);
-    --! Recovered MAC address
+    --! Recovered MAC address (MAC_BROADCAST_ADDR upon timeout)
     reco_mac_o      : out   std_logic_vector(47 downto 0);
-    --! Recovery success: 1 = found, 0 = not found (time out)
+    --! Recovery done indicator: 1 = found or timeout
     reco_done_o     : out   std_logic;
     --! @}
 
@@ -79,6 +79,8 @@ entity arp_module is
     my_mac_i        : in    std_logic_vector(47 downto 0);
     --! IP address of the module
     my_ip_i         : in    std_logic_vector(31 downto 0);
+    --! Valid indicator of the IP address of the module
+    my_ip_valid_i   : in    std_logic;
 
     --! Clock cycle when 1 millisecond is passed
     one_ms_tick_i   : in    std_logic;
@@ -489,7 +491,9 @@ begin
     --! @}
 
     --! Control for retrieving ARP target (requester) and storing data - may be optimized away
-    signal config_tg_en : std_logic;
+    signal config_tg_en   : std_logic;
+    --! Indicator when to launch an ARP "inform" packet
+    signal my_ip_announce : std_logic;
   begin
 
     status_vector_o(2) <= '1' when rx_state = STORING_TG else '0';
@@ -555,11 +559,27 @@ begin
     -- eventually enable data storing and make blindly stored data permanent
     config_tg_en <= '1' when rx_state = STORING_TG else '0';
 
-    -- writing the extracted values to the FIFO
+    --! Convert correct configuration indicator to one-hot to trigger ARP inform from it
+    inst_my_ip_announce : entity misc.hilo_detect
+    generic map (
+      LOHI => true
+    )
+    port map (
+      clk     => clk,
+      sig_in  => my_ip_valid_i,
+      sig_out => my_ip_announce
+    );
+
+    --! Writing ARP identifiers to the FIFO
     proc_fifo_writer : process (clk)
     begin
       if rising_edge(clk) then
-        if config_tg_en = '1' and rx_type = '1' then
+        -- write broadcast data (to announce own IP to everyone)
+        if my_ip_announce = '1' then
+          arp_fifo_din <= (others => '1');
+          arp_fifo_wen <= '1';
+        -- write extracted values from RX packet (to reply to request)
+        elsif config_tg_en = '1' and rx_type = '1' then
           arp_fifo_din <= rx_data_copy_tg_mac & rx_data_copy_tg_ip;
           arp_fifo_wen <= '1';
         else
@@ -650,7 +670,12 @@ begin
             -- store source MAC and IP
             -- may only be assigned for one clk
             when STORING_TG =>
-              rx_state <= SKIP;
+              -- or twice in a row as IP announcement has prio!
+              if my_ip_announce = '1' then
+                rx_state <= STORING_TG;
+              else
+                rx_state <= SKIP;
+              end if;
 
             -- just let pass all other data
             -- new HEADER state is captured by reset condition of FSM

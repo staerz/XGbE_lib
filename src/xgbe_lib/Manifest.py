@@ -18,6 +18,7 @@ files = [
   "arp_module.vhd",
   "dhcp_module.vhd",
   "interface_merger.vhd",
+  "interface_splitter.vhd",
   "trailer_module.vhd",
   "rx_fifo_module.vhd",
   "icmp_module.vhd",
