@@ -1,0 +1,9 @@
+@55
+C0 A8 06 03 00 1
+
+% we need at least 3 counts distance to make that work
+@58
+C0 A8 00 03 00 1
+
+@100
+C0 A8 00 23 00 1

@@ -12,19 +12,19 @@ containing data
 % input data: any UDP data
 
 % short well formatted packet without CRC
-@ 100
-% reply to @ 20 of IP data
+@ 1600
+% reply to @ 1545 of IP data
 0001 a191 000c 0000
 2000 00f0 1234 0110 100 0
 
 % short well formatted packet with correct CRC
-@ 105
-% reply to @ 40 of IP data
+@ 1605
+% reply to @ 1240 of IP data
 0002 a192 000c effe
 1000 0001 0000 0001 100 0
 
 % short well formatted packet with wrong CRC
-@ 135
+@ 1635
 0001 a192 000c 1234
 1000 0001 0000 0001 100 0
 % this fault is currently not spotted!
@@ -32,13 +32,13 @@ containing data
 
 % short packet with good CRC but wrong length indication
 % launch exactly when ICMP module starts answering to provoke a crash
-@ 333
+@ 1833
 0002 a193 000b eefe
 1112 3456 7890 abcd 111 0
 % this fault is spotted
 
 % long packet with wrong CRC and wrong length indication
-@ 400
+@ 1900
 0002 a194 000c effe
 0000 0018 1000 0001
 2000 0002 3000 0003
@@ -55,13 +55,13 @@ containing data
 2400 0024 ffff ffff 100 0
 
 % short well formatted packet with correct CRC
-@ 425
+@ 1925
 0002 a192 000c effe
 1000 0001 0000 0000 100 0
 
 % again the same short well formatted packet with correct CRC
 % to check what happens if ID is not found (should be 6 or so now)
-@ 435
+@ 1935
 0002 a192 000c effe
 1000 0001 0000 0000 100 0
 

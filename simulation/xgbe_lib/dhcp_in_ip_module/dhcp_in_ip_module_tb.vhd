@@ -45,9 +45,7 @@ entity dhcp_in_ip_module_tb is
     MY_MAC         : std_logic_vector(47 downto 0) := x"00_22_8F_02_41_EE";
 
     --! Post-UDP-module UDP CRC calculation
-    UDP_CRC_EN     : boolean                 := false;
-    --! Timeout in milliseconds
-    DHCP_TIMEOUT   : integer range 2 to 1000 := 10;
+    UDP_CRC_EN     : boolean := false;
 
     --! Enable IP address filtering
     IP_FILTER_EN   : std_logic               := '1';
@@ -131,6 +129,19 @@ architecture tb of dhcp_in_ip_module_tb is
 
   --! @}
 
+  --! @name Interface for recovering MAC address from given IP address
+  --! @{
+
+  --! Recovery enable to ARP module
+  signal reco_en   : std_logic;
+  --! IP address to recover to ARP module
+  signal reco_ip   : std_logic_vector(31 downto 0);
+  --! Recovery done indicator: 1 = found or timeout
+  signal reco_done : std_logic;
+  --! recovery failure: 1 = not found (time out), 0 = found
+  signal reco_fail : std_logic;
+  --! @}
+
   --! @name Configuration of the module
   --! @{
   --! Assigned (retrieved) IP address
@@ -139,6 +150,9 @@ architecture tb of dhcp_in_ip_module_tb is
   signal ip_netmask : std_logic_vector(31 downto 0);
   --! @}
 
+  --! IP address to be used for transmitting DHCP packets
+  signal dhcp_server_ip : std_logic_vector(31 downto 0);
+
   --! Clock cycle when 1 millisecond is passed
   signal one_ms_tick : std_logic;
 
@@ -146,15 +160,14 @@ architecture tb of dhcp_in_ip_module_tb is
   signal status_vector_ip : std_logic_vector(12 downto 0);
 
   --! Status of the DHCP module
-  signal status_vector_dhcp : std_logic_vector(5 downto 0);
+  signal status_vector_dhcp : std_logic_vector(6 downto 0);
 
 begin
 
   --! Instantiate the primary Unit Under Test (UUT): DHCP module
   uut1 : entity xgbe_lib.dhcp_module
   generic map (
-    UDP_CRC_EN   => UDP_CRC_EN,
-    DHCP_TIMEOUT => DHCP_TIMEOUT
+    UDP_CRC_EN => UDP_CRC_EN
   )
   port map (
     clk    => clk,
@@ -164,12 +177,17 @@ begin
     -- signals from dhcp requester
     dhcp_rx_ready_o  => udp_tx_ready,
     dhcp_rx_packet_i => udp_tx_packet,
-    udp_rx_id_i      => udp_tx_id,
+    dhcp_server_ip_o => dhcp_server_ip,
 
     -- signals to dhcp requester
     dhcp_tx_ready_i  => udp_rx_ready,
     dhcp_tx_packet_o => udp_rx_packet,
-    udp_tx_id_o      => udp_rx_id,
+
+    -- interface for recovering mac address from given ip address
+    reco_en_o   => reco_en,
+    reco_ip_o   => reco_ip,
+    reco_done_i => reco_done,
+    reco_fail_i => reco_fail,
 
     my_mac_i     => MY_MAC,
     my_ip_o      => my_ip,
@@ -180,6 +198,19 @@ begin
     -- status of the DHCP module, see definitions below
     status_vector_o => status_vector_dhcp
   );
+
+  proc_reco : process (clk)
+  begin
+    if rising_edge(clk) then
+      if reco_en = '1' then
+        reco_done <= '1';
+        reco_fail <= '1';
+      else
+        reco_done <= '0';
+        reco_fail <= '0';
+      end if;
+    end if;
+  end process proc_reco;
 
   --! Instantiate the secondary Unit Under Test (UUT): IP module
   uut2 : entity xgbe_lib.ip_module
@@ -210,6 +241,8 @@ begin
 
     my_ip_i      => my_ip,
     ip_netmask_i => ip_netmask,
+
+    dhcp_server_ip_i => dhcp_server_ip,
 
     status_vector_o => status_vector_ip
   );

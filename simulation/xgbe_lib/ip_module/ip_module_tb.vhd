@@ -135,8 +135,11 @@ architecture tb of ip_module_tb is
   signal my_ip      : std_logic_vector(31 downto 0) := x"c0_a8_00_1e";
   --! IP subnet mask
   signal ip_netmask : std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
-  -- vsg_on signal_007
   --! @}
+
+  --! IP address to be used for transmitting DHCP packets
+  signal dhcp_server_ip : std_logic_vector(31 downto 0) := (others => '0');
+  -- vsg_on signal_007
 
   --! Status of the module
   signal status_vector : std_logic_vector(12 downto 0);
@@ -172,6 +175,8 @@ begin
 
     my_ip_i      => my_ip,
     ip_netmask_i => ip_netmask,
+
+    dhcp_server_ip_i => dhcp_server_ip,
 
     status_vector_o => status_vector
   );

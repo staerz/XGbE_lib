@@ -36,53 +36,55 @@ entity ip_header_module is
   );
   port (
     --! Clock
-    clk             : in    std_logic;
+    clk              : in    std_logic;
     --! Reset, sync with #clk
-    rst             : in    std_logic;
+    rst              : in    std_logic;
 
     --! @name Avalon-ST from UDP module
     --! @{
 
     --! RX ready
-    udp_rx_ready_o  : out   std_logic;
+    udp_rx_ready_o   : out   std_logic;
     --! RX data and controls
-    udp_rx_packet_i : in    t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+    udp_rx_packet_i  : in    t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+    --! IP address to be used for transmitting DHCP packets
+    dhcp_server_ip_i : in    std_logic_vector(31 downto 0);
     --! @}
 
     --! @name Avalon-ST to IP module
     --! @{
 
     --! TX ready
-    ip_tx_ready_i   : in    std_logic;
+    ip_tx_ready_i    : in    std_logic;
     --! TX data and controls
-    ip_tx_packet_o  : out   t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+    ip_tx_packet_o   : out   t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! @}
 
     --! @name Interface for recovering IP address from given UDP port
     --! @{
 
     --! Recovery enable
-    reco_en_o       : out   std_logic;
+    reco_en_o        : out   std_logic;
     --! Recovery success indicator
-    reco_ip_found_i : in    std_logic;
+    reco_ip_found_i  : in    std_logic;
     --! Recovered IP address
-    reco_ip_i       : in    std_logic_vector(31 downto 0);
+    reco_ip_i        : in    std_logic_vector(31 downto 0);
     --! @}
 
     --! @name Configuration of the module
     --! @{
 
     --! IP address
-    my_ip_i         : in    std_logic_vector(31 downto 0);
+    my_ip_i          : in    std_logic_vector(31 downto 0);
     --! IP subnet mask
-    ip_netmask_i    : in    std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
+    ip_netmask_i     : in    std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
     --! @}
 
     --! @brief Status of the module
     --! @details Status of the module
     --! - 1: TX FSM in UDP mode (transmission ongoing)
     --! - 0: TX FSM in IDLE (transmission may still be fading out)
-    status_vector_o : out   std_logic_vector(1 downto 0)
+    status_vector_o  : out   std_logic_vector(1 downto 0)
   );
 end entity ip_header_module;
 
@@ -226,8 +228,14 @@ begin
 
             when "00" =>
               if ip_tx_ready_i = '1' and tx_state = IDLE and udp_rx_sop = '1' then
-                reco_en_o <= '1';
-                request   <= "01";
+                -- Check for DHCP destination port:
+                -- Then skip IP lookup and move to dedicated state setting DHCP server address
+                if udp_rx_packet_i.data(47 downto 32) = x"0043" then
+                  request <= "11";
+                else
+                  reco_en_o <= '1';
+                  request   <= "01";
+                end if;
               else
                 request <= "00";
               end if;
@@ -248,6 +256,11 @@ begin
                 ip_dst_addr <= ip_broadcast_addr;
               end if;
               request <= "00";
+
+            when "11" =>
+              ip_dst_addr <= dhcp_server_ip_i;
+              request     <= "00";
+
             when others =>
               request <= "00";
 

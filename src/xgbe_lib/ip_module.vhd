@@ -49,58 +49,61 @@ entity ip_module is
   );
   port (
     --! Clock
-    clk             : in    std_logic;
+    clk              : in    std_logic;
     --! Reset, sync with #clk
-    rst             : in    std_logic;
+    rst              : in    std_logic;
 
     --! @name Avalon-ST from IP module
     --! @{
 
     --! RX ready
-    ip_rx_ready_o   : out   std_logic;
+    ip_rx_ready_o    : out   std_logic;
     --! RX data and controls
-    ip_rx_packet_i  : in    t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+    ip_rx_packet_i   : in    t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! @}
 
     --! @name Avalon-ST to IP module
     --! @{
 
     --! TX ready
-    ip_tx_ready_i   : in    std_logic;
+    ip_tx_ready_i    : in    std_logic;
     --! TX data and controls
-    ip_tx_packet_o  : out   t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+    ip_tx_packet_o   : out   t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! @}
 
     --! @name Avalon-ST from UDP module
     --! @{
 
     --! RX ready
-    udp_rx_ready_o  : out   std_logic;
+    udp_rx_ready_o   : out   std_logic;
     --! RX data and controls
-    udp_rx_packet_i : in    t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+    udp_rx_packet_i  : in    t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! RX packet ID (to restore IP address)
-    udp_rx_id_i     : in    std_logic_vector(15 downto 0);
+    udp_rx_id_i      : in    std_logic_vector(15 downto 0);
     --! @}
 
     --! @name Avalon-ST to UDP module
     --! @{
 
     --! TX ready
-    udp_tx_ready_i  : in    std_logic;
+    udp_tx_ready_i   : in    std_logic;
     --! TX data and controls
-    udp_tx_packet_o : out   t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+    udp_tx_packet_o  : out   t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
     --! TX packet ID (to restore IP address)
-    udp_tx_id_o     : out   std_logic_vector(15 downto 0);
+    udp_tx_id_o      : out   std_logic_vector(15 downto 0);
     --! @}
 
     --! @name Configuration of the module
     --! @{
 
     --! IP address
-    my_ip_i         : in    std_logic_vector(31 downto 0);
+    my_ip_i          : in    std_logic_vector(31 downto 0);
     --! IP subnet mask
-    ip_netmask_i    : in    std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
+    ip_netmask_i     : in    std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
     --! @}
+
+    --! IP address to be used for transmitting DHCP packets
+    dhcp_server_ip_i : in    std_logic_vector(31 downto 0);
 
     --! @brief Status of the module
     --! @details Status of the module
@@ -117,7 +120,7 @@ entity ip_module is
     --! - 2: RX FSM: UDP packet is being received
     --! - 1: RX FSM: ICMP packet is being received
     --! - 0: RX FSM: IDLE mode
-    status_vector_o : out   std_logic_vector(12 downto 0)
+    status_vector_o  : out   std_logic_vector(12 downto 0)
   );
 end entity ip_module;
 
@@ -183,8 +186,9 @@ begin
       rst => rst,
 
       -- avalon-st from udp module
-      udp_rx_ready_o  => udp_rx_ready_o,
-      udp_rx_packet_i => udp_rx_packet_i,
+      udp_rx_ready_o   => udp_rx_ready_o,
+      udp_rx_packet_i  => udp_rx_packet_i,
+      dhcp_server_ip_i => dhcp_server_ip_i,
 
       -- avalon-st to ip module
       ip_tx_ready_i  => ip_tx_ready_r,
@@ -476,6 +480,8 @@ begin
       signal disco_id   : std_logic_vector(15 downto 0);
       --! Discovery IP address
       signal disco_ip   : std_logic_vector(31 downto 0);
+      --! UDP RX ID to be recovered
+      signal udp_rx_id  : std_logic_vector(15 downto 0);
       --! @}
     begin
 
@@ -582,6 +588,14 @@ begin
         end if;
       end process proc_store_ip_id_relation;
 
+      --! Account for 1 cycle clock delay from ip_header_module for generating reco_en
+      proc_udp_rx_id : process (clk)
+      begin
+        if rising_edge(clk) then
+          udp_rx_id <= udp_rx_id_i;
+        end if;
+      end process proc_udp_rx_id;
+
       --! Instantiate port_io_table to store pair of discovered IP and package ID
       inst_id_ip_table : entity xgbe_lib.port_io_table
       generic map (
@@ -600,7 +614,7 @@ begin
 
         -- Recovery interface for reading pair of associated addresses/ports
         reco_en_i    => reco_en,
-        reco_port_i  => udp_rx_id_i,
+        reco_port_i  => udp_rx_id,
         reco_found_o => reco_ip_found,
         reco_port_o  => reco_ip,
 

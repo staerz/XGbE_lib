@@ -23,7 +23,7 @@ containing data
 % actual DHCP data is everything from 0201 on
 
 % DHCP Offer (35*8+6 bytes long = 286 = x11E)
-@ 172
+@ 152
 
 % IP header
 4500 0133 093C 4000
