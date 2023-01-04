@@ -85,7 +85,11 @@ architecture tb of interface_merger_tb is
   --! TX ready
   signal avst1_tx_ready  : std_logic;
   --! TX data and controls
-  signal avst1_tx_packet : t_avst_packet(data(DATA_W - 1 downto 0), empty(EMPTY_W - 1 downto 0), error(0 downto 0));
+  signal avst1_tx_packet : t_avst_packet(
+    data(DATA_W - 1 downto 0),
+    empty(EMPTY_W - 1 downto 0),
+    error(0 downto 0)
+  );
 
   --! @}
 
@@ -95,7 +99,11 @@ architecture tb of interface_merger_tb is
   --! TX ready
   signal avst2_tx_ready  : std_logic;
   --! TX data and controls
-  signal avst2_tx_packet : t_avst_packet(data(DATA_W - 1 downto 0), empty(EMPTY_W - 1 downto 0), error(0 downto 0));
+  signal avst2_tx_packet : t_avst_packet(
+    data(DATA_W - 1 downto 0),
+    empty(EMPTY_W - 1 downto 0),
+    error(0 downto 0)
+  );
 
   --! @}
 
@@ -105,7 +113,11 @@ architecture tb of interface_merger_tb is
   --! RX ready
   signal avst_rx_ready  : std_logic;
   --! RX data and controls
-  signal avst_rx_packet : t_avst_packet(data(DATA_W - 1 downto 0), empty(EMPTY_W - 1 downto 0), error(0 downto 0));
+  signal avst_rx_packet : t_avst_packet(
+    data(DATA_W - 1 downto 0),
+    empty(EMPTY_W - 1 downto 0),
+    error(0 downto 0)
+  );
 
   --! @}
 
@@ -232,7 +244,11 @@ begin
 
   blk_uvvm : block
     --! Expected RX data and controls
-    signal avst_rx_expect : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+    signal avst_rx_expect : t_avst_packet(
+      data(63 downto 0),
+      empty(2 downto 0),
+      error(0 downto 0)
+    );
   begin
 
     --! Use the avst_packet_sender to read expected data from an independent file

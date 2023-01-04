@@ -191,11 +191,9 @@ begin
         -- make the byte shifting according to the given numbers
         -- the synthesizer may produce a warning here for a null range std_logic_vector
         -- when BYTE_SHIFT is 8, so when HEADER_LENGTH is a multiple of 8
-        -- vsg_off sequential_004
         tx_packet_o.data <=
           rx_dreg((8 * BYTE_SHIFT) - 1 downto 0) &
           rx_packet_i.data(63 downto 8 * BYTE_SHIFT);
-        -- vsg_on sequential_004
 
         -- default trailer: fade out
         ctrl(9 downto 0) <= ctrl(4 downto 0) & "00000";
@@ -204,7 +202,7 @@ begin
         -- the default is to derive it from the counter (the difference to DATA_START)
         -- but if the eop (= ctrl(9)) has been set, the next is not valid
         -- (the avst interface foresees one empty clk between two packets
-        diff := to_signed(DATA_START, 15) - to_signed(rx_count_r + 1, 15);
+        diff      := to_signed(DATA_START, 15) - to_signed(rx_count_r + 1, 15);
         ctrl(11)  <= not ctrl(9) and diff(diff'left);
         -- register valid to determine sop
         valid_reg <= ctrl(11);

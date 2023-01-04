@@ -16,7 +16,7 @@
 
 --! @cond
 library IEEE;
-  use IEEE.STD_LOGIC_1164.all;
+  use IEEE.std_logic_1164.all;
 --! @endcond
 
 --! Port I/O Table (storing pairs of associated ports)
@@ -89,6 +89,7 @@ architecture behavioral of port_io_table is
 
   impure function find_pout_in_port_io_table (inport : std_logic_vector(PORT_I_W - 1 downto 0)) return natural is
   begin
+
     -- we must catch the Is_X in a stand-alone if statement
     if Is_X(inport) then
       return 0;
@@ -102,6 +103,7 @@ architecture behavioral of port_io_table is
     end loop;
 
     return 0;
+
   end;
 
 begin

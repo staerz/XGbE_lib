@@ -104,7 +104,11 @@ architecture tb of ethernet_to_udp_module_tb is
   --! TX ready
   signal eth_tx_ready  : std_logic;
   --! TX data and controls
-  signal eth_tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal eth_tx_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
 
   --! @}
 
@@ -114,7 +118,11 @@ architecture tb of ethernet_to_udp_module_tb is
   --! RX ready
   signal eth_rx_ready  : std_logic;
   --! RX data and controls
-  signal eth_rx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal eth_rx_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
 
   --! @}
 
@@ -124,7 +132,11 @@ architecture tb of ethernet_to_udp_module_tb is
   --! TX ready
   signal udp_tx_ready  : std_logic;
   --! TX data and controls
-  signal udp_tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal udp_tx_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
   --! TX identifier
   signal udp_tx_id     : std_logic_vector(15 downto 0);
 
@@ -136,7 +148,11 @@ architecture tb of ethernet_to_udp_module_tb is
   --! RX ready
   signal udp_rx_ready  : std_logic;
   --! RX data and controls
-  signal udp_rx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal udp_rx_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
   --! RX identifier
   signal udp_rx_id     : std_logic_vector(15 downto 0);
 
@@ -198,7 +214,7 @@ begin
     --! @cond
     signal mnl_rst     : std_logic;
     signal udp_tx_id_r : unsigned(15 downto 0);
-    --! @endcond
+  --! @endcond
   begin
 
     --! Instantiate simulation_basics to start
@@ -328,8 +344,16 @@ begin
 
   blk_uvvm : block
     --! Expected RX data and controls
-    signal eth_rx_expect : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
-    signal udp_rx_expect : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+    signal eth_rx_expect : t_avst_packet(
+      data(63 downto 0),
+      empty(2 downto 0),
+      error(0 downto 0)
+    );
+    signal udp_rx_expect : t_avst_packet(
+      data(63 downto 0),
+      empty(2 downto 0),
+      error(0 downto 0)
+    );
   begin
 
     --! Use the avst_packet_sender to read expected ETH data from an independent file
@@ -370,7 +394,7 @@ begin
 
     --! UVVM check
     proc_uvvm : process
-      -- todo: find a neat way to have "At cnt=" & integer'image(cnt) & ":" in a variable
+    -- todo: find a neat way to have "At cnt=" & integer'image(cnt) & ":" in a variable
     begin
       -- Wait a bit to let simulation settle
       wait for CLK_PERIOD;

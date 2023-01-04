@@ -46,7 +46,6 @@ entity avst_packet_sender is
     tx_ready_i  : in    std_logic;
     --! AVST TX data and controls
 
-    -- vsg_disable_next_line signal_016
     tx_packet_o : out   t_avst_packet(
       data(BITSPERWORD * WORDSPERLINE - 1 downto 0),
       empty(log2ceil(div_ceil(BITSPERWORD * WORDSPERLINE, BITSPERSYMBOL)) - 1 downto 0),
