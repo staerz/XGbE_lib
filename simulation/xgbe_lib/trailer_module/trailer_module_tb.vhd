@@ -75,7 +75,11 @@ architecture tb of trailer_module_tb is
   --! TX ready
   signal tx_ready  : std_logic;
   --! TX data and controls
-  signal tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal tx_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
 
   --! Additional rx indicator if multiple interfaces are used
   constant TX_MUX : std_logic_vector(N_INTERFACES - 1 downto 0) := (others => '0');
@@ -88,11 +92,15 @@ architecture tb of trailer_module_tb is
   --! RX ready
   signal rx_ready  : std_logic;
   --! RX data and controls
-  signal rx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal rx_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
   --! Additional tx indicator if multiple interfaces are used
   signal rx_mux    : std_logic_vector(N_INTERFACES - 1 downto 0);
 
-  --! @}
+--! @}
 
 begin
 
@@ -172,7 +180,11 @@ begin
 
   blk_uvvm : block
     --! Expected RX data and controls
-    signal rx_expect : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+    signal rx_expect : t_avst_packet(
+      data(63 downto 0),
+      empty(2 downto 0),
+      error(0 downto 0)
+    );
   begin
 
     --! Use the avst_packet_sender to read expected data from an independent file

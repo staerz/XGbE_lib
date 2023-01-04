@@ -92,7 +92,11 @@ architecture tb of reset_module_tb is
   --! TX ready
   signal tx_ready  : std_logic;
   --! TX data and controls
-  signal tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal tx_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
   --! @}
 
   --! @name Avalon-ST (IPbus) from module (written to file)
@@ -101,7 +105,11 @@ architecture tb of reset_module_tb is
   --! RX ready
   signal rx_ready  : std_logic;
   --! RX data and controls
-  signal rx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal rx_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
   --! @}
 
   --! Reset output
@@ -215,7 +223,11 @@ begin
 
   blk_uvvm : block
     --! Expected RX data and controls
-    signal rx_expect : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+    signal rx_expect : t_avst_packet(
+      data(63 downto 0),
+      empty(2 downto 0),
+      error(0 downto 0)
+    );
   begin
 
     --! Use the avst_packet_sender to read expected RST data from an independent file

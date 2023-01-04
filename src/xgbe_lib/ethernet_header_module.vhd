@@ -317,6 +317,7 @@ begin
 
     -- finally compose ETH data output stream from registers and mac_dst_addr
     -- that has been retrieved in the meantime
+    -- vsg_off comment_010
     with tx_count select eth_tx_packet_o.data <=
       -- insert discovered MAC address at correct position
       mac_dst_addr & my_mac_i(47 downto 32) when 5,
@@ -325,6 +326,7 @@ begin
       -- or just attach (IP) data from the shift register
       tx_data_sr(SR_DEPTH) when others;
 
+    -- vsg_on comment_010
     -- set valid
     eth_tx_packet_o.valid <= tx_valid(SR_DEPTH);
 

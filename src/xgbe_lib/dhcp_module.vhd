@@ -621,8 +621,8 @@ begin
       udp_crc <= (others => '0');
     --! @cond
     else generate
-    --! @endcond
       udp_crc <= (others => '0');
+    --! @endcond
     end generate gen_udp_crc;
 
     blk_secs : block
@@ -636,7 +636,7 @@ begin
 
       inst_secs : entity misc.counter
       generic map (
-        COUNTER_MAX_VALUE => 2**(secs'length) - 1
+        COUNTER_MAX_VALUE => 2 ** (secs'length) - 1
       )
       port map (
         clk => clk,
@@ -665,14 +665,15 @@ begin
       (0 => '1', others => '0') when dhcp_state /= RENEWING and (tx_state = DHCP_DISCOVER or tx_state = DHCP_REQUEST) else
       (others => '0');
 
+    -- vsg_off comment_010
     ciaddr <=
-      -- vsg_off concurrent_009
       my_ip_o when
         -- (tx_state = DHCP_INFORM) or
         (tx_state = DHCP_REQUEST and (dhcp_state = RENEWING or dhcp_state = REBINDING)) or
         (tx_state = DHCP_RELEASE) else
-      -- vsg_on concurrent_009
       (others => '0');
+
+    -- vsg_on comment_010
 
     chaddr <= my_mac_i & x"00_00" & x"00_00_00_00" & x"00_00_00_00";
 
@@ -734,7 +735,7 @@ begin
         --! FIFO empty
         signal dhcp_options_fifo_empty : std_logic;
 
-        --! @}
+      --! @}
       begin
 
         with tx_state select dhcp_tx_operation <=
@@ -789,6 +790,7 @@ begin
                 when 1 =>
                   dhcp_options_fifo_din <= x"35010" & dhcp_tx_operation & x"00_00_00_00_00";
                   dhcp_options_fifo_wen <= '1';
+
                 -- Requested IP Address
                 when 2 =>
                   -- optional for discover, can request any
@@ -801,10 +803,11 @@ begin
                   elsif (tx_state = DHCP_REQUEST and (dhcp_state = REQUESTING or dhcp_state = REBOOTING)) or
                     (tx_state = DHCP_DECLINE)
                   then
-                  -- vsg_on if_009
+                    -- vsg_on if_009
                     dhcp_options_fifo_din <= x"3204" & yourid & x"00_00";
                     dhcp_options_fifo_wen <= '1';
                   end if;
+
                 -- Server Identifier
                 when 3 =>
                   -- The client broadcasts a DHCPREQUEST message that MUST include the 'server identifier' option
@@ -813,19 +816,22 @@ begin
                   if (tx_state = DHCP_REQUEST and dhcp_state = REQUESTING) or
                     tx_state = DHCP_DECLINE or tx_state = DHCP_RELEASE
                   then
-                  -- vsg_on if_009
+                    -- vsg_on if_009
                     dhcp_options_fifo_din <= x"3604" & serverid & x"00_00";
                     dhcp_options_fifo_wen <= '1';
                   end if;
+
                 -- Parameter Request List (if short enough, this could be stuffed into case 1)
                 when 4 =>
                   -- Requesting: 1 = IP subnet mask, x1A = d26 = MTU, x1C = d28 = Broadcast address
                   dhcp_options_fifo_din <= x"3703" & x"01" & x"1A" & x"1C" & x"00_00_00";
                   dhcp_options_fifo_wen <= '1';
+
                 -- END option
                 when DHCP_WORDS - 1 =>
                   dhcp_options_fifo_din <= x"FF" & x"00_00_00_00_00_00_00";
                   dhcp_options_fifo_wen <= '1';
+
                 when others =>
                   null;
 
@@ -881,6 +887,7 @@ begin
       -- creates DHCP packet: Either chose section from fixed part
       -- or chose options from fifo
       with tx_count select dhcp_tx_packet_o.data <=
+      -- vsg_disable_next_line comment_010
         -- tx_count-relative slice of constant part of the DHCP packet
         dhcp_packet((DHCP_WORDS + 1 - tx_count) * 64 - 1 downto (DHCP_WORDS - tx_count) * 64)
           when 1 to DHCP_WORDS,
@@ -963,7 +970,7 @@ begin
         --! Counting of #seconds from #second_tick
         inst_seconds : entity misc.counter
         generic map (
-          COUNTER_MAX_VALUE => 2**(seconds'length) - 1
+          COUNTER_MAX_VALUE => 2 ** (seconds'length) - 1
         )
         port map (
           clk => clk,
@@ -1118,7 +1125,7 @@ begin
     --! Interface MTU (extracted but not used)
     signal dhcp_mtu            : std_logic_vector(15 downto 0);
 
-    --! @}
+  --! @}
   begin
 
     -- Receiver is always ready as long as we're not just evaluating options (from a previous request)
@@ -1192,14 +1199,15 @@ begin
                 when 1 =>
                   -- check UDP header
                   -- vsg_off if_009
-                  if rx_packet_reg.data(63 downto 48) /= x"0043" or          -- UDP_SRC_PORT 67
-                    rx_packet_reg.data(47 downto 32) /= x"0044"              -- UDP_DST_PORT 68
+                  if rx_packet_reg.data(63 downto 48) /= x"0043" or -- UDP_SRC_PORT 67
+                    rx_packet_reg.data(47 downto 32) /= x"0044"     -- UDP_DST_PORT 68
                   then
-                  -- vsg_on if_009
+                    -- vsg_on if_009
                     rx_state <= SKIP;
                   else
                     rx_state <= HEADER;
                   end if;
+
                 when 2 =>
                   -- vsg_off if_035 if_009
                   -- check for supported DHCP_HEADER (IPv4 on Ethernet)
@@ -1213,6 +1221,7 @@ begin
                   else
                     rx_state <= HEADER;
                   end if;
+
                 when 5 =>
                   -- check chaddr (hw address)
                   if rx_packet_reg.data(31 downto 0) /= my_mac_i(47 downto 16) then
@@ -1220,6 +1229,7 @@ begin
                   else
                     rx_state <= HEADER;
                   end if;
+
                 when 6 =>
                   -- check chaddr (hw address)
                   if rx_packet_reg.data(63 downto 48) /= my_mac_i(15 downto 0) then
@@ -1323,7 +1333,7 @@ begin
       --! Current option being extracted
       signal dhcp_option : std_logic_vector(7 downto 0);
 
-      --! @}
+    --! @}
     begin
 
       --! @brief FIFO to store DHCP options being received
@@ -1368,10 +1378,8 @@ begin
           if rx_state = STORING_OPTS then
             rx_data := (others => '0');
 
-            -- vsg_off variable_assignment_004
             rx_data(rx_packet_reg.data'high downto 8 * to_integer(rx_packet_reg.empty)) :=
               rx_packet_reg.data(rx_packet_reg.data'high downto 8 * to_integer(rx_packet_reg.empty));
-            -- vsg_on variable_assignment_004
 
             dhcp_rx_options_fifo_din <= swap(rx_data, 8);
             dhcp_rx_options_fifo_wen <= '1';
@@ -1634,7 +1642,7 @@ begin
     --! Maximum re-requesting time is 64 seconds, so we have even 1 bit margin.
     signal seconds : std_logic_vector(7 downto 0);
 
-    --! @}
+  --! @}
   begin
 
     -- To be sure to be independent, we re-implement a second time counter: secs /= lease_time!
@@ -1648,7 +1656,7 @@ begin
       --! Counting of #seconds from #second_tick
       inst_seconds : entity misc.counter
       generic map (
-        COUNTER_MAX_VALUE => 2**(seconds'length) - 1
+        COUNTER_MAX_VALUE => 2 ** (seconds'length) - 1
       )
       port map (
         clk => clk,
@@ -1689,7 +1697,7 @@ begin
           t2(t2'high) <= '1';
         -- DHCP acknowledge resets the lease timers
         elsif dhcp_acknowledge = '1' then
-          lt := unsigned(leasetime) - resize(unsigned(seconds), lt'length);
+          lt    := unsigned(leasetime) - resize(unsigned(seconds), lt'length);
           lease <= '0' & lt;
 
           -- T1 defaults to (0.5 * duration_of_lease).

@@ -153,8 +153,12 @@ architecture behavioral of ip_module is
   --! TX ready
   signal icmp_tx_ready  : std_logic;
   --! TX data and controls
-  signal icmp_tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
-  --! @}
+  signal icmp_tx_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
+--! @}
 
 begin
 
@@ -170,8 +174,12 @@ begin
     --! TX ready
     signal ip_tx_ready_r  : std_logic;
     --! TX data and controls
-    signal ip_tx_packet_r : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
-    --! @}
+    signal ip_tx_packet_r : t_avst_packet(
+      data(63 downto 0),
+      empty(2 downto 0),
+      error(0 downto 0)
+    );
+  --! @}
   begin
 
     --! Instantiate the ip_header_module to generate header for incoming UPD packets
@@ -332,6 +340,7 @@ begin
                   else
                     rx_state <= HEADER;
                   end if;
+
                 when 1 =>
                   -- check protocol and retrieve source address as potential
                   -- destination address for tx path
@@ -341,9 +350,11 @@ begin
                     when x"11" =>
                       protocol <= UDP;
                       rx_state <= HEADER;
+
                     when x"01" =>
                       protocol <= ICMP;
                       rx_state <= HEADER;
+
                     when others =>
                       rx_state <= SKIP;
 
@@ -359,6 +370,7 @@ begin
 
                       when NOTSUPPORTED =>
                         rx_state <= SKIP;
+
                       when others =>
                         rx_state <= RX;
 
@@ -373,6 +385,7 @@ begin
                   else
                     rx_state <= SKIP;
                   end if;
+
                 when others =>
                   null;
 
@@ -432,7 +445,11 @@ begin
 
     blk_make_trailer : block
       --! TX data and controls for trailer_module
-      signal tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+      signal tx_packet : t_avst_packet(
+        data(63 downto 0),
+        empty(2 downto 0),
+        error(0 downto 0)
+      );
     begin
 
       udp_tx_packet_o <=
@@ -482,7 +499,7 @@ begin
       signal disco_ip   : std_logic_vector(31 downto 0);
       --! UDP RX ID to be recovered
       signal udp_rx_id  : std_logic_vector(15 downto 0);
-      --! @}
+    --! @}
     begin
 
       gen_without_ip_filter : if IP_FILTER_EN = '0' generate

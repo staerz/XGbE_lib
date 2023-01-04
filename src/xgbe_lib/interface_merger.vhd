@@ -285,8 +285,7 @@ begin
         INTERRUPT_CTRL & DONTCARE_DATA when INTERRUPT,
         IDLE_CTRL & DONTCARE_DATA when others;
 
-      avst_tx_packet_o <=
-      (
+      avst_tx_packet_o <= (
         data  => avst_tx_dnc(DATA_W - 1 downto 0),
         valid => avst_tx_dnc(EMPTY_W - 1 + DATA_W + 4),
         sop   => avst_tx_dnc(EMPTY_W - 1 + DATA_W + 3),
