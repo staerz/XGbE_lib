@@ -11,8 +11,9 @@ add wave -noupdate -group {Constants and Config} -radix binary -radixshowbase 0 
 add wave -noupdate -group {Constants and Config} /ethernet_to_udp_module_tb/MAC_TIMEOUT
 add wave -noupdate -group {Constants and Config} /ethernet_to_udp_module_tb/PAUSE_LENGTH
 add wave -noupdate /ethernet_to_udp_module_tb/uut/my_mac_i
-add wave -noupdate /ethernet_to_udp_module_tb/uut/my_ip_i
-add wave -noupdate /ethernet_to_udp_module_tb/uut/ip_netmask_i
+add wave -noupdate /ethernet_to_udp_module_tb/uut/my_ip
+add wave -noupdate /ethernet_to_udp_module_tb/uut/my_ip_netmask
+add wave -noupdate /ethernet_to_udp_module_tb/uut/my_ip_valid
 add wave -noupdate /ethernet_to_udp_module_tb/clk
 add wave -noupdate /ethernet_to_udp_module_tb/rst
 add wave -noupdate -radix decimal -radixshowbase 0 /ethernet_to_udp_module_tb/cnt
@@ -75,27 +76,27 @@ add wave -noupdate -expand -group {ip module} -expand -group {ip id table} /ethe
 add wave -noupdate -expand -group {ip module} -expand -group {ip id table} /ethernet_to_udp_module_tb/uut/inst_ip_module/blk_stripoff_header/blk_make_ip_udp_table/inst_id_ip_table/reco_port_o
 add wave -noupdate -expand -group {ip module} -expand -group {ip id table} /ethernet_to_udp_module_tb/uut/inst_ip_module/blk_stripoff_header/blk_make_ip_udp_table/inst_id_ip_table/reco_found_o
 add wave -noupdate -expand -group {ip module} -expand -group {ip id table} -color White -expand -subitemconfig {/ethernet_to_udp_module_tb/uut/inst_ip_module/blk_stripoff_header/blk_make_ip_udp_table/inst_id_ip_table/port_io_table_data(5) {-color White -height 17} /ethernet_to_udp_module_tb/uut/inst_ip_module/blk_stripoff_header/blk_make_ip_udp_table/inst_id_ip_table/port_io_table_data(4) {-color White -height 17} /ethernet_to_udp_module_tb/uut/inst_ip_module/blk_stripoff_header/blk_make_ip_udp_table/inst_id_ip_table/port_io_table_data(3) {-color White -height 17} /ethernet_to_udp_module_tb/uut/inst_ip_module/blk_stripoff_header/blk_make_ip_udp_table/inst_id_ip_table/port_io_table_data(2) {-color White -height 17} /ethernet_to_udp_module_tb/uut/inst_ip_module/blk_stripoff_header/blk_make_ip_udp_table/inst_id_ip_table/port_io_table_data(1) {-color White -height 17}} /ethernet_to_udp_module_tb/uut/inst_ip_module/blk_stripoff_header/blk_make_ip_udp_table/inst_id_ip_table/port_io_table_data
-add wave -noupdate -expand -group {dhcp module} -color {Medium Orchid} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_rx_ready_o
-add wave -noupdate -expand -group {dhcp module} -color {Medium Orchid} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_rx_packet_i
-add wave -noupdate -expand -group {dhcp module} -color Gold /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_tx_ready_i
-add wave -noupdate -expand -group {dhcp module} -color Gold -expand -subitemconfig {/ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_tx_packet_o.data {-color Gold -height 17} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_tx_packet_o.valid {-color Gold -height 17} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_tx_packet_o.sop {-color Gold -height 17} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_tx_packet_o.eop {-color Gold -height 17} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_tx_packet_o.empty {-color Gold -height 17} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_tx_packet_o.error {-color Gold -height 17}} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_tx_packet_o
-add wave -noupdate -expand -group {dhcp module} -color Gold /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_server_ip_o
-add wave -noupdate -expand -group {dhcp module} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/my_ip_o
-add wave -noupdate -expand -group {dhcp module} /ethernet_to_udp_module_tb/uut/inst_dhcp_module/ip_netmask_o
-add wave -noupdate -color Cyan /ethernet_to_udp_module_tb/uut/inst_dhcp_module/dhcp_state
-add wave -noupdate /ethernet_to_udp_module_tb/uut/inst_dhcp_module/blk_make_rx_interface/rx_state
-add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/inst_interface_splitter/PORT_LIST
-add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/inst_interface_splitter/DATA_W_OFFSET
-add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/inst_interface_splitter/avst_rx_ready_o
-add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/inst_interface_splitter/avst_rx_packet_i
-add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/inst_interface_splitter/avst_tx_readys_i
-add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/inst_interface_splitter/avst_tx_packet_o
-add wave -noupdate -expand -group {interface splitter} -radix binary -radixshowbase 1 /ethernet_to_udp_module_tb/uut/inst_interface_splitter/status_vector_o
-add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/inst_interface_splitter/rx_state
-add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/inst_interface_splitter/rx_mux
-add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/inst_interface_splitter/rx_ready
-add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/inst_interface_splitter/first_port
-add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/inst_interface_splitter/port_info
+add wave -noupdate -expand -group {dhcp module} -color {Medium Orchid} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_dhcp_module/dhcp_rx_ready_o
+add wave -noupdate -expand -group {dhcp module} -color {Medium Orchid} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_dhcp_module/dhcp_rx_packet_i
+add wave -noupdate -expand -group {dhcp module} -color Gold /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_dhcp_module/dhcp_tx_ready_i
+add wave -noupdate -expand -group {dhcp module} -color Gold -expand -subitemconfig {/ethernet_to_udp_module_tb/uut/blk_dhcp/inst_dhcp_module/dhcp_tx_packet_o.data {-color Gold -height 17} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_dhcp_module/dhcp_tx_packet_o.valid {-color Gold -height 17} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_dhcp_module/dhcp_tx_packet_o.sop {-color Gold -height 17} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_dhcp_module/dhcp_tx_packet_o.eop {-color Gold -height 17} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_dhcp_module/dhcp_tx_packet_o.empty {-color Gold -height 17} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_dhcp_module/dhcp_tx_packet_o.error {-color Gold -height 17}} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_dhcp_module/dhcp_tx_packet_o
+add wave -noupdate -expand -group {dhcp module} -color Gold /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_dhcp_module/dhcp_server_ip_o
+add wave -noupdate -expand -group {dhcp module} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_dhcp_module/my_ip_o
+add wave -noupdate -expand -group {dhcp module} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_dhcp_module/ip_netmask_o
+add wave -noupdate -color Cyan /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_dhcp_module/dhcp_state
+add wave -noupdate /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_dhcp_module/blk_make_rx_interface/rx_state
+add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_interface_splitter/PORT_LIST
+add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_interface_splitter/DATA_W_OFFSET
+add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_interface_splitter/avst_rx_ready_o
+add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_interface_splitter/avst_rx_packet_i
+add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_interface_splitter/avst_tx_readys_i
+add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_interface_splitter/avst_tx_packet_o
+add wave -noupdate -expand -group {interface splitter} -radix binary -radixshowbase 1 /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_interface_splitter/status_vector_o
+add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_interface_splitter/rx_state
+add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_interface_splitter/rx_mux
+add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_interface_splitter/rx_ready
+add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_interface_splitter/first_port
+add wave -noupdate -expand -group {interface splitter} /ethernet_to_udp_module_tb/uut/blk_dhcp/inst_interface_splitter/port_info
 TreeUpdate [SetDefaultTree]
 WaveRestoreCursors {{Cursor 1} {2940284 ps} 0}
 quietly wave cursor active 1

@@ -122,6 +122,13 @@ entity ethernet_to_udp_module is
 
     --! MAC address of the module
     my_mac_i        : in    std_logic_vector(47 downto 0);
+    --! DHCP enable (enabled by default)
+    dhcp_en_i       : in    std_logic                     := '1';
+    --! IP address (when using static IP address configuration)
+    my_ip_i         : in    std_logic_vector(31 downto 0) := x"c0_a8_00_02";
+    --! Net mask (when using static IP address configuration)
+    my_ip_netmask_i : in    std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
+
     --! @}
 
     --! @brief Status of the module
@@ -269,13 +276,15 @@ architecture behavioral of ethernet_to_udp_module is
     error(0 downto 0)
   );
 
-  --! IP address to be used for transmitting DHCP packets
+  --! Destination IP address of DHCP server (used when transmitting DHCP packets)
   signal dhcp_server_ip : std_logic_vector(31 downto 0);
 
   --! IP address
-  signal my_ip_i      : std_logic_vector(31 downto 0);
+  signal my_ip         : std_logic_vector(31 downto 0);
   --! IP subnet mask
-  signal ip_netmask_i : std_logic_vector(31 downto 0);
+  signal my_ip_netmask : std_logic_vector(31 downto 0);
+  --! Indicator if IP configuration (my_ip and my_ip_netmask) is valid
+  signal my_ip_valid   : std_logic;
 
   --! Port list for interface_splitter to identify DHCP port
   constant PORT_LIST : t_slv_vector(1 downto 1) := (1 => x"0044");
@@ -302,8 +311,6 @@ architecture behavioral of ethernet_to_udp_module is
   signal reco_mac  : std_logic_vector(47 downto 0);
   --! Recovery done indicator: 1 = found or timeout
   signal reco_done : std_logic;
-  --! recovery failure: 1 = not found (time out), 0 = found
-  signal reco_fail : std_logic;
   --! @}
 
   --! Clock cycle when 1 millisecond is passed
@@ -395,7 +402,7 @@ begin
     reco_done_o => reco_done,
 
     my_mac_i      => my_mac_i,
-    my_ip_i       => my_ip_i,
+    my_ip_i       => my_ip,
     my_ip_valid_i => dhcp_status_vector(0),
 
     one_ms_tick_i => one_ms_tick,
@@ -430,119 +437,149 @@ begin
     udp_tx_packet_o => udp_tx_packet_ip,
     udp_tx_id_o     => udp_tx_id_o,
 
-    my_ip_i      => my_ip_i,
-    ip_netmask_i => ip_netmask_i,
+    my_ip_i      => my_ip,
+    ip_netmask_i => my_ip_netmask,
 
     dhcp_server_ip_i => dhcp_server_ip,
 
     status_vector_o => ip_status_vector
   );
 
-  reco_fail <= '1' when reco_mac = x"FF_FF_FF_FF_FF_FF" else '0';
+  blk_dhcp : block
+    --! recovery failure: 1 = not found (time out), 0 = found
+    signal reco_fail : std_logic;
+    --! reset of DHCP module (when using static IP configuration)
+    signal dhcp_rst  : std_logic;
+    --! IP address provided by DHCP module
+    signal dhcp_ip   : std_logic_vector(31 downto 0);
+    --! IP netmask provided by DHCP module
+    signal dhcp_mask : std_logic_vector(31 downto 0);
+  begin
 
-  --! Instantiate the dhcp_module
-  inst_dhcp_module : entity xgbe_lib.dhcp_module
-  generic map (
-    UDP_CRC_EN => UDP_CRC_EN
-  )
-  port map (
-    clk    => clk,
-    rst    => rst,
-    boot_i => '0',
+    reco_fail <= '1' when reco_mac = x"FF_FF_FF_FF_FF_FF" else '0';
 
-    -- signals from dhcp requester
-    dhcp_rx_ready_o  => udp_rx_ready_dhcp,
-    dhcp_rx_packet_i => udp_tx_packet_o,
+    dhcp_rst <= rst or not dhcp_en_i;
 
-    -- signals to dhcp requester
-    dhcp_tx_ready_i  => dhcp_tx_ready,
-    dhcp_tx_packet_o => dhcp_tx_packet,
-    dhcp_server_ip_o => dhcp_server_ip,
+    --! Instantiate the dhcp_module
+    inst_dhcp_module : entity xgbe_lib.dhcp_module
+    generic map (
+      UDP_CRC_EN => UDP_CRC_EN
+    )
+    port map (
+      clk    => clk,
+      rst    => dhcp_rst,
+      boot_i => '0',
 
-    -- interface for recovering mac address from given ip address
-    reco_en_o   => reco_en_dhcp,
-    reco_ip_o   => reco_ip_dhcp,
-    reco_done_i => reco_done,
-    reco_fail_i => reco_fail,
+      -- signals from dhcp requester
+      dhcp_rx_ready_o  => udp_rx_ready_dhcp,
+      dhcp_rx_packet_i => udp_tx_packet_o,
 
-    my_mac_i     => my_mac_i,
-    my_ip_o      => my_ip_i,
-    ip_netmask_o => ip_netmask_i,
+      -- signals to dhcp requester
+      dhcp_tx_ready_i  => dhcp_tx_ready,
+      dhcp_tx_packet_o => dhcp_tx_packet,
+      dhcp_server_ip_o => dhcp_server_ip,
 
-    one_ms_tick_i => one_ms_tick,
+      -- interface for recovering mac address from given ip address
+      reco_en_o   => reco_en_dhcp,
+      reco_ip_o   => reco_ip_dhcp,
+      reco_done_i => reco_done,
+      reco_fail_i => reco_fail,
 
-    -- status of the DHCP module
-    status_vector_o => dhcp_status_vector
-  );
+      my_mac_i     => my_mac_i,
+      my_ip_o      => dhcp_ip,
+      ip_netmask_o => dhcp_mask,
 
-  -- switch recovery interface to ethernet module when not needed by dhcp module
-  -- i.e. it's needed while requesting (= not while (bound or declining))
-  with dhcp_status_vector(0) or dhcp_status_vector(6) select reco_en <=
-    reco_en_eth when '1',
-    reco_en_dhcp when others;
+      one_ms_tick_i => one_ms_tick,
 
-  with dhcp_status_vector(0) or dhcp_status_vector(6) select reco_ip <=
-    reco_ip_eth when '1',
-    reco_ip_dhcp when others;
+      -- status of the DHCP module
+      status_vector_o => dhcp_status_vector
+    );
 
-  --! Instantiate the interface_splitter to multiplex ready signals of DHCP and outer UDP
-  --! @details
-  --! avst_rx_packet_i and avst_tx_packet_o are identical but for consistency
-  --! and better understanding of the data path, we use the connections
-  inst_interface_splitter : entity xgbe_lib.interface_splitter
-  generic map (
-    PORT_LIST     => PORT_LIST,
-    DATA_W_OFFSET => 32
-  )
-  port map (
-    -- clk (synch reset with clk)
-    clk => clk,
-    rst => rst,
+    proc_select_ip : process (clk)
+    begin
+      if rising_edge(clk) then
+        if dhcp_en_i then
+          my_ip         <= dhcp_ip;
+          my_ip_valid   <= dhcp_status_vector(0);
+          my_ip_netmask <= dhcp_mask;
+        else
+          my_ip         <= my_ip_i;
+          my_ip_valid   <= '1';
+          my_ip_netmask <= my_ip_netmask_i;
+        end if;
+      end if;
+    end process proc_select_ip;
 
-    -- Avalon-ST input to be multiplexed
-    avst_rx_ready_o  => udp_tx_ready_ip,
-    avst_rx_packet_i => udp_tx_packet_ip,
+    -- switch recovery interface to ethernet module when not needed by dhcp module
+    -- i.e. it's needed while requesting (= not while (bound (= valid IP) or declining))
+    with my_ip_valid or dhcp_status_vector(6) select reco_en <=
+      reco_en_eth when '1',
+      reco_en_dhcp when others;
 
-    -- Avalon-ST output interface
-    avst_tx_readys_i => (0 => udp_tx_ready_i, 1 => udp_rx_ready_dhcp),
-    avst_tx_packet_o => udp_tx_packet_o,
+    with my_ip_valid or dhcp_status_vector(6) select reco_ip <=
+      reco_ip_eth when '1',
+      reco_ip_dhcp when others;
 
-    -- status of the module
-    status_vector_o => open
-  );
+    --! Instantiate the interface_splitter to multiplex ready signals of DHCP and outer UDP
+    --! @details
+    --! avst_rx_packet_i and avst_tx_packet_o are identical but for consistency
+    --! and better understanding of the data path, we use the connections
+    inst_interface_splitter : entity xgbe_lib.interface_splitter
+    generic map (
+      PORT_LIST     => PORT_LIST,
+      DATA_W_OFFSET => 32
+    )
+    port map (
+      -- clk (synch reset with clk)
+      clk => clk,
+      rst => rst,
 
-  -- block UDP RX interface when IP address is not properly configured
-  -- this allows exclusive access to the reco interface for the DHCP module during that time
-  with dhcp_status_vector(0) select udp_rx_ready_o <=
-    udp_rx_ready when '1',
-    '0' when others;
+      -- Avalon-ST input to be multiplexed
+      avst_rx_ready_o  => udp_tx_ready_ip,
+      avst_rx_packet_i => udp_tx_packet_ip,
 
-  with dhcp_status_vector(0) select udp_rx_packet <=
-    udp_rx_packet_i when '1',
-    (valid => '0', sop => '0', eop => '0', others => (others => '-')) when others;
+      -- Avalon-ST output interface
+      avst_tx_readys_i => (0 => udp_tx_ready_i, 1 => udp_rx_ready_dhcp),
+      avst_tx_packet_o => udp_tx_packet_o,
 
-  --! Instantiate the interface_merger to merge reply from dhcp_module and ARP RX interface
-  inst_interface_merger : entity xgbe_lib.interface_merger
-  port map (
-    -- clk (synch reset with clk)
-    clk => clk,
-    rst => rst,
+      -- status of the module
+      status_vector_o => open
+    );
 
-    -- avalon-st from first priority module
-    avst1_rx_ready_o  => dhcp_tx_ready,
-    avst1_rx_packet_i => dhcp_tx_packet,
+    -- block UDP RX interface when IP address is not properly configured
+    -- this allows exclusive access to the reco interface for the DHCP module during that time
+    with my_ip_valid select udp_rx_ready_o <=
+      udp_rx_ready when '1',
+      '0' when others;
 
-    -- avalon-st from second priority module
-    avst2_rx_ready_o  => udp_rx_ready,
-    avst2_rx_packet_i => udp_rx_packet,
+    with my_ip_valid select udp_rx_packet <=
+      udp_rx_packet_i when '1',
+      (valid => '0', sop => '0', eop => '0', others => (others => '-')) when others;
 
-    -- avalon-st to outer module
-    avst_tx_ready_i  => udp_to_ip_ready,
-    avst_tx_packet_o => udp_to_ip_packet,
+    --! Instantiate the interface_merger to merge reply from dhcp_module and ARP RX interface
+    inst_interface_merger : entity xgbe_lib.interface_merger
+    port map (
+      -- clk (synch reset with clk)
+      clk => clk,
+      rst => rst,
 
-    -- status of the module
-    status_vector_o => im_status_vector
-  );
+      -- avalon-st from first priority module
+      avst1_rx_ready_o  => dhcp_tx_ready,
+      avst1_rx_packet_i => dhcp_tx_packet,
+
+      -- avalon-st from second priority module
+      avst2_rx_ready_o  => udp_rx_ready,
+      avst2_rx_packet_i => udp_rx_packet,
+
+      -- avalon-st to outer module
+      avst_tx_ready_i  => udp_to_ip_ready,
+      avst_tx_packet_o => udp_to_ip_packet,
+
+      -- status of the module
+      status_vector_o => im_status_vector
+    );
+
+  end block blk_dhcp;
 
   --! Instantiate cyclic counting to generate a tick each millisecond
   inst_ms_counter : entity misc.counting
