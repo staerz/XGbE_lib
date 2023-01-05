@@ -1,0 +1,70 @@
+comments:
+anything less than
+length of a line
+containing data
+% any line started with '%' - flag can be specified as generic in file_reader_hex
+% interpreter ignores empty lines as well
+
+% "@" is used to indicate counters for transmission start
+% flag can be specified as generic in AV_ST_sender
+% must be decimal numbers in increasing order!
+
+% input data: any UDP data
+
+% short well formatted packet without CRC
+@ 100
+% reply to @ 20 of IP data
+0001 a191 000c 0000
+2000 00f0 1234 0110 100 0
+
+% short well formatted packet with correct CRC
+@ 105
+% reply to @ 40 of IP data
+0002 a192 000c effe
+1000 0001 0000 0001 100 0
+
+% short well formatted packet with wrong CRC
+@ 135
+0001 a192 000c 1234
+1000 0001 0000 0001 100 0
+% this fault is currently not spotted!
+% this packet will trigger arp requests since the 3rd id came from ip 192.168.0.10 which is not yet in the arp table, so the arp reply should be sent next
+
+% short packet with good CRC but wrong length indication
+% launch exactly when ICMP module starts answering to provoke a crash
+@ 333
+0002 a193 000b eefe
+1112 3456 7890 abcd 111 0
+% this fault is spotted
+
+% long packet with wrong CRC and wrong length indication
+@ 400
+0002 a194 000c effe
+0000 0018 1000 0001
+2000 0002 3000 0003
+4000 0004 5000 0005
+6000 0006 7000 0007
+8000 0008 9000 0009
+1000 0010 1100 0011
+1200 0012 1300 0013
+1400 0014 1500 0015
+1600 0016 1700 0017
+1800 0018 1900 0019
+2000 0020 2100 0021
+2200 0022 2300 0023
+2400 0024 ffff ffff 100 0
+
+% short well formatted packet with correct CRC
+@ 425
+0002 a192 000c effe
+1000 0001 0000 0000 100 0
+
+% again the same short well formatted packet with correct CRC
+% to check what happens if ID is not found (should be 6 or so now)
+@ 435
+0002 a192 000c effe
+1000 0001 0000 0000 100 0
+
+% expected reaction: As ID is not found, the broadcast IP will be used
+% that triggers an ARP request
+% as that request is never replied, the package is sent out via a broadcast.
