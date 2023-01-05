@@ -1,0 +1,16 @@
+% file to indicate counters for FPGA_rx_ready(2)
+% have one integer per line
+% must be in increasing order!
+% decimal numbers
+
+@19
+@26
+@30
+@33-35
+@70
+@74
+@77-78
+@80
+@145
+@161
+@261
