@@ -127,7 +127,7 @@ entity ethernet_to_udp_module is
     --! IP address (when using static IP address configuration)
     my_ip_i         : in    std_logic_vector(31 downto 0) := x"c0_a8_00_02";
     --! Net mask (when using static IP address configuration)
-    my_ip_netmask_i : in    std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
+    my_ip_netmask_i : in    std_logic_vector(31 downto 0) := x"ff_ff_00_00";
 
     --! @}
 
@@ -495,17 +495,19 @@ begin
       status_vector_o => dhcp_status_vector
     );
 
+    --! selection of IP configuration based on dhcp_en_i
+    --! this could go into concurrent statements but timing is saver this way
     proc_select_ip : process (clk)
     begin
       if rising_edge(clk) then
         if dhcp_en_i then
           my_ip         <= dhcp_ip;
-          my_ip_valid   <= dhcp_status_vector(0);
           my_ip_netmask <= dhcp_mask;
+          my_ip_valid   <= dhcp_status_vector(0);
         else
           my_ip         <= my_ip_i;
-          my_ip_valid   <= '1';
           my_ip_netmask <= my_ip_netmask_i;
+          my_ip_valid   <= '1';
         end if;
       end if;
     end process proc_select_ip;
