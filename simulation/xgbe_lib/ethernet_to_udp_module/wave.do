@@ -14,6 +14,7 @@ add wave -noupdate /ethernet_to_udp_module_tb/uut/my_mac_i
 add wave -noupdate /ethernet_to_udp_module_tb/uut/my_ip
 add wave -noupdate /ethernet_to_udp_module_tb/uut/my_ip_netmask
 add wave -noupdate /ethernet_to_udp_module_tb/uut/my_ip_valid
+add wave -noupdate /ethernet_to_udp_module_tb/uut/dhcp_en_i
 add wave -noupdate /ethernet_to_udp_module_tb/clk
 add wave -noupdate /ethernet_to_udp_module_tb/rst
 add wave -noupdate -radix decimal -radixshowbase 0 /ethernet_to_udp_module_tb/cnt
