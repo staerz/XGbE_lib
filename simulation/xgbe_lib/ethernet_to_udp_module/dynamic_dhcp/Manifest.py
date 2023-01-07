@@ -1,5 +1,5 @@
 # Project description
-description = 'Simulation of the bare ethernet_to_udp_module with static IP configuration'
+description = 'Simulation of the bare ethernet_to_udp_module with dynamic DHCP enable: OFF first, then turned ON and OFF again'
 
 # Simulating the design
 action = 'simulation'
@@ -31,5 +31,5 @@ files = [
 configuration = {
   # select target device:
   'G_BSP_NONE': {'value': 'True'},
-  'DHCP_SWITCH': {'type': 'string', 'value': 'OFF', 'module_name': 'xgbe_lib', 'description': 'DHCP enable'},
+  'DHCP_SWITCH': {'type': 'string', 'value': 'DYN', 'module_name': 'xgbe_lib', 'description': 'DHCP enable'},
 }

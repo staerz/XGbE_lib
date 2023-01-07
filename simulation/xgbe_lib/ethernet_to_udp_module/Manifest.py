@@ -31,5 +31,5 @@ files = [
 configuration = {
   # select target device:
   'G_BSP_NONE': {'value': 'True'},
-  'DHCP_E': {'type': 'bool', 'value': 'True', 'module_name': 'xgbe_lib', 'description': 'DHCP enable'},
+  'DHCP_SWITCH': {'type': 'string', 'value': 'ON ', 'module_name': 'xgbe_lib', 'description': 'DHCP enable'},
 }

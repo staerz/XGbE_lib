@@ -1,0 +1,6 @@
+% file to indicate counters when to set dhcp_en (enable DHCP module)
+% have one integer per line
+% decimal numbers
+% must be in increasing order!
+
+@200-1200

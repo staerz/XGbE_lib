@@ -1,0 +1,13 @@
+comments:
+anything less than
+length of a line
+containing data
+% any line started with '%' - flag can be specified as generic in file_reader_hex
+% interpreter ignores empty lines as well
+
+% "@" is used to indicate counters for transmission start
+% flag can be specified as generic in AV_ST_sender
+% must be decimal numbers in increasing order!
+
+% to keep it simple, we don't actually inject UDP data...
+
