@@ -4,9 +4,12 @@ The following simulation targets are available in this repository:
 - [`damon_top`](damon_top): Simulation of damon top module
 - `xgbe_lib`
   - [`arp_module`](xgbe_lib/arp_module): Simulation of the bare `arp_module`
+  - [`dhcp_in_ip_module`](xgbe_lib/dhcp_in_ip_module): Simulation of the `dhcp_module` in conjunction with the `ip_module`
+  - [`dhcp_module`](xgbe_lib/dhcp_module): Simulation of the bare `dhcp_module`
   - [`ethernet_header_module`](xgbe_lib/ethernet_header_module): Simulation of the bare `ethernet_header_module`
   - [`ethernet_module`](xgbe_lib/ethernet_module): Simulation of the bare `ethernet_module`
   - [`ethernet_to_udp_module`](xgbe_lib/ethernet_to_udp_module): Simulation of the bare `ethernet_to_udp_module`
+     - in 3 different variants: IP configuration via DHCP, static IP configuration, dynamically turning on/off DHCP
   - [`icmp_module`](xgbe_lib/icmp_module): Simulation of the bare `icmp_module`
   - [`interface_merger`](xgbe_lib/interface_merger): Simulation of the bare `interface_merger`
   - [`ip_header_module`](xgbe_lib/ip_header_module): Simulation of the bare `ip_header_module`
