@@ -1,5 +1,5 @@
 # Project description
-description = 'Simulation of the bare ethernet_to_udp_module'
+description = 'Simulation of the bare ethernet_to_udp_module with DHCP enabled'
 
 # Simulating the design
 action = 'simulation'
