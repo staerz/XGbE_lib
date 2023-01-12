@@ -78,7 +78,7 @@ entity dhcp_module is
     rst              : in    std_logic;
     --! @brief Boot, sync with #clk
     --! @details Rebooting with last assigned IP address (rather than resetting requesting new one)
-    boot_i           : in    std_logic;
+    boot_i           : in    std_logic := '0';
 
     --! @name Avalon-ST from DHCP core
     --! @{
@@ -221,6 +221,9 @@ architecture behavioral of dhcp_module is
   --! Indication of the RX FSM to be in IDLE (not busy)
   signal no_rx : std_logic;
 
+  --! @todo Double-check: I think #use_suggest_ip and #mypreviousip can be removed
+  --! Need to read the specs again on this (it's used in the DISCOVER message)
+
   --! Indicator if or if not to use a suggested IP
   signal use_suggest_ip : boolean;
   --! Previous stored IP of the core
@@ -237,6 +240,9 @@ architecture behavioral of dhcp_module is
   signal leasetime : std_logic_vector(31 downto 0);
   --! IP subnet mask
   signal netmask   : std_logic_vector(31 downto 0);
+
+  --! Flag indicating that #yourid is valid (has been acknowledged). Used for REBOOT.
+  signal yourid_valid : std_logic;
 
   --! @}
 
@@ -313,9 +319,12 @@ begin
       send_dhcp_decline  <= '0';
 
       if rst = '1' then
-        dhcp_state <= INIT;
-      elsif boot_i = '1' then
-        dhcp_state <= INIT_REBOOT;
+        -- if requested to reboot, AND remembering last IP address
+        if boot_i = '1' and yourid_valid = '1' then
+          dhcp_state <= INIT_REBOOT;
+        else
+          dhcp_state <= INIT;
+        end if;
       else
 
         case dhcp_state is
@@ -1634,6 +1643,22 @@ begin
         end if;
       end if;
     end process proc_capture_my_ip;
+
+    --! @brief Manage flag to indicate validity of last IP address configuration
+    --! @details
+    --! Manage #yourid_valid: It is to be reset upon receiving a #rst_i without #boot_i.
+    --! It is latched to '1' after a successful DHCP interaction and kept as is otherwise.
+    --! Note that #yourid is only updated upon evaluating DHCP offers, so its value is already permanent beyond reset.
+    proc_memorise_my_ip : process (clk)
+    begin
+      if rising_edge(clk) then
+        if rst = '1' and boot_i = '0' then
+          yourid_valid <= '0';
+        elsif dhcp_acknowledge = '1' then
+          yourid_valid <= '1';
+        end if;
+      end if;
+    end process proc_memorise_my_ip;
 
   end block blk_manage_my_ip;
 
