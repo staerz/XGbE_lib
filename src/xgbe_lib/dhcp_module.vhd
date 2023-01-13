@@ -435,15 +435,20 @@ begin
           when INIT_REBOOT =>
             dhcp_state <= REBOOTING;
 
-            -- TODO: Check if the request is different from request coming from SELECTING
             send_dhcp_request <= '1';
 
           when REBOOTING =>
             if dhcp_acknowledge = '1' then
               dhcp_state <= BOUND;
-            elsif dhcp_nack = '1' then
+            elsif dhcp_nack = '1' or lease_expired = '1' then
               dhcp_state <= INIT;
             else
+              -- in addition to the specified state transitions,
+              -- we also need to resend a request after timeout
+              if resend_dhcp_request = '1' then
+                send_dhcp_request <= '1';
+              end if;
+
               dhcp_state <= REBOOTING;
             end if;
 
@@ -698,6 +703,7 @@ begin
         -- (tx_state = DHCP_INFORM) or
         (tx_state = DHCP_REQUEST and (dhcp_state = RENEWING or dhcp_state = REBINDING)) or
         (tx_state = DHCP_RELEASE) else
+      -- i.e. REBOOTING: MUST NOT FILL
       (others => '0');
 
     -- vsg_on comment_010
@@ -825,7 +831,7 @@ begin
                     dhcp_options_fifo_din <= x"3204" & mypreviousip & x"00_00";
                     dhcp_options_fifo_wen <= '1';
                   -- MUST be set to the value of 'yiaddr' in the DHCPOFFER message from the server.
-                  -- yourid is any of the selected yiaddr
+                  -- yourid is any of the selected yiaddr and remains validity also for REBOOTING
                   -- vsg_off if_009
                   elsif (tx_state = DHCP_REQUEST and (dhcp_state = REQUESTING or dhcp_state = REBOOTING)) or
                     (tx_state = DHCP_DECLINE)
@@ -1021,13 +1027,16 @@ begin
       --! - Request in RENEWING uses unicast (may use)
       --! - DHCP_INFORM can unicast but must revert to broadcast if no reply
       --! - In any other case, messages are broadcast
+      --! - In REBOOTING we may actually use the serverid but would have to revert to broadcast.
+      --!   For simplicity we just broadcast right away
+      --!   (one could though differentiate using #send_dhcp_request vs. #resent_dhcp_request).
       --! @todo This process can possibly be simplified as only in some special cases we do not (IP) broadcast.
       proc_set_dhcp_server_ip : process (clk)
       begin
         if rising_edge(clk) then
           if send_dhcp_request = '1' or send_dhcp_decline = '1' then
-            -- The protocol states that in rebinding, we must send a broadcast
-            if dhcp_state = REBINDING or dhcp_state = REQUESTING then
+            -- The protocol states that in REBINDING, REQUESTING, and REBOOTING we must send a broadcast
+            if dhcp_state = REBINDING or dhcp_state = REQUESTING or dhcp_state = REBOOTING then
               dhcp_server_ip_o <= (others => '1');
             else
               dhcp_server_ip_o <= serverid;
@@ -1789,6 +1798,7 @@ begin
       proc_timer_pos : process (clk)
       begin
         if rising_edge(clk) then
+          -- t2_expired_tick also can kick in during REBOOTING ... it's a minor thing we could fix
           if dhcp_state = INIT or dhcp_state = BOUND or t2_expired_tick = '1' then
             timer_pos <= 1;
           elsif send_dhcp_request = '1' and timer_pos < 6 then
@@ -1798,7 +1808,7 @@ begin
       end process proc_timer_pos;
 
       with dhcp_state select is_rerequest_state <=
-        '1' when REQUESTING | RENEWING | REBINDING,
+        '1' when REQUESTING | RENEWING | REBINDING | REBOOTING,
         '0' when others;
 
       -- possibly we have to put this into a process as seconds(timer_pos) is not globally static (need to verify in compilation)
