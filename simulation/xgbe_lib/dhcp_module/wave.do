@@ -52,7 +52,6 @@ add wave -noupdate -expand -group RX /dhcp_module_tb/uut/blk_make_rx_interface/r
 add wave -noupdate -expand -group RX -expand /dhcp_module_tb/uut/blk_make_rx_interface/rx_packet_reg
 add wave -noupdate -expand -group RX /dhcp_module_tb/uut/blk_make_rx_interface/offered_yiaddr
 add wave -noupdate -expand -group RX /dhcp_module_tb/uut/yourid
-add wave -noupdate -expand -group RX /dhcp_module_tb/uut/yourid_valid
 add wave -noupdate -expand -group RX -expand -group {RX OPT FIFO} /dhcp_module_tb/uut/blk_make_rx_interface/blk_dhcp_rx_options_fifo_handler/dhcp_rx_options_fifo_din
 add wave -noupdate -expand -group RX -expand -group {RX OPT FIFO} /dhcp_module_tb/uut/blk_make_rx_interface/blk_dhcp_rx_options_fifo_handler/dhcp_rx_options_fifo_wen
 add wave -noupdate -expand -group RX -expand -group {RX OPT FIFO} /dhcp_module_tb/uut/blk_make_rx_interface/blk_dhcp_rx_options_fifo_handler/dhcp_rx_options_fifo_ren
