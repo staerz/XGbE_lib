@@ -241,9 +241,6 @@ architecture behavioral of dhcp_module is
   --! IP subnet mask
   signal netmask   : std_logic_vector(31 downto 0);
 
-  --! Flag indicating that #yourid is valid (has been acknowledged). Used for REBOOT.
-  signal yourid_valid : std_logic;
-
   --! @}
 
   --! @name Indicators to send dedicated DHCP messages (comm from global FSM to tx FSM)
@@ -319,9 +316,15 @@ begin
       send_dhcp_decline  <= '0';
 
       if rst = '1' then
-        -- if requested to reboot, AND remembering last IP address
-        if boot_i = '1' and yourid_valid = '1' then
+        -- if requested to reboot, AND assigned IP is still valid
+        -- (lease not expired) we reboot
+        -- Note: we should possibly check not the last bit of the lease counter
+        -- but maybe the 5th or so to allow enough time to send at least 1 request out
+        -- before the lease actually expires
+        -- but the mechanism will fall back even if on its way the release expires
+        if boot_i = '1' and lease_expired = '0' then
           dhcp_state <= INIT_REBOOT;
+        -- otherwise we INIT normally
         else
           dhcp_state <= INIT;
         end if;
@@ -489,13 +492,15 @@ begin
     end if;
   end process proc_xid;
 
+  --! create a #second_tick from #one_ms_tick_i
+  --! It's only reset by #rst when not booting (not #boot_i) to keep the lease counter counting
   inst_second_tick : entity misc.counting
   generic map (
     COUNTER_MAX_VALUE => MSPERS
   )
   port map (
     clk => clk,
-    rst => rst,
+    rst => rst and not boot_i,
     en  => one_ms_tick_i,
 
     cycle_done => second_tick
@@ -1644,22 +1649,6 @@ begin
       end if;
     end process proc_capture_my_ip;
 
-    --! @brief Manage flag to indicate validity of last IP address configuration
-    --! @details
-    --! Manage #yourid_valid: It is to be reset upon receiving a #rst_i without #boot_i.
-    --! It is latched to '1' after a successful DHCP interaction and kept as is otherwise.
-    --! Note that #yourid is only updated upon evaluating DHCP offers, so its value is already permanent beyond reset.
-    proc_memorise_my_ip : process (clk)
-    begin
-      if rising_edge(clk) then
-        if rst = '1' and boot_i = '0' then
-          yourid_valid <= '0';
-        elsif dhcp_acknowledge = '1' then
-          yourid_valid <= '1';
-        end if;
-      end if;
-    end process proc_memorise_my_ip;
-
   end block blk_manage_my_ip;
 
   blk_manage_lease_times : block
@@ -1726,7 +1715,7 @@ begin
         t1 <= t1;
         t2 <= t2;
 
-        if rst = '1' then
+        if rst = '1' and boot_i = '0' then
           -- upon reset we only need to reset the lease time
           -- this will reset my_ip_o as a consequence (in the next cycle)
           lease(lease'high) <= '1';
@@ -1828,7 +1817,7 @@ begin
         sig_out => resend_dhcp_request
       );
 
-      -- abort requesting and initiate to go back to INIT state after timeout + margin for possible reply
+      --! Abort requesting and initiate to go back to INIT state after timeout + margin for possible reply
       proc_dhcp_timedout : process (clk)
       begin
         if rising_edge(clk) then
