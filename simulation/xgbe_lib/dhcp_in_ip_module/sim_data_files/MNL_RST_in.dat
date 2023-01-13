@@ -6,4 +6,7 @@
 @9-14
 
 @2300
-@2301
+
+% @5333 the lease time runs out and the core would go back to INIT/SELECTING
+@6000
+@6001
