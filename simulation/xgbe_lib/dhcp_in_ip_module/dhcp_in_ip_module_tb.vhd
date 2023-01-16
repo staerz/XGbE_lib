@@ -178,6 +178,12 @@ architecture tb of dhcp_in_ip_module_tb is
   --! Status of the DHCP module
   signal status_vector_dhcp : std_logic_vector(6 downto 0);
 
+  --! Print out "At cnt=<cnt>: <txt>"
+  function txt_at_cnt (txt : string; cnt : integer) return string is
+  begin
+    return "At cnt=" & integer'image(cnt) & ": " & txt;
+  end function txt_at_cnt;
+
 begin
 
   --! Instantiate the primary Unit Under Test (UUT): DHCP module
@@ -403,13 +409,13 @@ begin
       -- Now we just compare expected data and valid to actual values as long as there's sth. to read from files
       -- vsg_disable_next_line whitespace_013
       while nand(eof) loop
-        check_value(ip_rx_packet.valid, ip_rx_expect.valid, ERROR, "Checking expected IP valid.", "", ID_NEVER);
-        check_value(ip_rx_packet.sop, ip_rx_expect.sop, ERROR, "Checking expected IP sop.", "", ID_NEVER);
-        check_value(ip_rx_packet.eop, ip_rx_expect.eop, ERROR, "Checking expected IP eop.", "", ID_NEVER);
-        check_value(ip_rx_packet.error(0), ip_rx_expect.error(0), ERROR, "Checking expected IP eop.", "", ID_NEVER);
+        check_value(ip_rx_packet.valid, ip_rx_expect.valid, ERROR, txt_at_cnt("Checking expected IP valid.",cnt), "", ID_NEVER);
+        check_value(ip_rx_packet.sop, ip_rx_expect.sop, ERROR, txt_at_cnt("Checking expected IP sop.",cnt), "", ID_NEVER);
+        check_value(ip_rx_packet.eop, ip_rx_expect.eop, ERROR, txt_at_cnt("Checking expected IP eop.",cnt), "", ID_NEVER);
+        check_value(ip_rx_packet.error(0), ip_rx_expect.error(0), ERROR, txt_at_cnt("Checking expected IP eop.",cnt), "", ID_NEVER);
         -- only check the expected data when it's relevant: reader will hold data after packet while uut might not
         if ip_rx_expect.valid then
-          check_value(ip_rx_packet.data, ip_rx_expect.data, ERROR, "Checking expected IP data.", "", HEX, KEEP_LEADING_0, ID_NEVER);
+          check_value(ip_rx_packet.data, ip_rx_expect.data, ERROR, txt_at_cnt("Checking expected IP data.",cnt), "", HEX, KEEP_LEADING_0, ID_NEVER);
         end if;
         wait for CLK_PERIOD;
       end loop;

@@ -176,6 +176,12 @@ architecture tb of ethernet_to_udp_module_tb is
   --! Status of the module
   signal status_vector : std_logic_vector(33 downto 0);
 
+  --! Print out "At cnt=<cnt>: <txt>"
+  function txt_at_cnt (txt : string; cnt : integer) return string is
+  begin
+    return "At cnt=" & integer'image(cnt) & ": " & txt;
+  end function txt_at_cnt;
+
 begin
 
   --! Instantiate the Unit Under Test (UUT)
@@ -434,7 +440,6 @@ begin
 
     --! UVVM check
     proc_uvvm : process
-    -- todo: find a neat way to have "At cnt=" & integer'image(cnt) & ":" in a variable
     begin
       -- Wait a bit to let simulation settle
       wait for CLK_PERIOD;
@@ -449,19 +454,19 @@ begin
       -- Now we just compare expected data and valid to actual values as long as there's sth. to read from files
       -- vsg_disable_next_line whitespace_013
       while nand(eof) loop
-        check_value(eth_rx_packet.valid, eth_rx_expect.valid, ERROR, "At cnt=" & integer'image(cnt) & ": Checking expected ETH valid.", "", ID_NEVER);
-        check_value(eth_rx_packet.sop, eth_rx_expect.sop, ERROR, "At cnt=" & integer'image(cnt) & ": Checking expected ETH sop.", "", ID_NEVER);
-        check_value(eth_rx_packet.eop, eth_rx_expect.eop, ERROR, "At cnt=" & integer'image(cnt) & ": Checking expected ETH eop.", "", ID_NEVER);
+        check_value(eth_rx_packet.valid, eth_rx_expect.valid, ERROR, txt_at_cnt("Checking expected ETH valid.", cnt), "", ID_NEVER);
+        check_value(eth_rx_packet.sop, eth_rx_expect.sop, ERROR, txt_at_cnt("Checking expected ETH sop.", cnt), "", ID_NEVER);
+        check_value(eth_rx_packet.eop, eth_rx_expect.eop, ERROR, txt_at_cnt("Checking expected ETH eop.",cnt), "", ID_NEVER);
         -- only check the expected data when it's relevant: reader will hold data after packet while uut might not
         if eth_rx_expect.valid then
-          check_value(eth_rx_packet.data, eth_rx_expect.data, ERROR, "At cnt=" & integer'image(cnt) & ": Checking expected ETH data.", "", HEX, KEEP_LEADING_0, ID_NEVER);
+          check_value(eth_rx_packet.data, eth_rx_expect.data, ERROR, txt_at_cnt("Checking expected ETH data.",cnt), "", HEX, KEEP_LEADING_0, ID_NEVER);
         end if;
-        check_value(udp_rx_packet.valid, udp_rx_expect.valid, ERROR, "At cnt=" & integer'image(cnt) & ": Checking expected udp valid.", "", ID_NEVER);
-        check_value(udp_rx_packet.sop, udp_rx_expect.sop, ERROR, "At cnt=" & integer'image(cnt) & ": Checking expected udp sop.", "", ID_NEVER);
-        check_value(udp_rx_packet.eop, udp_rx_expect.eop, ERROR, "At cnt=" & integer'image(cnt) & ": Checking expected udp eop.", "", ID_NEVER);
+        check_value(udp_rx_packet.valid, udp_rx_expect.valid, ERROR, txt_at_cnt("Checking expected udp valid.",cnt), "", ID_NEVER);
+        check_value(udp_rx_packet.sop, udp_rx_expect.sop, ERROR, txt_at_cnt("Checking expected udp sop.",cnt), "", ID_NEVER);
+        check_value(udp_rx_packet.eop, udp_rx_expect.eop, ERROR, txt_at_cnt("Checking expected udp eop.",cnt), "", ID_NEVER);
         -- only check the expected data when it's relevant: reader will hold data after packet while uut might not
         if udp_rx_expect.valid and udp_rx_ready then
-          check_value(udp_rx_packet.data, udp_rx_expect.data, ERROR, "At cnt=" & integer'image(cnt) & ": Checking expected udp data.", "", HEX, KEEP_LEADING_0, ID_NEVER);
+          check_value(udp_rx_packet.data, udp_rx_expect.data, ERROR, txt_at_cnt("Checking expected udp data.",cnt), "", HEX, KEEP_LEADING_0, ID_NEVER);
         end if;
         wait for CLK_PERIOD;
       end loop;
