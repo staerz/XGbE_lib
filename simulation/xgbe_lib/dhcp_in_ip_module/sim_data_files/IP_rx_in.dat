@@ -315,3 +315,5 @@ C0A8 0101 3304 0000
 % DNS server (10)
 0608 0102 0304 0102
 0305 FFBA DBAD BADD 101 0
+
+% after this acknowledge, the core should go back to BOUND
