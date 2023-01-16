@@ -39,6 +39,22 @@
 --! reset which will result in no DHCP traffic (from and to this module).
 --! An example instantiation can be found in the ethernet_to_udp_module.
 --!
+--! # Reset behaviour
+--!
+--! RFC 2131 foresees a DHCP client to come up from INIT (no previous
+--! configuration) or from INIT_REBOOT.
+--! The dhcp_module makes this distinction via the ports #rst and #boot_i:
+--! INIT is reached by only driving #rst to '1' while #boot_i is '0'
+--! whereas INIT_REBOOT is reached when both these signals are at '1'.
+--! Hereby the last clock cycle of #rst is significant.
+--! Note that, following RFC 2131, the client will only attempt to come up in
+--! INIT_REBOOT if, additionally to resetting as described, it still has a valid
+--! lease from a previous DHCP configuration.
+--!
+--! See also the following timing diagram:
+--!  @image latex dhcp_module_reset.pdf "Reset behaviour of dhcp_module" width=\textwidth
+--!  @image html dhcp_module_reset.svg
+--!
 --! @todo When adding support for further DHCP options, even for static IP
 --! configuration, the specified procedure for DHCPINFORM to acquire further
 --! network parameters should be implemented.
@@ -46,9 +62,6 @@
 --! @todo DHCP Discover:
 --! - The client SHOULD include the 'maximum DHCP message size' option to
 --!   let the server know how large the server may make its DHCP messages.
---!
---! @todo DHCP Request:
---! - Request from INIT_REBOOT: broadcast the 0xffffffff IP broadcast address
 --!
 --! @todo Calculation of the UDP CRC field is currently not implemented.
 --------------------------------------------------------------------------------
