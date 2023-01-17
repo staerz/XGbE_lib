@@ -1253,7 +1253,8 @@ begin
       if rising_edge(clk) then
         -- reset or returning into dhcp_state INIT reset RX FSM
         -- checking dhcp_state makes sure to discard offers to outdated discoveries
-        if rst = '1' or (dhcp_state = SELECTING and resend_dhcp_discover = '1') then
+        -- Also once BOUND, we must ignore any subsequent acknowledges
+        if rst = '1' or (dhcp_state = SELECTING and resend_dhcp_discover = '1') or (dhcp_state = BOUND) then
           rx_state <= IDLE;
         else
 
