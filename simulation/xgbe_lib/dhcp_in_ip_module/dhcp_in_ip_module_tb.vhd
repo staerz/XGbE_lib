@@ -181,7 +181,9 @@ architecture tb of dhcp_in_ip_module_tb is
   --! Print out "At cnt=<cnt>: <txt>"
   function txt_at_cnt (txt : string; cnt : integer) return string is
   begin
+
     return "At cnt=" & integer'image(cnt) & ": " & txt;
+
   end function txt_at_cnt;
 
 begin
