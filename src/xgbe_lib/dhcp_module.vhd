@@ -534,8 +534,8 @@ begin
     end if;
   end process proc_xid;
 
-  --! create a #second_tick from #one_ms_tick_i
-  --! It's only reset by #rst when not booting (not #boot_i) to keep the lease counter counting
+  --! @brief Create a #second_tick from #one_ms_tick_i
+  --! @details It's only reset by #rst when not booting (not #boot_i) to keep the lease counter counting
   inst_second_tick : entity misc.counting
   generic map (
     COUNTER_MAX_VALUE => MSPERS
@@ -1172,6 +1172,9 @@ begin
     --! Register receiving data
     signal rx_packet_reg : dhcp_rx_packet_i'subtype;
 
+    --! Reset of the FIFO holding DHCP options (shift register)
+    signal rst_options_fifo : std_logic_vector(3 downto 0);
+
     --! Indicator if parsing DHCP options is done
     signal parse_options_done : std_logic;
 
@@ -1326,7 +1329,13 @@ begin
             when STORING_OPTS =>
               -- end of packet concludes package
               if rx_packet_reg.eop = '1' then
-                rx_state <= PARSING_OPTS;
+                -- evaluate error flag: Go back to IDLE if erroneous or actually parse options
+                -- (note that option parsing can actually start earlier, see proc_parse_options)
+                if rx_packet_reg.error(0) = '1' then
+                  rx_state <= IDLE;
+                else
+                  rx_state <= PARSING_OPTS;
+                end if;
               else
                 rx_state <= STORING_OPTS;
               end if;
@@ -1351,6 +1360,22 @@ begin
         end if;
       end if;
     end process proc_rx_state;
+
+    --! @brief Options FIFO reset for erroneous DHCP packets
+    --! @details
+    --! At the end of a DHCP packet evaluate if it was erroneous or not.
+    --! Erroneous packets lead to reset the options FIFO.
+    --! To be save, we apply the reset for a few consecutive clock cycles (full reset shift register).
+    proc_reset_options_fifo : process (clk)
+    begin
+      if rising_edge(clk) then
+        if rx_state = STORING_OPTS and rx_packet_reg.eop = '1' and rx_packet_reg.error(0) = '1' then
+          rst_options_fifo <= (others => '1');
+        else
+          rst_options_fifo <= '0' & rst_options_fifo(rst_options_fifo'high downto 1);
+        end if;
+      end if;
+    end process proc_reset_options_fifo;
 
     no_rx <= '1' when rx_state = IDLE else '0';
 
@@ -1429,7 +1454,7 @@ begin
         RD_D_WIDTH     => 8
       )
       port map (
-        rst      => rst,
+        rst      => rst_options_fifo(0),
         wr_clk   => clk,
         wr_en    => dhcp_rx_options_fifo_wen,
         wr_data  => dhcp_rx_options_fifo_din,
@@ -1487,6 +1512,12 @@ begin
       --!
       --! The process is insensitive to #rst: If a reset happens while the options are parsed,
       --! the FIFO is reset directly which makes it empty, which is seen by this process, returning to IDLE.
+      --!
+      --! Since parsing of the options is started as soon there's data in the options FIFO but we do not yet
+      --! know at that point if it's an error-free packet transmission and it's hence important to only set
+      --! #parse_options_done in rx_state = PARSING_OPTS:
+      --! The RX FSM would skip this state when encountering an erroneous packet and we must ensure here that
+      --! no parsed options make it into #proc_evaluate_rx_packet where #parse_options_done is evaluated again.
       proc_parse_options : process (clk)
       begin
         if rising_edge(clk) then
@@ -1497,7 +1528,7 @@ begin
           case option_state is
 
             when IDLE =>
-              -- start reading from FIFO as soon as options are available
+              -- start interpreting options as soon as options are available
               if dhcp_rx_options_fifo_empty = '0' then
                 option_state <= READ;
               else
@@ -1512,7 +1543,9 @@ begin
               if dhcp_rx_options_fifo_empty = '1' then
                 option_state <= IDLE;
 
-                parse_options_done <= '1';
+                if rx_state = PARSING_OPTS then
+                  parse_options_done <= '1';
+                end if;
               -- but check for padding bytes: simply skip and interpret next byte as option
               -- note order of prio: If empty is seen and x"00" at the same time, that simply means there is no more data to read
               elsif dhcp_rx_options_fifo_dout = x"00" then
@@ -1540,7 +1573,9 @@ begin
                 if dhcp_rx_options_fifo_empty = '1' then
                   option_state <= IDLE;
 
-                  parse_options_done <= '1';
+                  if rx_state = PARSING_OPTS then
+                    parse_options_done <= '1';
+                  end if;
                 else
                   option_state <= OPTION;
                 end if;
