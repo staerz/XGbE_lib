@@ -534,8 +534,10 @@ begin
     end if;
   end process proc_xid;
 
-  --! @brief Create a #second_tick from #one_ms_tick_i
-  --! @details It's only reset by #rst when not booting (not #boot_i) to keep the lease counter counting
+  --! @brief Create a second tick from a millisecond tick
+  --! @details It's only reset by #rst when not booting (not #boot_i) to keep the lease counter counting.
+  --! @param en as #one_ms_tick_i
+  --! @return #second_tick
   inst_second_tick : entity misc.counting
   generic map (
     COUNTER_MAX_VALUE => MSPERS
@@ -619,36 +621,42 @@ begin
     --! @endcode
     signal dhcp_packet : std_logic_vector((DHCP_WORDS * 64) - 1 downto 0);
 
-    --! @name Elements of the DHCP packet
+    --! @name Static elements of the DHCP packet
     --! @{
 
     --! UDP source port (68)
     constant UDP_SRC_PORT : std_logic_vector(15 downto 0) := x"0044";
     --! UDP destination port (67)
     constant UDP_DST_PORT : std_logic_vector(15 downto 0) := x"0043";
-    --! UDP length
-    signal   udp_length   : unsigned(15 downto 0);
-    --! UDP CRC
-    signal   udp_crc      : std_logic_vector(15 downto 0);
     --! DHCP header (op & htype & hlen & hops: fixed for client tx)
     constant DHCP_HEADER  : std_logic_vector(31 downto 0) := x"01_01_06_00";
-    -- Transaction ID: already defined globally
-    --! Seconds
-    signal   secs         : std_logic_vector(15 downto 0);
-    --! Flags
-    signal   flags        : std_logic_vector(15 downto 0);
-    --! Client IP ADDR
-    signal   ciaddr       : std_logic_vector(31 downto 0);
     --! Your IP ADDR / Server IP ADDR / Gateway IP ADDR
     constant YSGIADDR     : std_logic_vector(31 downto 0) := (others => '0');
-    --! Client Hardware IP ADDR
-    signal   chaddr       : std_logic_vector(127 downto 0);
     --! Optional server host name, null terminated string
     constant SNAME        : std_logic_vector(511 downto 0) := (others => '0');
     --! Boot file name, null terminated string
     constant BFILE        : std_logic_vector(1023 downto 0) := (others => '0');
     --! Magic cookie (mandatory first option word)
     constant MAGIC_COOKIE : std_logic_vector(31 downto 0) := x"63825363";
+
+    --! @}
+
+    --! @name Dynamic elements of the DHCP packet
+    --! @{
+
+    --! UDP length
+    signal udp_length : unsigned(15 downto 0);
+    --! UDP CRC
+    signal udp_crc    : std_logic_vector(15 downto 0);
+    -- Transaction ID: already defined globally
+    --! Seconds
+    signal secs       : std_logic_vector(15 downto 0);
+    --! Flags
+    signal flags      : std_logic_vector(15 downto 0);
+    --! Client IP ADDR
+    signal ciaddr     : std_logic_vector(31 downto 0);
+    --! Client Hardware IP ADDR
+    signal chaddr     : std_logic_vector(127 downto 0);
 
     --! @}
 
@@ -703,6 +711,9 @@ begin
       -- so we need a dedicated counter for this field, independent of the lease time calculation
       cnt_rst <= rst or send_dhcp_discover;
 
+      --! @brief Counter for "seconds since DHCP process started"
+      --! @param inc as #second_tick
+      --! @return #secs
       inst_secs : entity misc.counter
       generic map (
         COUNTER_MAX_VALUE => 2 ** (secs'length) - 1
@@ -820,6 +831,8 @@ begin
         --! FIFO is filled while the DHCP fixed header is sent with the options
         --! needed depending on what kind of packet is sent.
         --! Storing 16 options is already on the higher edge.
+        --! @param wr_data as #dhcp_options_fifo_din (and others)
+        --! @return #dhcp_options_fifo_dout (and others)
         inst_dhcp_options_fifo : entity memory.generic_fifo
         generic map (
           WR_D_WIDTH => 64,
@@ -1039,7 +1052,9 @@ begin
         -- Once the DECLINE packet is sent, we start the counter
         cnt_rst <= '1' when tx_state = DHCP_DECLINE and last_tx_word = '1' else '0';
 
-        --! Counting of #seconds from #second_tick
+        --! @brief Counting of seconds to trigger sending of DECLINE
+        --! @param inc as #second_tick
+        --! @return #decline_sent (after 10 seconds)
         inst_seconds : entity misc.counter
         generic map (
           COUNTER_MAX_VALUE => 2 ** (seconds'length) - 1
@@ -1061,14 +1076,14 @@ begin
       end block blk_decline;
 
       --! @brief Set dhcp_server_ip_o to unicast or broadcast according to specs
-      --! @brief See table 4 and section 4.4.4 of RFC2131
+      --! @details See table 4 and section 4.4.4 of RFC2131
       --! - DHCP_RELEASE uses unicast
       --! - Request in RENEWING uses unicast (may use)
       --! - DHCP_INFORM can unicast but must revert to broadcast if no reply
       --! - In any other case, messages are broadcast
       --! - In REBOOTING we may actually use the serverid but would have to revert to broadcast.
       --!   For simplicity we just broadcast right away
-      --!   (one could though differentiate using #send_dhcp_request vs. #resent_dhcp_request).
+      --!   (one could though differentiate using #send_dhcp_request vs. #resend_dhcp_request).
       --! @todo This process can possibly be simplified as only in some special cases we do not (IP) broadcast.
       proc_set_dhcp_server_ip : process (clk)
       begin
@@ -1089,7 +1104,8 @@ begin
     end block blk_gen_tx_data;
 
     blk_backoff_discover : block
-      --! Position to check on the #secs timer to evaluate if timeout is reached:
+      --! @brief Timer position for backoff algorithm
+      --! @details Position to check on the #secs timer to evaluate if timeout is reached:
       --! First timeout is after 4 seconds, next after 8, 16, 32, finally 64 which
       --! translates to bit positions 2 to 6 to be checked.
       --! Position 1 is initialisation.
@@ -1130,6 +1146,8 @@ begin
       --! @brief Implementation (part 3) of a randomized exponential backoff algorithm (page 24 of RFC2131)
       --! @details #need_resend indicates that a resend is needed, but we must only produce a tick,
       --! which is then picked up by the global FSM.
+      --! @param sig_in as #need_resend
+      --! @return #resend_dhcp_discover
       inst_resend_dhcp_discover : entity misc.hilo_detect
       generic map (
         LOHI => true
@@ -1443,6 +1461,8 @@ begin
       --! Storing 16 words is already on the higher edge.
       --! @todo Double check required size to be on the very secure side!
       --! This could tentatively be the remaining UDP package length actually!
+      --! @param wr_data as #dhcp_rx_options_fifo_din (and others)
+      --! @return #dhcp_rx_options_fifo_dout (and others)
       inst_dhcp_rx_options_fifo : entity memory.generic_fifo
       generic map (
         -- it's actually not a dual clock, but in order to get different port width working, we need this setting
@@ -1768,7 +1788,8 @@ begin
 
       cnt_rst <= send_dhcp_request;
 
-      --! Counting of #seconds from #second_tick
+      -- Doxygen doesn't like same instance name (in other block)
+      -- Counting of #seconds from #second_tick
       inst_seconds : entity misc.counter
       generic map (
         COUNTER_MAX_VALUE => 2 ** (seconds'length) - 1
@@ -1848,20 +1869,25 @@ begin
     status_vector_o(3) <= lease_expired;
 
     blk_backoff_request : block
-      --! Position to check on the #secs timer to evaluate if timeout is reached:
-      --! First timeout is after 4 seconds, next after 8, 16, 32, finally 64 which
-      --! translates to bit positions 2 to 6 to be checked.
-      --! Position 1 is initialisation.
+      -- Doxygen doesn't like signals with same name in different blocks ...
+      -- @brief Timer position for backoff algorithm
+      --
+      -- Position to check on the #secs timer to evaluate if timeout is reached:
+      -- First timeout is after 4 seconds, next after 8, 16, 32, finally 64 which
+      -- translates to bit positions 2 to 6 to be checked.
+      -- Position 1 is initialisation.
       signal timer_pos          : natural range 1 to 6;
       --! Combining states which have possible need for re-requesting
       signal is_rerequest_state : std_logic;
-      --! Indicator that a request should be resent
+      -- Indicator that a request should be resent
       signal need_resend        : std_logic;
       --! 1-clock cycle signal once t2 expires (moves #timer_pos)
       signal t2_expired_tick    : std_logic;
     begin
 
-      --! Creation of #t2_expired_tick from #t2_expired
+      --! @brief Creation of tick for t2 expiration
+      --! @param sig_in as #t2_expired
+      --! @return #t2_expired_tick
       inst_t2_expired_tick : entity misc.hilo_detect
       generic map (
         LOHI => true
@@ -1899,6 +1925,8 @@ begin
       --! @brief Implementation (part 2) of a randomized exponential backoff algorithm (page 24 of RFC2131) for requests
       --! @details #need_resend indicates that a resend is needed, but we must only produce a tick,
       --! which is then picked up by the global FSM.
+      --! @param sig_in as #need_resend
+      --! @return #resend_dhcp_request
       inst_resend_dhcp_request : entity misc.hilo_detect
       generic map (
         LOHI => true
