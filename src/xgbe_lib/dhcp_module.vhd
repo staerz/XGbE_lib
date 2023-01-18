@@ -59,10 +59,6 @@
 --! configuration, the specified procedure for DHCPINFORM to acquire further
 --! network parameters should be implemented.
 --!
---! @todo DHCP Discover:
---! - The client SHOULD include the 'maximum DHCP message size' option to
---!   let the server know how large the server may make its DHCP messages.
---!
 --! @todo Calculation of the UDP CRC field is currently not implemented.
 --------------------------------------------------------------------------------
 
@@ -512,7 +508,7 @@ begin
   --! 'The DHCPREQUEST message contains the same `xid` as the DHCPOFFER message.'
   --! But since further 'The server inserts the `xid` field from the
   --! DHCPDISCOVER message into the `xid` field of the DHCPOFFER message',
-  --! Effectively the exact same #xid is used for a full DHCP interaction.
+  --! effectively the exact same #xid is used for a full DHCP interaction.
   --!
   --! A new (increased by 1) #xid is hence created for each DISCOVER and each REQUEST from REBOOTING.
   --! In particular we choose not to reuse the same `xid` for each transaction, but distinct ones.
@@ -682,15 +678,61 @@ begin
     signal fifo_state : t_fifo_state := IDLE;
   begin
 
-    -- We know the length in advance (must be in agreement with proc_write_fifo!):
-    -- 8 * (DHCP_WORDS for fixed DHCP header + options) + 1 (END)
-    -- Note: a more general approach would be to check the number of words
-    -- in the tx options FIFO (once written), but then we'd have to wait for that
-    -- to happen first which would delay the process
-    udp_length <=
-      to_unsigned((1 + 8 * (DHCP_WORDS + 2)), 16) when tx_state = DHCP_DISCOVER or dhcp_state = RENEWING or dhcp_state = REBINDING else
-      to_unsigned((1 + 8 * (DHCP_WORDS + 4)), 16) when tx_state = DHCP_REQUEST or tx_state = DHCP_DECLINE else
-      (others => '-');
+    --! @brief Calculate the UDP length at the beginning of a transmission
+    --! @details
+    --! The UDP length depends on the options set in each outgoing DHCP packet.
+    --! It needs to be determined directly at the beginning of a packet (as UDP length
+    --! figures in the header).
+    --! We use a variable to count the active options, precisely (1:1) following the
+    --! conditions as they are used in #proc_write_fifo and leave the optimisation to
+    --! the compiler.
+    --!
+    --! @todo
+    --! A possibly more elegant approach would be to check the number of words
+    --! in the tx options FIFO (#dhcp_options_fifo_din, once written), but then we'd have to wait for that
+    --! to happen first which would delay the process.
+    --! This could though possibly be implemented when implementing the calculation of
+    --! the UDP CRC.
+    proc_udp_length : process (clk)
+      -- number of bytes (equivalent to number of options)
+      variable len : integer range 0 to DHCP_WORDS;
+    begin
+      if rising_edge(clk) then
+        len := 0;
+        -- We have exactly 1 clock cycle before we need the UDP length field
+        if tx_count = 0 and tx_state /= IDLE then
+          -- tx_count = 1
+          len := len + 1;
+
+          -- tx_count = 2
+          -- vsg_off if_009
+          if (tx_state = DHCP_DISCOVER and use_suggest_ip) or
+            (tx_state = DHCP_REQUEST and (dhcp_state = REQUESTING or dhcp_state = REBOOTING)) or
+            (tx_state = DHCP_DECLINE)
+          then
+            len := len + 1;
+          end if;
+
+          -- tx_count = 3
+          if (tx_state = DHCP_REQUEST and dhcp_state = REQUESTING) or
+            tx_state = DHCP_DECLINE or tx_state = DHCP_RELEASE
+          then
+            len := len + 1;
+          -- vsg_on if_009
+          end if;
+
+          -- tx_count = 4
+          len := len + 1;
+
+          -- tx_count = 5
+          if tx_state = DHCP_DISCOVER or tx_state = DHCP_REQUEST then
+            len := len + 1;
+          end if;
+        end if;
+
+        udp_length <= to_unsigned((1 + 8 * (DHCP_WORDS + len)), 16);
+      end if;
+    end process proc_udp_length;
 
     gen_udp_crc : if UDP_CRC_EN generate
       -- Will need major rework as first the package will have to be generated and
@@ -797,7 +839,7 @@ begin
     begin
 
       blk_fifo_handler : block
-        --! @name Signals controlling the FIFO data flow
+        --! @name Signals controlling the options FIFO data flow
         --! @{
 
         --! Recognised DHCP operation
@@ -856,8 +898,16 @@ begin
         --! depending which kind of packet is to be sent.
         --! Compare to table 5 of RFC 2131.
         --!
-        --! Only MUST options are implemented so far.
+        --! All MUST options are implemented and few SHOULD options.
         --! We may (in all cases) add a client identifier option.
+        --!
+        --! The order of DHCP options is irrelevant and we have (DHCP_WORDS - 2) clock cycles
+        --! time to insert the relevant fields (some DHCP options may take more than 8 bytes).
+        --! Since `0x00` is a valid padding option, options, even if taking less than 8 bytes,
+        --! are distributed on dedicated cycles with padding each time.
+        --! This is not the most efficient implementation but keeps the source code very readable.
+        --!
+        --! When adding more options make sure to also update #proc_udp_length accordingly!
         proc_write_fifo : process (clk)
         begin
           if rising_edge(clk) then
@@ -909,6 +959,17 @@ begin
                   -- Requesting: 1 = IP subnet mask, x1A = d26 = MTU, x1C = d28 = Broadcast address
                   dhcp_options_fifo_din <= x"3703" & x"01" & x"1A" & x"1C" & x"00_00_00";
                   dhcp_options_fifo_wen <= '1';
+
+                -- Maximum DHCP message size (SHOULD)
+                -- A client may use the maximum DHCP message size option in
+                -- DHCPDISCOVER or DHCPREQUEST messages, but should not use the option
+                -- in DHCPDECLINE messages.
+                -- The minimum legal value is 576 (0x240) octets.
+                when 5 =>
+                  if tx_state = DHCP_DISCOVER or tx_state = DHCP_REQUEST then
+                    dhcp_options_fifo_din <= x"3902" & x"0240" & x"00_00_00_00";
+                    dhcp_options_fifo_wen <= '1';
+                  end if;
 
                 -- END option
                 --! @cond Doxygen doesn't like the next line, it sees it as a syntax error
