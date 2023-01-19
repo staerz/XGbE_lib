@@ -308,7 +308,7 @@ DEAD BEF0 0000 0000
 6382 5363 3501 0600
 % More DHCP options:
 % DHCP server (6)
-3604 C0A8 0101 FFBA 101 1
+3604 C0A8 0101 FFBA 001 1
 % the core should just ignore this package
 
 % todo: fix description
@@ -424,6 +424,6 @@ DEAD BEF0 0000 0000
 6382 5363 3501 0600
 % More DHCP options:
 % DHCP server (6)
-3604 C0A8 0101 FFBA 101 0
+3604 C0A8 0101 FFBA 001 0
 
 % after this nacknowledge, the core should go back to INIT/SELECTING
