@@ -144,7 +144,7 @@ entity dhcp_module is
     --! - 3: lease expired
     --! - 2: t2_expired
     --! - 1: t1_expired
-    --! - 0: IP address configured (DHCP module in BOUND or RENEWING state)
+    --! - 0: IP address configured (DHCP module in BOUND, RENEWING or REBINDING state)
     status_vector_o  : out   std_logic_vector(6 downto 0)
   );
 end entity dhcp_module;
@@ -473,7 +473,7 @@ begin
 
   -- indicate dhcp bound-ish state to status_vector
   with dhcp_state select status_vector_o(0) <=
-    '1' when BOUND | RENEWING,
+    '1' when BOUND | RENEWING | REBINDING,
     '0' when others;
 
   -- indicate dhcp decline state to status_vector
@@ -1737,7 +1737,7 @@ begin
         t1 <= t1;
         t2 <= t2;
 
-        if rst = '1' and boot_i = '0' then
+        if (rst = '1' and boot_i = '0') or dhcp_nack = '1' then
           -- upon reset we only need to reset the lease time
           -- this will reset my_ip_o as a consequence (in the next cycle)
           lease(lease'high) <= '1';
