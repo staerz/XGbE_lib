@@ -7,16 +7,32 @@
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
 --------------------------------------------------------------------------------
 --! @details
+--!
+--! # General description
+--!
 --! The #dhcp_module implements a DHCP client according to RFC 2131 which
 --! provides an IP address #my_ip_o (and subnet mask #ip_netmask_o) after
 --! negotiating it with a DHCP server.
 --! The MAC address of the client has to be provided at all times to #my_mac_i.
 --! The incoming interface #dhcp_rx_packet_i expects the raw UDP packet (Ethernet
---! and IP header already stripped off), but including the full UDP header.
+--! and IP headers already stripped off), but including the full UDP header.
 --! The outgoing interface #dhcp_tx_packet_o provides a full UDP packet,
 --! including UDP header with UDP CRC field.
 --! The UDP CRC field is set to the checksum over the UDP data if #UDP_CRC_EN
 --! is enabled, otherwise set to `x"0000"`.
+--!
+--! Successful DHCP configuration is indicated by #status_vector_o (0).
+--!
+--! The #status_vector_o contains bits to indicate expiry of the DHCP lease
+--! and expiry of related timers T1 and T2.
+--! The protocol defaults are implemented (0.5 for T1, 0.875 for T2).
+--!
+--! According to RFC 2131, a client is supposed to halt all networking activity
+--! upon receiving a DHCP nack message from a DHCP server.
+--! This is indicated by expired lease timers and it's the responsibility
+--! of the instantiating module to effectively seize network activity
+--! (with the exception of DHCP traffic from this module which will fall back
+--! into INIT state attempting to (re-) acquire a valid IP address).
 --!
 --! Outgoing DHCP requests are buffered while #dhcp_tx_ready_i is indicating
 --! busy unless it would exceed timeouts given by the DHCP specifications.
@@ -29,7 +45,7 @@
 --! Support for further DHCP options can be implemented if needed but would
 --! require an extension of this module to provide access to these options
 --! to the outer world, possibly via further ports or an entire redesign using
---! an AVMM interface (register access).
+--! e.g. an AVMM interface (register access).
 --!
 --! In the same spirit, the DHCPINFORM message (and related procedure) is not
 --! implemented: If a client wants to use this module with the ability to switch
@@ -54,6 +70,28 @@
 --! See also the following timing diagram:
 --!  @image latex dhcp_module_reset.pdf "Reset behaviour of dhcp_module" width=\textwidth
 --!  @image html dhcp_module_reset.svg
+--!
+--! # IP layer
+--!
+--! The IP addresses to be used for outgoing packets are #dhcp_server_ip_o as the
+--! destination IP address and #my_ip_o as source IP address (both are valid for
+--! the entire duration of a packet).
+--!
+--! Incoming IP packets should always take into account #ip_netmask_o when
+--! checking the incoming destination IP address (`<dst_IP>`), independent of the
+--! configuration status of the IP address (#status_vector_o (0)).
+--! The destination IP address check should be implemented by
+--! `(not(`#my_ip_o `xor <dst_IP>) and` #ip_netmask_o `) =` #ip_netmask_o.
+--! Since #my_ip_o and #ip_netmask_o are updated upon client (DHCP)
+--! configuration, this check remains valid at any time.
+--!
+--! # Suggest IP address
+--!
+--! RFC 2131 foresees the client to may suggest an IP address to be assigned.
+--! This optional feature is implemented via the optional port #try_ip_i:
+--! Indicate any (non-zero) IP address for the duration of the configuration
+--! process (from reset of this module to its successful configuration)
+--! in order to make use of it.
 --!
 --! @todo When adding support for further DHCP options, even for static IP
 --! configuration, the specified procedure for DHCPINFORM to acquire further
@@ -124,6 +162,8 @@ entity dhcp_module is
 
     --! MAC address of the module
     my_mac_i         : in    std_logic_vector(47 downto 0);
+    --! (Optional) IP address to try obtaining when configuring
+    try_ip_i         : in    std_logic_vector(31 downto 0) := (others => '0');
     --! IP address of the module
     my_ip_o          : out   std_logic_vector(31 downto 0);
     --! IP subnet mask
@@ -230,13 +270,8 @@ architecture behavioral of dhcp_module is
   --! Indication of the RX FSM to be in IDLE (not busy)
   signal no_rx : std_logic;
 
-  --! @todo Double-check: I think #use_suggest_ip and #mypreviousip can be removed
-  --! Need to read the specs again on this (it's used in the DISCOVER message)
-
   --! Indicator if or if not to use a suggested IP
-  signal use_suggest_ip : boolean;
-  --! Previous stored IP of the core
-  signal mypreviousip   : std_logic_vector(31 downto 0);
+  signal use_try_ip : std_logic;
 
   --! @name DHCP options communicated from DHCP server
   --! @{
@@ -433,7 +468,6 @@ begin
             if dhcp_acknowledge = '1' then
               dhcp_state <= BOUND;
             elsif dhcp_nack = '1' then
-              -- TODO: HALT network
               dhcp_state <= INIT;
             elsif t2_expired = '1' then
               dhcp_state <= REBINDING;
@@ -453,7 +487,6 @@ begin
             if dhcp_acknowledge = '1' then
               dhcp_state <= BOUND;
             elsif dhcp_nack = '1' or lease_expired = '1' then
-              -- TODO: HALT network
               dhcp_state <= INIT;
             else
               -- in addition to the specified state transitions,
@@ -678,6 +711,10 @@ begin
     signal fifo_state : t_fifo_state := IDLE;
   begin
 
+    -- Consider the suggested IP to try (in DISCOVER) as soon as it's not its default.
+    -- (We do not apply any check on the validity of that suggested IP address.)
+    use_try_ip <= or(try_ip_i);
+
     --! @brief Calculate the UDP length at the beginning of a transmission
     --! @details
     --! The UDP length depends on the options set in each outgoing DHCP packet.
@@ -706,7 +743,7 @@ begin
 
           -- tx_count = 2
           -- vsg_off if_009
-          if (tx_state = DHCP_DISCOVER and use_suggest_ip) or
+          if (tx_state = DHCP_DISCOVER and use_try_ip = '1') or
             (tx_state = DHCP_REQUEST and (dhcp_state = REQUESTING or dhcp_state = REBOOTING)) or
             (tx_state = DHCP_DECLINE)
           then
@@ -927,8 +964,8 @@ begin
                 -- Requested IP Address
                 when 2 =>
                   -- optional for discover, can request any
-                  if tx_state = DHCP_DISCOVER and use_suggest_ip then
-                    dhcp_options_fifo_din <= x"3204" & mypreviousip & x"00_00";
+                  if tx_state = DHCP_DISCOVER and use_try_ip = '1' then
+                    dhcp_options_fifo_din <= x"3204" & try_ip_i & x"00_00";
                     dhcp_options_fifo_wen <= '1';
                   -- MUST be set to the value of 'yiaddr' in the DHCPOFFER message from the server.
                   -- yourid is any of the selected yiaddr and remains validity also for REBOOTING
@@ -999,7 +1036,6 @@ begin
                   -- start reading from FIFO as soon as the fixed header is sent already
                   if tx_count = DHCP_WORDS - 1 and dhcp_options_fifo_empty = '0' then
                     fifo_state <= READ;
-                  -- TODO: if FIFO is empty at that point, we do have a problem (as filling it went wrong)
                   else
                     fifo_state <= IDLE;
                   end if;
@@ -1145,7 +1181,8 @@ begin
       --! - In REBOOTING we may actually use the serverid but would have to revert to broadcast.
       --!   For simplicity we just broadcast right away
       --!   (one could though differentiate using #send_dhcp_request vs. #resend_dhcp_request).
-      --! @todo This process can possibly be simplified as only in some special cases we do not (IP) broadcast.
+      --!
+      --! We leave the optimisation/simplification of this process to the compiler.
       proc_set_dhcp_server_ip : process (clk)
       begin
         if rising_edge(clk) then
