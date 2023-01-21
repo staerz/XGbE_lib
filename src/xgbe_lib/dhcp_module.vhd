@@ -1287,6 +1287,8 @@ begin
     signal rx_count      : integer range 0 to 1125;
     --! Register receiving data
     signal rx_packet_reg : dhcp_rx_packet_i'subtype;
+    --! UDP length extracted from incoming packet
+    signal udp_len       : unsigned(15 downto 0);
 
     --! Reset of the FIFO holding DHCP options (shift register)
     signal rst_options_fifo : std_logic_vector(3 downto 0);
@@ -1362,10 +1364,20 @@ begin
       end if;
     end process proc_extract_yiaddr;
 
+    proc_extract_upd_len : process (clk)
+    begin
+      if rising_edge(clk) then
+        if rx_count = 1 then
+          udp_len <= unsigned(rx_packet_reg.data(31 downto 16));
+        end if;
+      end if;
+    end process proc_extract_upd_len;
+
     --! @brief FSM to handle incoming DHCP messages
     --! @details
     --! Analysing incoming data packets and checking them for DHCP content.
-    --! @todo Implementation of check for UDP length is currently missing.
+    --! At the end of the packet we also check the UDP length.
+    --! Erroneous packets (error indicator or invalid UDP length) are dropped.
     proc_rx_state : process (clk)
     begin
 
@@ -1447,10 +1459,14 @@ begin
               if rx_packet_reg.eop = '1' then
                 -- evaluate error flag: Go back to IDLE if erroneous or actually parse options
                 -- (note that option parsing can actually start earlier, see proc_parse_options)
-                if rx_packet_reg.error(0) = '1' then
-                  rx_state <= IDLE;
-                else
+                -- vsg_off if_009
+                if rx_packet_reg.error(0) = '0' and
+                  (udp_len + unsigned(rx_packet_reg.empty) = to_unsigned(rx_count, 13) & "000")
+                then
                   rx_state <= PARSING_OPTS;
+                -- vsg_on if_009
+                else
+                  rx_state <= IDLE;
                 end if;
               else
                 rx_state <= STORING_OPTS;
@@ -1485,8 +1501,13 @@ begin
     proc_reset_options_fifo : process (clk)
     begin
       if rising_edge(clk) then
-        if rx_state = STORING_OPTS and rx_packet_reg.eop = '1' and rx_packet_reg.error(0) = '1' then
+        -- vsg_off if_009
+        if rx_state = STORING_OPTS and rx_packet_reg.eop = '1' and (
+          rx_packet_reg.error(0) = '1' or
+          (udp_len + unsigned(rx_packet_reg.empty) /= to_unsigned(rx_count, 13) & "000")
+        ) then
           rst_options_fifo <= (others => '1');
+        -- vsg_on if_009
         else
           rst_options_fifo <= '0' & rst_options_fifo(rst_options_fifo'high downto 1);
         end if;

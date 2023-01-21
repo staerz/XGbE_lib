@@ -13,7 +13,7 @@ A191 0001 0044 0000
 
 @152
 % not so much expected UDP data forward from default IP address
-% this is actually a bug of the IP module and should not happen, see LASP-damon#49
+% this is potentially a bug of the IP module and should not happen
 A191 0001 0044 0000
 0809 1011 1213 1234
 1234 1234 1234 2345
@@ -27,7 +27,7 @@ A191 0001 0044 0000
 
 @307
 % DHCP offer (also forwarded to UDP port)
-0043 0044 011E 0000
+0043 0044 011F 0000
 0201 0600 DEAD BEEF
 0000 0000 0000 0000
 C0A8 001E C0A8 0101
@@ -67,7 +67,7 @@ C0A8 0101 0608 0102
 
 @507
 % DHCP acknowledge (also forwarded to UDP port)
-0043 0044 011E 0000
+0043 0044 011F 0000
 0201 0600 DEAD BEEF
 0000 0000 0000 0000
 C0A8 001E C0A8 0101
