@@ -231,7 +231,7 @@ begin
         (rx_fifo_wr_full = '0') and
         ((fifo_state = IDLE and rx_packet_i.sop = '1') or fifo_state = WRITE)
       then
-      -- vsg_on if_035 if_009
+        -- vsg_on if_035 if_009
         rx_fifo_din <= avst_ctrl(rx_packet_i) & rx_packet_i.data;
         rx_fifo_wen <= rx_packet_i.valid;
       else
@@ -258,7 +258,7 @@ begin
 
           when IDLE =>
             if rx_packet_i.eop = '1' then
-            -- one word transmission...
+              -- one word transmission...
               fifo_state <= LOCK;
             elsif rx_packet_i.sop = '1' then
               fifo_state <= WRITE;
@@ -360,8 +360,7 @@ begin
     constant EMPTY_W : integer range 1 to 128 := 3;
   begin
 
-    tx_packet_o <=
-    (
+    tx_packet_o <= (
       data  => rx_fifo_dout(DATA_W - 1 downto 0),
       valid => rx_fifo_dout(EMPTY_W - 1 + DATA_W + 4),
       sop   => rx_fifo_dout(EMPTY_W - 1 + DATA_W + 3),

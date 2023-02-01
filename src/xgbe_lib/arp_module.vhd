@@ -139,7 +139,7 @@ architecture behavioral of arp_module is
   signal disco_ip   : std_logic_vector(31 downto 0);
   --! Discovery write enable
   signal disco_wren : std_logic;
-  --! @}
+--! @}
 
 begin
 
@@ -315,6 +315,7 @@ begin
 
       -- creates ARP response packet
       -- the complete Ethernet packet is created for easiness of the upper layer module
+      -- vsg_off comment_010
       with tx_count select arp_tx_packet_o.data <=
         -- destination mac (6 bytes)
         target_mac &
@@ -357,6 +358,7 @@ begin
         (others => '0')
           when others;
 
+      -- vsg_on comment_010
       --! Read FIFO and make disco interface
       proc_fifo_reader : process (clk)
       begin
@@ -628,6 +630,7 @@ begin
 
                 when 0 =>
                   rx_state <= HEADER;
+
                 when 1 =>
                   -- vsg_off if_035 if_009
                   -- check for supported header (IPv4 on Ethernet)
@@ -644,15 +647,18 @@ begin
                       -- Operation: ARP request
                       when x"0001" =>
                         rx_state <= HEADER;
+
                       -- Operation: ARP response
                       when x"0002" =>
                         rx_state <= HEADER;
+
                       when others =>
                         rx_state <= SKIP;
 
                     end case;
 
                   end if;
+
                 when 4 =>
                   -- requested IP address must match and it mustn't be an error packet
                   if rx_data_reg(63 downto 32) /= my_ip_i or rx_ctrl_reg(4 downto 3) = "11" then
@@ -816,7 +822,7 @@ begin
       signal cnt_rst : std_logic;
       --! counter enable
       signal cnt_en  : std_logic;
-      --! @}
+    --! @}
     begin
 
       cnt_rst <= '1' when request_state = ARP_TABLE_READ else '0';
@@ -862,8 +868,8 @@ begin
       reco_port_o     => reco_mac_r,
       -- status of the ARP table, see definitions below
       status_vector_o => arptbl_status_vector
-      -- one could make the move to indicate the number of occupied entries instead...
-      -- that would make status_vector_o a table_depth-dependent length vector
+    -- one could make the move to indicate the number of occupied entries instead...
+    -- that would make status_vector_o a table_depth-dependent length vector
     );
 
   end block blk_arp_table;

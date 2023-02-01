@@ -86,8 +86,8 @@ entity reset_module is
 end entity reset_module;
 
 --! @cond
-library ieee;
-  use ieee.numeric_std.all;
+library IEEE;
+  use IEEE.numeric_std.all;
 
 library misc;
 --! @endcond
@@ -129,11 +129,13 @@ architecture behavioral of reset_module is
 
   function twist32 (arg: std_logic_vector(31 downto 0); twist: std_logic) return std_logic_vector is
   begin
+
     if twist = '1' then
       return arg(7 downto 0) & arg(15 downto 8) & arg(23 downto 16) & arg(31 downto 24);
     else
       return arg;
     end if;
+
   end;
 
 begin
@@ -201,10 +203,11 @@ begin
       signal ipbus_word_2 : std_logic_vector(31 downto 0);
       --! IPbus word 3
       signal ipbus_word_3 : std_logic_vector(31 downto 0);
-      --! @}
+    --! @}
     begin
 
       -- Create reset response packet as the complete Ethernet packet
+      -- vsg_off comment_010
       with to_integer(tx_count) select tx_packet_o.data <=
         -- destination mac (6 bytes)
         tg_mac &
@@ -259,6 +262,7 @@ begin
         (others => '0')
           when others;
 
+      -- vsg_on comment_010
       -- actually setting the IPbus data to be transmitted according to endianness
       -- IPbus packet header
       ipbus_word_1 <= twist32(x"20" & ipbus_packet_id & x"f0", ipbus_big_endian);
@@ -318,7 +322,7 @@ begin
     signal cnt_en   : std_logic := '0';
     --! Counter end
     signal cnt_done : std_logic;
-    --! @}
+  --! @}
   begin
 
     --! Create cnt_en
@@ -406,7 +410,7 @@ begin
     signal rx_data_copy_trans_id     : std_logic_vector(11 downto 0);
     --! Target IPbus number of words
     signal rx_data_copy_number_words : std_logic_vector(7 downto 0);
-    --! @}
+  --! @}
   begin
 
     status_vector_o(2) <= '1' when rx_state = RESETTING else '0';
@@ -494,7 +498,7 @@ begin
                rx_packet_i.data(23 downto 16) = x"f0" then
               ipbus_big_endian <= '0';
             elsif rx_packet_i.data(47 downto 40) = x"f0" and
-                  -- or in big-endian
+              -- or in big-endian
                   rx_packet_i.data(23 downto 16) = x"20" then
               ipbus_big_endian <= '1';
             end if;
@@ -543,19 +547,25 @@ begin
           when 1 =>
             -- first part of src mac in rx, will be dst mac on tx
             rx_data_copy_tg_mac(47 downto 32) <= rx_data_reg(15 downto 0);
+
           when 2 =>
             -- second part of src mac in rx, will be dst mac on tx
             rx_data_copy_tg_mac(31 downto 0) <= rx_data_reg(63 downto 32);
+
           when 4 =>
             rx_data_copy_tg_ip <= rx_data_reg(47 downto 16);
+
           when 5 =>
             rx_data_copy_tg_udp <= rx_data_reg(47 downto 32);
+
           when 6 =>
             rx_data_copy_packet_id <= rx_data_reg(39 downto 24);
             rx_data_copy_trans_id  <= rx_data_reg(11 downto 0);
+
           when 7 =>
             -- should be x01
             rx_data_copy_number_words <= rx_data_reg(63 downto 56);
+
           when others =>
             null;
 
@@ -595,50 +605,54 @@ begin
 
                 when 0 =>
                   rx_state <= HEADER;
+
                 when 1 =>
                   -- require proper mac address
                   if rx_data_reg(63 downto 16) /= my_mac_i then
                     rx_state <= SKIP;
                   end if;
+
                 when 2 =>
                   -- require ip protocol
                   if rx_data_reg(31 downto 16) /= x"0800" then
                     rx_state <= SKIP;
                   end if;
+
                 when 3 =>
-                  -- no more fragments,
-                  if rx_data_reg(29) /= '0' or
-                     -- udp
-                     rx_data_reg(7 downto 0) /= x"11"
-                     then
+                  -- no more fragments or udp
+                  if rx_data_reg(29) /= '0' or rx_data_reg(7 downto 0) /= x"11" then
                     rx_state <= SKIP;
                   end if;
+
                 when 4 =>
                   if rx_data_reg(15 downto 0) /= my_ip_i(31 downto 16) then
                     rx_state <= SKIP;
                   end if;
+
                 when 5 =>
                   if rx_data_reg(63 downto 48) /= my_ip_i(15 downto 0) or
                      rx_data_reg(31 downto 16) /= my_udp_port_i
                      then
                     rx_state <= SKIP;
                   end if;
+
                 when 6 =>
                   -- IPbus packet header
                   -- IPbus protocol version 2 (big or little endian)
                   if rx_data_reg(47 downto 40) /= x"20" or
                      rx_data_reg(23 downto 16) /= x"f0" or
-                     -- IPbus protocol version 2
+                    -- IPbus protocol version 2
                      rx_data_reg(15 downto 12) /= x"2"
                      then
                     rx_state <= SKIP;
                   end if;
+
                 when 7 =>
                   -- write_size = 1 -> number_words
                   if rx_data_reg(63 downto 56) /= x"01" or
-                     -- type id = 1 (write), infocode = x"f"
+                    -- type id = 1 (write), infocode = x"f"
                      rx_data_reg(55 downto 48) /= x"1f" or
-                     -- IPbus base_address
+                    -- IPbus base_address
                      rx_data_reg(47 downto 16) /= RESET_REGISTER_ADD
                      then
                     rx_state <= SKIP;

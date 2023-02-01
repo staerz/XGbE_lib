@@ -137,7 +137,7 @@ architecture behavioral of ip_header_module is
   signal udp_rx_empty : std_logic_vector(2 downto 0);
   --! end of packet error indicator
   signal udp_rx_error : std_logic;
-  --! @}
+--! @}
 
 begin
 
@@ -384,10 +384,13 @@ begin
 
               when 1 =>
                 tx_data_sr(5) <= ip_header_before_crc;
+
               when 2 =>
                 tx_data_sr(5) <= ip_header_before_crc;
+
               when 3 =>
                 tx_data_sr(5) <= ip_header_before_crc(63 downto 32) & tx_data_sr(4)(31 downto 0);
+
               when others =>
                 tx_data_sr(5) <= tx_data_sr(4);
 
@@ -469,6 +472,7 @@ begin
 
       -- finally compose data output stream from registers and IP_CRC that has been
       -- computed in the meantime
+      -- vsg_off comment_010
       with tx_count select ip_tx_packet_o.data <=
         -- insert IP_CRC at correct position:
         tx_data_sr(SR_DEPTH)(63 downto 48) & ip_crc_out & tx_data_sr(SR_DEPTH)(31 downto 0) when 4,
@@ -477,6 +481,7 @@ begin
         -- or just attach (UDP) data from the register
         tx_data_sr(SR_DEPTH) when others;
 
+      -- vsg_on comment_010
       -- set valid
       ip_tx_packet_o.valid <= tx_valid(SR_DEPTH);
 
@@ -540,6 +545,7 @@ begin
         end if;
       end process proc_set_udp_header;
 
+      -- vsg_off comment_010
       with tx_count select udp_crc_data <=
         -- src and dst port
         udp_header(63 downto 32) when 1,
@@ -551,6 +557,7 @@ begin
         udp_header(31 downto 16) & not udp_header(15 downto 0) when 5,
         (others => '0') when others;
 
+      -- vsg_on comment_010
       -- if UDP header is not set, then leave it unset
       with udp_header(15 downto 0) select udp_crc_out <=
         (others => '0') when x"0000",

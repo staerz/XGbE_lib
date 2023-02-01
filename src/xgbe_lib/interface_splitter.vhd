@@ -65,7 +65,7 @@ architecture behavioral of interface_splitter is
   --! State definition for the RX FSM
   --!  HEADER: analysing input data for port indicator
   --!  MUX:    packet forwarding (and non-default ready multiplexer selected)
-  type   t_rx_state is (HEADER, MUX);
+  type t_rx_state is (HEADER, MUX);
   --! State of the RX FSM
   -- vsg_disable_next_line signal_007
   signal rx_state : t_rx_state := HEADER;

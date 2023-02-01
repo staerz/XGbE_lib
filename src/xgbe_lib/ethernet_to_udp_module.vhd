@@ -178,7 +178,11 @@ architecture behavioral of ethernet_to_udp_module is
   --! TX ready
   signal arp_to_eth_ready  : std_logic;
   --! TX data and controls
-  signal arp_to_eth_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal arp_to_eth_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
 
   --! @}
 
@@ -188,7 +192,11 @@ architecture behavioral of ethernet_to_udp_module is
   --! RX ready
   signal eth_to_arp_ready  : std_logic;
   --! RX data and controls
-  signal eth_to_arp_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal eth_to_arp_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
 
   --! @}
 
@@ -198,7 +206,11 @@ architecture behavioral of ethernet_to_udp_module is
   --! TX ready
   signal eth_to_ip_ready  : std_logic;
   --! TX data and controls
-  signal eth_to_ip_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal eth_to_ip_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
 
   --! @}
 
@@ -208,7 +220,11 @@ architecture behavioral of ethernet_to_udp_module is
   --! RX ready
   signal ip_to_eth_ready  : std_logic;
   --! RX data and controls
-  signal ip_to_eth_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal ip_to_eth_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
 
   --! @}
 
@@ -218,24 +234,40 @@ architecture behavioral of ethernet_to_udp_module is
   --! TX ready of DHCP module
   signal dhcp_tx_ready  : std_logic;
   --! TX data and controls of DHCP module
-  signal dhcp_tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal dhcp_tx_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
 
   --! UDP RX ready of IP module
   signal udp_to_ip_ready  : std_logic;
   --! UDP RX data and controls of IP module
-  signal udp_to_ip_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal udp_to_ip_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
 
   --! TX ready of IP module
   signal udp_tx_ready_ip  : std_logic;
   --! UDP TX data and controls to IP module
-  signal udp_tx_packet_ip : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal udp_tx_packet_ip : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
 
   --! RX ready of DHCP module (for interface parallel to UDP udp_tx_packet_o interface)
   signal udp_rx_ready_dhcp : std_logic;
   --! Internal UDP RX ready: udp_rx_ready_o is not ready unless IP address is configured
   signal udp_rx_ready      : std_logic;
   --! UDP data that goes into the interface merger (from UDP module)
-  signal udp_rx_packet     : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal udp_rx_packet     : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
 
   --! IP address to be used for transmitting DHCP packets
   signal dhcp_server_ip : std_logic_vector(31 downto 0);
@@ -290,7 +322,7 @@ architecture behavioral of ethernet_to_udp_module is
   signal dhcp_status_vector : std_logic_vector(6 downto 0);
   --! interface_merger
   signal im_status_vector   : std_logic_vector(2 downto 0);
-  --! @}
+--! @}
 
 begin
 

@@ -143,8 +143,12 @@ begin
     --! TX ready
     signal eth_tx_ready_r  : std_logic;
     --! RX data and controls
-    signal eth_tx_packet_r : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
-    --! @}
+    signal eth_tx_packet_r : t_avst_packet(
+      data(63 downto 0),
+      empty(2 downto 0),
+      error(0 downto 0)
+    );
+  --! @}
   begin
 
     --! Instantiate the ethernet_header_module to construct Ethernet header from IP RX interface.
@@ -283,7 +287,7 @@ begin
                     if eth_rx_packet_i.data(63 downto 16) = my_mac_i or
                        eth_rx_packet_i.data(63 downto 16) = MAC_BROADCAST_ADDR
                     then
-                    -- vsg_off if_035 if_009
+                      -- vsg_off if_035 if_009
                       rx_state <= HEADER;
                     else
                       rx_state <= SKIP;
@@ -291,6 +295,7 @@ begin
                   else
                     rx_state <= HEADER;
                   end if;
+
                 when 1 =>
                   -- check protocol
 
@@ -299,9 +304,11 @@ begin
                     when x"0806" =>
                       protocol <= ARP;
                       rx_state <= RX;
+
                     when x"0800" =>
                       protocol <= IP;
                       rx_state <= RX;
+
                     when others =>
                       protocol <= NOTSUPPORTED;
                       rx_state <= SKIP;
@@ -343,7 +350,11 @@ begin
 
     blk_make_trailer : block
       --! TX data and controls for trailer_module
-      signal tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+      signal tx_packet : t_avst_packet(
+        data(63 downto 0),
+        empty(2 downto 0),
+        error(0 downto 0)
+      );
     begin
 
       arp_tx_packet_o <=
