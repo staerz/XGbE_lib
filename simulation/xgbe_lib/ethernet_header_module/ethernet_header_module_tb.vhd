@@ -68,7 +68,11 @@ architecture tb of ethernet_header_module_tb is
   --! TX ready
   signal ip_tx_ready  : std_logic;
   --! TX data and controls
-  signal ip_tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal ip_tx_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
 
   --! @}
 
@@ -78,7 +82,11 @@ architecture tb of ethernet_header_module_tb is
   --! RX ready
   signal eth_rx_ready  : std_logic;
   --! RX data and controls
-  signal eth_rx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal eth_rx_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
 
   --! @}
 
@@ -109,7 +117,6 @@ begin
   --! Instantiate the Unit Under Test (UUT)
   uut : entity xgbe_lib.ethernet_header_module
   port map (
-
     clk => clk,
     rst => rst,
 
@@ -143,7 +150,7 @@ begin
     --! @cond
     signal sim_rst : std_logic;
     signal mnl_rst : std_logic;
-    --! @endcond
+  --! @endcond
   begin
 
     --! Instantiate simulation_basics to start
@@ -216,7 +223,11 @@ begin
 
   blk_uvvm : block
     --! Expected RX data and controls
-    signal eth_rx_expect : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+    signal eth_rx_expect : t_avst_packet(
+      data(63 downto 0),
+      empty(2 downto 0),
+      error(0 downto 0)
+    );
   begin
 
     --! Use the avst_packet_sender to read expected ETH data from an independent file

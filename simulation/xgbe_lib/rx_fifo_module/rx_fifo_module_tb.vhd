@@ -78,7 +78,11 @@ architecture tb of rx_fifo_module_tb is
   --! TX ready
   signal tx_ready  : std_logic;
   --! TX data and controls
-  signal tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal tx_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
 
   --! @}
 
@@ -88,7 +92,11 @@ architecture tb of rx_fifo_module_tb is
   --! RX ready
   signal rx_ready  : std_logic;
   --! RX data and controls
-  signal rx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal rx_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
 
   --! @}
 
@@ -105,7 +113,6 @@ begin
     DUAL_CLK      => DUAL_CLK
   )
   port map (
-
     -- Reset, sync with clk_i
     rst_i => rst,
 
@@ -128,7 +135,7 @@ begin
   blk_simulation : block
     --! @cond
     signal mnl_rst : std_logic;
-    --! @endcond
+  --! @endcond
   begin
 
     --! Instantiate simulation_basics to start
@@ -197,7 +204,11 @@ begin
 
   blk_uvvm : block
     --! Expected RX data and controls
-    signal rx_expect : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+    signal rx_expect : t_avst_packet(
+      data(63 downto 0),
+      empty(2 downto 0),
+      error(0 downto 0)
+    );
   begin
 
     --! Use the avst_packet_sender to read expected AVST data from an independent file
@@ -222,7 +233,11 @@ begin
     proc_uvvm : process
       -- since the rx fifo is involved, it will return Xes upon reset, and the version of UVVM we use cannot handle that comparison
       -- so we explicitly catch those Xes and then override with 0s.
-      variable rx_packet_no_x : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+      variable rx_packet_no_x : t_avst_packet(
+        data(63 downto 0),
+        empty(2 downto 0),
+        error(0 downto 0)
+      );
     begin
       -- Wait a bit to let simulation settle
       wait for CLK_PERIOD;

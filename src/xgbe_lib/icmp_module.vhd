@@ -115,6 +115,7 @@ begin
 
     -- combine with the registered sop flag:
     crc_in <=
+      -- vsg_disable_next_line comment_010
       -- subtract 8 (corresponding from changing type from 8 to 0) (inverted byte order)
       x"F7FF" when icmp_buffer(0)(69) = '1' else
       not ip_rx_packet_i.data(15 downto 0) when icmp_buffer(1)(69) = '1' else
@@ -172,6 +173,7 @@ begin
       end if;
     end process proc_reg_request;
 
+    -- vsg_off comment_010
     icmp_tx_data <=
       -- new source IP addresses = old destination IP address:
       icmp_buffer(ICMP_BUFFER_DEPTH - 1)(63 downto 32) & icmp_buffer(ICMP_BUFFER_DEPTH - 2)(63 downto 32)
@@ -181,6 +183,7 @@ begin
       when sop_buffer(1) = '1' else
       icmp_buffer(ICMP_BUFFER_DEPTH - 1)(63 downto 0);
 
+    -- vsg_on comment_010
     icmp_tx_ctrl <=
       icmp_buffer(ICMP_BUFFER_DEPTH - 1)(70 downto 64) when valid_data = '1' else
       (others => '0');

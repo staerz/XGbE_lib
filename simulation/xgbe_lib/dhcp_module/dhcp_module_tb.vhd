@@ -86,7 +86,11 @@ architecture tb of dhcp_module_tb is
   --! TX ready
   signal dhcp_tx_ready  : std_logic;
   --! TX data and controls
-  signal dhcp_tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal dhcp_tx_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
 
   --! @}
 
@@ -96,7 +100,11 @@ architecture tb of dhcp_module_tb is
   --! RX ready
   signal dhcp_rx_ready  : std_logic;
   --! RX data and controls
-  signal dhcp_rx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal dhcp_rx_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
 
   --! @}
 
@@ -269,7 +277,11 @@ begin
 
   blk_uvvm : block
     --! Expected RX data and controls
-    signal dhcp_rx_expect : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+    signal dhcp_rx_expect : t_avst_packet(
+      data(63 downto 0),
+      empty(2 downto 0),
+      error(0 downto 0)
+    );
   begin
 
     --! Use the avst_packet_sender to read expected data from an independent file

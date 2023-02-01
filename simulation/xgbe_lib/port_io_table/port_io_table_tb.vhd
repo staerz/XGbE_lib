@@ -77,15 +77,27 @@ architecture tb of port_io_table_tb is
 
   --! Discovery interface for writing pair of associated addresses/ports
   --! Valid is interpreted as write enable
-  signal disco_packet : t_avst_packet(data(PORT_I_W + PORT_O_W - 1 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal disco_packet : t_avst_packet(
+    data(PORT_I_W + PORT_O_W - 1 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
 
   --! Recovery request interface
   --! Valid is interpreted as reco enable
-  signal reco_tx_packet : t_avst_packet(data(PORT_I_W - 1 downto 0), empty(0 downto 0), error(0 downto 0));
+  signal reco_tx_packet : t_avst_packet(
+    data(PORT_I_W - 1 downto 0),
+    empty(0 downto 0),
+    error(0 downto 0)
+  );
 
   --! Recovery output port (response next clk cycle)
   --! Valid is interpreted as reco found
-  signal reco_rx_packet : t_avst_packet(data(PORT_O_W - 1 downto 0), empty(1 downto 0), error(0 downto 0));
+  signal reco_rx_packet : t_avst_packet(
+    data(PORT_O_W - 1 downto 0),
+    empty(1 downto 0),
+    error(0 downto 0)
+  );
 
   --! Status of the module
   signal status_vector_o : std_logic_vector(1 downto 0);
@@ -130,7 +142,7 @@ begin
   blk_simulation : block
     --! @cond
     signal mnl_rst : std_logic;
-    --! @endcond
+  --! @endcond
   begin
 
     --! Instantiate simulation_basics to start
@@ -222,7 +234,11 @@ begin
 
   blk_uvvm : block
     --! Expected RECO data and controls
-    signal reco_expect : t_avst_packet(data(PORT_O_W - 1 downto 0), empty(1 downto 0), error(0 downto 0));
+    signal reco_expect : t_avst_packet(
+      data(PORT_O_W - 1 downto 0),
+      empty(1 downto 0),
+      error(0 downto 0)
+    );
   begin
 
     --! Use the avst_packet_sender to read expected reco data from an independent file

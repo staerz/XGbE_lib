@@ -90,7 +90,11 @@ architecture tb of ip_module_tb is
   --! TX ready
   signal ip_tx_ready  : std_logic;
   --! TX data and controls
-  signal ip_tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal ip_tx_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
 
   --! @}
 
@@ -100,7 +104,11 @@ architecture tb of ip_module_tb is
   --! RX ready
   signal ip_rx_ready  : std_logic;
   --! RX data and controls
-  signal ip_rx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal ip_rx_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
 
   --! @}
 
@@ -110,7 +118,11 @@ architecture tb of ip_module_tb is
   --! TX ready
   signal udp_tx_ready  : std_logic;
   --! TX data and controls
-  signal udp_tx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal udp_tx_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
   --! TX identifier
   signal udp_tx_id     : std_logic_vector(15 downto 0);
 
@@ -122,7 +134,11 @@ architecture tb of ip_module_tb is
   --! RX ready
   signal udp_rx_ready  : std_logic;
   --! RX data and controls
-  signal udp_rx_packet : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+  signal udp_rx_packet : t_avst_packet(
+    data(63 downto 0),
+    empty(2 downto 0),
+    error(0 downto 0)
+  );
   --! RX identifier
   signal udp_rx_id     : std_logic_vector(15 downto 0);
 
@@ -187,7 +203,7 @@ begin
     --! @cond
     signal mnl_rst     : std_logic;
     signal udp_tx_id_r : unsigned(15 downto 0);
-    --! @endcond
+  --! @endcond
   begin
 
     --! Instantiate simulation_basics to start
@@ -314,8 +330,16 @@ begin
 
   blk_uvvm : block
     --! Expected RX data and controls
-    signal ip_rx_expect  : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
-    signal udp_rx_expect : t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
+    signal ip_rx_expect  : t_avst_packet(
+      data(63 downto 0),
+      empty(2 downto 0),
+      error(0 downto 0)
+    );
+    signal udp_rx_expect : t_avst_packet(
+      data(63 downto 0),
+      empty(2 downto 0),
+      error(0 downto 0)
+    );
   begin
 
     --! Use the avst_packet_sender to read expected IP data from an independent file
