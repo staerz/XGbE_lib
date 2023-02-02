@@ -102,7 +102,7 @@ entity ip_module is
     ip_netmask_i     : in    std_logic_vector(31 downto 0) := x"ff_ff_ff_00";
     --! @}
 
-    --! IP address to be used for transmitting DHCP packets
+    --! Destination IP address of DHCP server (used when transmitting DHCP packets)
     dhcp_server_ip_i : in    std_logic_vector(31 downto 0);
 
     --! @brief Status of the module

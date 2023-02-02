@@ -3,13 +3,14 @@
 -- kate: tab-width 2; replace-tabs on; indent-width 2;
 --------------------------------------------------------------------------------
 --! @file
---! @brief DHCP core according to RFC 2131 (and RFC 2132)
+--! @brief DHCP client according to RFC 2131 (and RFC 2132)
 --! @author Steffen Stärz <steffen.staerz@cern.ch>
 --------------------------------------------------------------------------------
 --! @details
---! Provides an IP address in #my_ip_o after negotiating it with a DHCP
---! server.
---! The MAC address of the core has to be provided at all times to #my_mac_i.
+--! The #dhcp_module implements a DHCP client according to RFC 2131 which
+--! provides an IP address #my_ip_o (and subnet mask #ip_netmask_o) after
+--! negotiating it with a DHCP server.
+--! The MAC address of the client has to be provided at all times to #my_mac_i.
 --! The incoming interface #dhcp_rx_packet_i expects the raw UDP packet (Ethernet
 --! and IP header already stripped off), but including the full UDP header.
 --! The outgoing interface #dhcp_tx_packet_o provides a full UDP packet,
@@ -18,17 +19,29 @@
 --! is enabled, otherwise set to `x"0000"`.
 --!
 --! Outgoing DHCP requests are buffered while #dhcp_tx_ready_i is indicating
---! busy unless it would exceed timeouts specified by the DHCP protocol.
+--! busy unless it would exceed timeouts given by the DHCP specifications.
 --!
---! DHCP options (RFC2132) which are interpreted by the receiver:
+--! DHCP options (RFC 2132) which are interpreted by the receiver:
 --! - DHCP operation
 --! - IP address lease time
 --! - Server identifier
 --!
---! Support for further DHCP options can be implemented if needed (but would
---! require) an extension of this module to provide access to these options
+--! Support for further DHCP options can be implemented if needed but would
+--! require an extension of this module to provide access to these options
 --! to the outer world, possibly via further ports or an entire redesign using
 --! an AVMM interface (register access).
+--!
+--! In the same spirit, the DHCPINFORM message (and related procedure) is not
+--! implemented: If a client wants to use this module with the ability to switch
+--! on or off the DHCP feature, an IP address and subnet mask would have to come
+--! from some other external configuration.
+--! Upon such a static IP configuration, this module should simply be held in
+--! reset which will result in no DHCP traffic (from and to this module).
+--! An example instantiation can be found in the ethernet_to_udp_module.
+--!
+--! @todo When adding support for further DHCP options, even for static IP
+--! configuration, the specified procedure for DHCPINFORM to acquire further
+--! network parameters should be implemented.
 --!
 --! @todo DHCP Discover:
 --! - The client SHOULD include the 'maximum DHCP message size' option to
@@ -45,7 +58,7 @@ library fpga;
   context fpga.interfaces;
 --! @endcond
 
---! DHCP core according to RFC 2131
+--! DHCP client according to RFC 2131
 
 entity dhcp_module is
   generic (
@@ -87,16 +100,16 @@ entity dhcp_module is
     dhcp_server_ip_o : out   std_logic_vector(31 downto 0);
     --! @}
 
-    --! @name Interface for recovering MAC address from given IP address
+    --! @name Interface for recovering MAC address from given IP address (see arp_module)
     --! @{
 
     --! Recovery enable
     reco_en_o        : out   std_logic;
     --! IP address to recover
     reco_ip_o        : out   std_logic_vector(31 downto 0);
-    --! Recovery success: 1 = found, 0 = not found (time out)
+    --! Recovery done indicator: 1 = found or timeout
     reco_done_i      : in    std_logic;
-    --! Failed to recovered MAC address
+    --! Failed to recover MAC address (expects '1' when `reco_mac_o` = `MAC_BROADCAST_ADDR` else '0')
     reco_fail_i      : in    std_logic;
     --! @}
 
