@@ -4,9 +4,15 @@ Simulation of the `dhcp_module` embedded in the `ip_module`.
 
 # Subject
 
-A simulation testbench for the [`dhcp_module`](../../../src/xgbe_lib/dhcp_module.vhd), in conjunction with the [`ip_module`](../../../src/xgbe_lib/op_module.vhd).
+A simulation testbench for the [`dhcp_module`](../../../src/xgbe_lib/dhcp_module.vhd), in conjunction with the [`ip_module`](../../../src/xgbe_lib/ip_module.vhd).
 
 The `dhcp_module` is tested with data packets read from file.
+
+In this simulation the initialisation procedure (Discover, Offer, Request, Acknowledge) is cycled over in the beginning.
+
+Once the `dhcp_module` runs into RENEWING, another Acknowledge is sent to rebind the `dhcp_module`.
+
+Finally, the `dhcp_module` is reset in REBOOTING mode to test the REBOOTING procedure: The Request is replied with an Acknowwldedge which brings the `dhcp_module` back into BOUND state again.
 
 # Requirements
 
