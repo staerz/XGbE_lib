@@ -1,0 +1,6 @@
+% file to indicate counters for UDP_rx_ready
+% have one integer per line
+% must be in increasing order!
+% decimal numbers
+
+% to keep it simple, in this sim, we don't actually inject UDP data

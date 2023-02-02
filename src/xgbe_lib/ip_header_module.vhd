@@ -47,7 +47,7 @@ entity ip_header_module is
     udp_rx_ready_o   : out   std_logic;
     --! RX data and controls
     udp_rx_packet_i  : in    t_avst_packet(data(63 downto 0), empty(2 downto 0), error(0 downto 0));
-    --! IP address to be used for transmitting DHCP packets
+    --! Destination IP address of DHCP server (used when transmitting DHCP packets)
     dhcp_server_ip_i : in    std_logic_vector(31 downto 0);
     --! @}
 
