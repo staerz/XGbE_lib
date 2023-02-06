@@ -320,6 +320,33 @@ architecture behavioral of dhcp_module is
 
 begin
 
+  --! @brief FSM implementing state transitions according to RFC2131
+  --! @details See #t_dhcp_state for the definition of state transitions defined by RFC2131.
+  --!
+  --! Reset behaviour:
+  --! If requested to reboot (indicated by #rst = '1' while #boot_i = '1'),
+  --! AND the assigned IP still being valid (lease not expired),
+  --! a REBOOT is done.
+  --! Otherwise we INIT normally upon ordinary reset.
+  --!
+  --! Signals created from this FSM:
+  --! - #send_dhcp_discover
+  --! - #send_dhcp_request
+  --! - #send_dhcp_decline
+  --!
+  --! State transitions are triggered by the following external stimuli:
+  --! - #resend_dhcp_discover
+  --! - #dhcp_preacknowledge
+  --! - #dhcp_nack
+  --! - #dhcp_timedout
+  --! - #resend_dhcp_request
+  --! - #reco_done
+  --! - #dhcp_acknowledge
+  --! - #decline_sent
+  --! - #t1_expired
+  --! - #t2_expired
+  --! - #lease_expired
+
   proc_dhcp_state : process (clk)
   begin
     if rising_edge(clk) then
@@ -329,15 +356,12 @@ begin
       send_dhcp_decline  <= '0';
 
       if rst = '1' then
-        -- if requested to reboot, AND assigned IP is still valid
-        -- (lease not expired) we reboot
         -- Note: we should possibly check not the last bit of the lease counter
         -- but maybe the 5th or so to allow enough time to send at least 1 request out
         -- before the lease actually expires
         -- but the mechanism will fall back even if on its way the release expires
         if boot_i = '1' and lease_expired = '0' then
           dhcp_state <= INIT_REBOOT;
-        -- otherwise we INIT normally
         else
           dhcp_state <= INIT;
         end if;
@@ -874,7 +898,9 @@ begin
                   dhcp_options_fifo_wen <= '1';
 
                 -- END option
+                --! @cond Doxygen doesn't like the next line, it sees it as a syntax error
                 when DHCP_WORDS - 1 =>
+                  --! @endcond
                   dhcp_options_fifo_din <= x"FF" & x"00_00_00_00_00_00_00";
                   dhcp_options_fifo_wen <= '1';
 
@@ -1655,13 +1681,17 @@ begin
 
     --! @brief Actually setting the IP from successful DHCP interaction (or dropping it)
     --! @todo We must also seize all network activity if #lease_expired = `1`!
+    --! @details
+    --! An acknowledge (#dhcp_acknowledge) sets the IP address (#my_ip_o) and net mask (#ip_netmask_o).
+    --! Reset (#rst) or an expired lease timer (#lease_expired) reset them.
+    --! Note that reset is independent of #boot_i, see #proc_manage_lease_times.
     proc_capture_my_ip : process (clk)
     begin
       if rising_edge(clk) then
         if dhcp_acknowledge = '1' then
           my_ip_o      <= yourid;
           ip_netmask_o <= netmask;
-        elsif lease_expired = '1' then
+        elsif rst = '1' or lease_expired = '1' then
           my_ip_o      <= (others => '0');
           ip_netmask_o <= (others => '0');
         -- RFC requires to use a IP broadcast for all requests in REBINDING
@@ -1727,6 +1757,11 @@ begin
     --! the lease from the DHCPACK message."
     --!
     --! Since we count the time backwards (remaining seconds), this turns into a difference.
+    --!
+    --! Upon reset (but not boot) [or DHCP NACK] we need to reset the lease timer.
+    --! #boot_i here makes the difference between INIT and INIT_REBOOT:
+    --! We must keep the lease alive upon #boot_i = '1' to be able to go into
+    --! INIT_REBOOT in #proc_dhcp_state while the IP address (and net mask) are already reset.
     proc_manage_lease_times : process (clk)
       variable lt : unsigned(31 downto 0);
     begin
@@ -1738,8 +1773,6 @@ begin
         t2 <= t2;
 
         if (rst = '1' and boot_i = '0') or dhcp_nack = '1' then
-          -- upon reset we only need to reset the lease time
-          -- this will reset my_ip_o as a consequence (in the next cycle)
           lease(lease'high) <= '1';
 
           t1(t1'high) <= '1';
