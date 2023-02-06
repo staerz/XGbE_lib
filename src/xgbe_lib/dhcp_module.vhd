@@ -477,7 +477,7 @@ begin
           when REBOOTING =>
             if dhcp_acknowledge = '1' then
               dhcp_state <= BOUND;
-            elsif dhcp_nack = '1' or lease_expired = '1' then
+            elsif dhcp_nack = '1' or lease_expired = '1' or dhcp_timedout = '1' then
               dhcp_state <= INIT;
             else
               -- in addition to the specified state transitions,
