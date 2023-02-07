@@ -3,6 +3,7 @@ quietly WaveActivateNextPane {} 0
 add wave -noupdate -radix decimal -radixshowbase 0 /dhcp_in_ip_module_tb/cnt
 add wave -noupdate /dhcp_in_ip_module_tb/uut1/clk
 add wave -noupdate /dhcp_in_ip_module_tb/uut1/rst
+add wave -noupdate /dhcp_in_ip_module_tb/uut1/boot_i
 add wave -noupdate -color {Dark Slate Gray} /dhcp_in_ip_module_tb/uut2/ip_rx_ready_o
 add wave -noupdate -color {Dark Slate Gray} -expand -subitemconfig {/dhcp_in_ip_module_tb/uut2/ip_rx_packet_i.data {-color {Dark Slate Gray} -height 17} /dhcp_in_ip_module_tb/uut2/ip_rx_packet_i.valid {-color {Dark Slate Gray} -height 17} /dhcp_in_ip_module_tb/uut2/ip_rx_packet_i.sop {-color {Dark Slate Gray} -height 17} /dhcp_in_ip_module_tb/uut2/ip_rx_packet_i.eop {-color {Dark Slate Gray} -height 17} /dhcp_in_ip_module_tb/uut2/ip_rx_packet_i.empty {-color {Dark Slate Gray} -height 17} /dhcp_in_ip_module_tb/uut2/ip_rx_packet_i.error {-color {Dark Slate Gray} -height 17}} /dhcp_in_ip_module_tb/uut2/ip_rx_packet_i
 add wave -noupdate -color Khaki /dhcp_in_ip_module_tb/uut2/ip_tx_ready_i
