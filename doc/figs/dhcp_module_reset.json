@@ -1,0 +1,7 @@
+{signal: [
+  {name: '<INIT MODE>', wave: '0.3...0|.4...0.', data: ['INIT', 'INIT_REBOOT']},
+  {},
+  {name: 'clk',    wave: 'p......|.......'},
+  {name: 'rst',    wave: '0.1...0|.1...0.'},
+  {name: 'boot_i', wave: 'x....0x|....1x.'},
+]}

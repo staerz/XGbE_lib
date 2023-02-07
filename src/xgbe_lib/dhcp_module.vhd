@@ -39,6 +39,22 @@
 --! reset which will result in no DHCP traffic (from and to this module).
 --! An example instantiation can be found in the ethernet_to_udp_module.
 --!
+--! # Reset behaviour
+--!
+--! RFC 2131 foresees a DHCP client to come up from INIT (no previous
+--! configuration) or from INIT_REBOOT.
+--! The dhcp_module makes this distinction via the ports #rst and #boot_i:
+--! INIT is reached by only driving #rst to '1' while #boot_i is '0'
+--! whereas INIT_REBOOT is reached when both these signals are at '1'.
+--! Hereby the last clock cycle of #rst is significant.
+--! Note that, following RFC 2131, the client will only attempt to come up in
+--! INIT_REBOOT if, additionally to resetting as described, it still has a valid
+--! lease from a previous DHCP configuration.
+--!
+--! See also the following timing diagram:
+--!  @image latex dhcp_module_reset.pdf "Reset behaviour of dhcp_module" width=\textwidth
+--!  @image html dhcp_module_reset.svg
+--!
 --! @todo When adding support for further DHCP options, even for static IP
 --! configuration, the specified procedure for DHCPINFORM to acquire further
 --! network parameters should be implemented.
@@ -46,9 +62,6 @@
 --! @todo DHCP Discover:
 --! - The client SHOULD include the 'maximum DHCP message size' option to
 --!   let the server know how large the server may make its DHCP messages.
---!
---! @todo DHCP Request:
---! - Request from INIT_REBOOT: broadcast the 0xffffffff IP broadcast address
 --!
 --! @todo Calculation of the UDP CRC field is currently not implemented.
 --------------------------------------------------------------------------------
@@ -78,7 +91,7 @@ entity dhcp_module is
     rst              : in    std_logic;
     --! @brief Boot, sync with #clk
     --! @details Rebooting with last assigned IP address (rather than resetting requesting new one)
-    boot_i           : in    std_logic;
+    boot_i           : in    std_logic := '0';
 
     --! @name Avalon-ST from DHCP core
     --! @{
@@ -131,7 +144,7 @@ entity dhcp_module is
     --! - 3: lease expired
     --! - 2: t2_expired
     --! - 1: t1_expired
-    --! - 0: IP address configured (DHCP module in BOUND or RENEWING state)
+    --! - 0: IP address configured (DHCP module in BOUND, RENEWING or REBINDING state)
     status_vector_o  : out   std_logic_vector(6 downto 0)
   );
 end entity dhcp_module;
@@ -221,6 +234,9 @@ architecture behavioral of dhcp_module is
   --! Indication of the RX FSM to be in IDLE (not busy)
   signal no_rx : std_logic;
 
+  --! @todo Double-check: I think #use_suggest_ip and #mypreviousip can be removed
+  --! Need to read the specs again on this (it's used in the DISCOVER message)
+
   --! Indicator if or if not to use a suggested IP
   signal use_suggest_ip : boolean;
   --! Previous stored IP of the core
@@ -304,6 +320,33 @@ architecture behavioral of dhcp_module is
 
 begin
 
+  --! @brief FSM implementing state transitions according to RFC2131
+  --! @details See #t_dhcp_state for the definition of state transitions defined by RFC2131.
+  --!
+  --! Reset behaviour:
+  --! If requested to reboot (indicated by #rst = '1' while #boot_i = '1'),
+  --! AND the assigned IP still being valid (lease not expired),
+  --! a REBOOT is done.
+  --! Otherwise we INIT normally upon ordinary reset.
+  --!
+  --! Signals created from this FSM:
+  --! - #send_dhcp_discover
+  --! - #send_dhcp_request
+  --! - #send_dhcp_decline
+  --!
+  --! State transitions are triggered by the following external stimuli:
+  --! - #resend_dhcp_discover
+  --! - #dhcp_preacknowledge
+  --! - #dhcp_nack
+  --! - #dhcp_timedout
+  --! - #resend_dhcp_request
+  --! - #reco_done
+  --! - #dhcp_acknowledge
+  --! - #decline_sent
+  --! - #t1_expired
+  --! - #t2_expired
+  --! - #lease_expired
+
   proc_dhcp_state : process (clk)
   begin
     if rising_edge(clk) then
@@ -313,9 +356,15 @@ begin
       send_dhcp_decline  <= '0';
 
       if rst = '1' then
-        dhcp_state <= INIT;
-      elsif boot_i = '1' then
-        dhcp_state <= INIT_REBOOT;
+        -- Note: we should possibly check not the last bit of the lease counter
+        -- but maybe the 5th or so to allow enough time to send at least 1 request out
+        -- before the lease actually expires
+        -- but the mechanism will fall back even if on its way the release expires
+        if boot_i = '1' and lease_expired = '0' then
+          dhcp_state <= INIT_REBOOT;
+        else
+          dhcp_state <= INIT;
+        end if;
       else
 
         case dhcp_state is
@@ -423,15 +472,20 @@ begin
           when INIT_REBOOT =>
             dhcp_state <= REBOOTING;
 
-            -- TODO: Check if the request is different from request coming from SELECTING
             send_dhcp_request <= '1';
 
           when REBOOTING =>
             if dhcp_acknowledge = '1' then
               dhcp_state <= BOUND;
-            elsif dhcp_nack = '1' then
+            elsif dhcp_nack = '1' or lease_expired = '1' or dhcp_timedout = '1' then
               dhcp_state <= INIT;
             else
+              -- in addition to the specified state transitions,
+              -- we also need to resend a request after timeout
+              if resend_dhcp_request = '1' then
+                send_dhcp_request <= '1';
+              end if;
+
               dhcp_state <= REBOOTING;
             end if;
 
@@ -443,7 +497,7 @@ begin
 
   -- indicate dhcp bound-ish state to status_vector
   with dhcp_state select status_vector_o(0) <=
-    '1' when BOUND | RENEWING,
+    '1' when BOUND | RENEWING | REBINDING,
     '0' when others;
 
   -- indicate dhcp decline state to status_vector
@@ -480,13 +534,15 @@ begin
     end if;
   end process proc_xid;
 
+  --! create a #second_tick from #one_ms_tick_i
+  --! It's only reset by #rst when not booting (not #boot_i) to keep the lease counter counting
   inst_second_tick : entity misc.counting
   generic map (
     COUNTER_MAX_VALUE => MSPERS
   )
   port map (
     clk => clk,
-    rst => rst,
+    rst => rst and not boot_i,
     en  => one_ms_tick_i,
 
     cycle_done => second_tick
@@ -684,6 +740,7 @@ begin
         -- (tx_state = DHCP_INFORM) or
         (tx_state = DHCP_REQUEST and (dhcp_state = RENEWING or dhcp_state = REBINDING)) or
         (tx_state = DHCP_RELEASE) else
+      -- i.e. REBOOTING: MUST NOT FILL
       (others => '0');
 
     -- vsg_on comment_010
@@ -811,7 +868,7 @@ begin
                     dhcp_options_fifo_din <= x"3204" & mypreviousip & x"00_00";
                     dhcp_options_fifo_wen <= '1';
                   -- MUST be set to the value of 'yiaddr' in the DHCPOFFER message from the server.
-                  -- yourid is any of the selected yiaddr
+                  -- yourid is any of the selected yiaddr and remains validity also for REBOOTING
                   -- vsg_off if_009
                   elsif (tx_state = DHCP_REQUEST and (dhcp_state = REQUESTING or dhcp_state = REBOOTING)) or
                     (tx_state = DHCP_DECLINE)
@@ -841,7 +898,9 @@ begin
                   dhcp_options_fifo_wen <= '1';
 
                 -- END option
+                --! @cond Doxygen doesn't like the next line, it sees it as a syntax error
                 when DHCP_WORDS - 1 =>
+                  --! @endcond
                   dhcp_options_fifo_din <= x"FF" & x"00_00_00_00_00_00_00";
                   dhcp_options_fifo_wen <= '1';
 
@@ -1007,13 +1066,16 @@ begin
       --! - Request in RENEWING uses unicast (may use)
       --! - DHCP_INFORM can unicast but must revert to broadcast if no reply
       --! - In any other case, messages are broadcast
+      --! - In REBOOTING we may actually use the serverid but would have to revert to broadcast.
+      --!   For simplicity we just broadcast right away
+      --!   (one could though differentiate using #send_dhcp_request vs. #resent_dhcp_request).
       --! @todo This process can possibly be simplified as only in some special cases we do not (IP) broadcast.
       proc_set_dhcp_server_ip : process (clk)
       begin
         if rising_edge(clk) then
           if send_dhcp_request = '1' or send_dhcp_decline = '1' then
-            -- The protocol states that in rebinding, we must send a broadcast
-            if dhcp_state = REBINDING or dhcp_state = REQUESTING then
+            -- The protocol states that in REBINDING, REQUESTING, and REBOOTING we must send a broadcast
+            if dhcp_state = REBINDING or dhcp_state = REQUESTING or dhcp_state = REBOOTING then
               dhcp_server_ip_o <= (others => '1');
             else
               dhcp_server_ip_o <= serverid;
@@ -1619,13 +1681,17 @@ begin
 
     --! @brief Actually setting the IP from successful DHCP interaction (or dropping it)
     --! @todo We must also seize all network activity if #lease_expired = `1`!
+    --! @details
+    --! An acknowledge (#dhcp_acknowledge) sets the IP address (#my_ip_o) and net mask (#ip_netmask_o).
+    --! Reset (#rst) or an expired lease timer (#lease_expired) reset them.
+    --! Note that reset is independent of #boot_i, see #proc_manage_lease_times.
     proc_capture_my_ip : process (clk)
     begin
       if rising_edge(clk) then
         if dhcp_acknowledge = '1' then
           my_ip_o      <= yourid;
           ip_netmask_o <= netmask;
-        elsif lease_expired = '1' then
+        elsif rst = '1' or lease_expired = '1' then
           my_ip_o      <= (others => '0');
           ip_netmask_o <= (others => '0');
         -- RFC requires to use a IP broadcast for all requests in REBINDING
@@ -1691,6 +1757,11 @@ begin
     --! the lease from the DHCPACK message."
     --!
     --! Since we count the time backwards (remaining seconds), this turns into a difference.
+    --!
+    --! Upon reset (but not boot) [or DHCP NACK] we need to reset the lease timer.
+    --! #boot_i here makes the difference between INIT and INIT_REBOOT:
+    --! We must keep the lease alive upon #boot_i = '1' to be able to go into
+    --! INIT_REBOOT in #proc_dhcp_state while the IP address (and net mask) are already reset.
     proc_manage_lease_times : process (clk)
       variable lt : unsigned(31 downto 0);
     begin
@@ -1701,9 +1772,7 @@ begin
         t1 <= t1;
         t2 <= t2;
 
-        if rst = '1' then
-          -- upon reset we only need to reset the lease time
-          -- this will reset my_ip_o as a consequence (in the next cycle)
+        if (rst = '1' and boot_i = '0') or dhcp_nack = '1' then
           lease(lease'high) <= '1';
 
           t1(t1'high) <= '1';
@@ -1775,6 +1844,7 @@ begin
       proc_timer_pos : process (clk)
       begin
         if rising_edge(clk) then
+          -- t2_expired_tick also can kick in during REBOOTING ... it's a minor thing we could fix
           if dhcp_state = INIT or dhcp_state = BOUND or t2_expired_tick = '1' then
             timer_pos <= 1;
           elsif send_dhcp_request = '1' and timer_pos < 6 then
@@ -1784,7 +1854,7 @@ begin
       end process proc_timer_pos;
 
       with dhcp_state select is_rerequest_state <=
-        '1' when REQUESTING | RENEWING | REBINDING,
+        '1' when REQUESTING | RENEWING | REBINDING | REBOOTING,
         '0' when others;
 
       -- possibly we have to put this into a process as seconds(timer_pos) is not globally static (need to verify in compilation)
@@ -1803,7 +1873,7 @@ begin
         sig_out => resend_dhcp_request
       );
 
-      -- abort requesting and initiate to go back to INIT state after timeout + margin for possible reply
+      --! Abort requesting and initiate to go back to INIT state after timeout + margin for possible reply
       proc_dhcp_timedout : process (clk)
       begin
         if rising_edge(clk) then
