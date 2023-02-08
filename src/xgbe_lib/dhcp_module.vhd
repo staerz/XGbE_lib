@@ -711,10 +711,6 @@ begin
     signal fifo_state : t_fifo_state := IDLE;
   begin
 
-    -- Consider the suggested IP to try (in DISCOVER) as soon as it's not its default.
-    -- (We do not apply any check on the validity of that suggested IP address.)
-    use_try_ip <= or(try_ip_i);
-
     --! @brief Calculate the UDP length at the beginning of a transmission
     --! @details
     --! The UDP length depends on the options set in each outgoing DHCP packet.
@@ -723,7 +719,6 @@ begin
     --! We use a variable to count the active options, precisely (1:1) following the
     --! conditions as they are used in #proc_write_fifo and leave the optimisation to
     --! the compiler.
-    --!
     --! @todo
     --! A possibly more elegant approach would be to check the number of words
     --! in the tx options FIFO (#dhcp_options_fifo_din, once written), but then we'd have to wait for that
@@ -770,6 +765,12 @@ begin
         udp_length <= to_unsigned((1 + 8 * (DHCP_WORDS + len)), 16);
       end if;
     end process proc_udp_length;
+
+    -- Consider the suggested IP to try (in DISCOVER) as soon as it's not its default.
+    -- (We do not apply any check on the validity of that suggested IP address.)
+    --! @cond Doxygen doesn't know VHDL-2008 syntax ... and is picky about the position of cond here!
+    use_try_ip <= or(try_ip_i);
+    --! @endcond
 
     gen_udp_crc : if UDP_CRC_EN generate
       -- Will need major rework as first the package will have to be generated and
@@ -1809,7 +1810,6 @@ begin
               -- also set the options we need to include in the request
               yourid    <= offered_yiaddr;
               serverid  <= dhcp_server_ip;
-              -- TODO: check again if we have to calculate back to initial discover time ...
               leasetime <= dhcp_lease_time;
             end if;
           -- in case of an acknowledge
@@ -1818,7 +1818,7 @@ begin
             -- we only know that by checking the offered IP address as the dhcp_server_ip option is optional in acknowledge
             if offered_yiaddr = yourid then
               -- we finally have an acknowledge from the server we requested
-              if dhcp_state = REQUESTING or dhcp_state = RENEWING or dhcp_state = REBINDING then
+              if dhcp_state = REQUESTING or dhcp_state = RENEWING or dhcp_state = REBINDING or dhcp_state = REBOOTING then
                 -- no need to re-extract yourid, we just checked it to be the same ...
                 -- but this time finally get the lease time
                 leasetime <= dhcp_lease_time;
@@ -1855,7 +1855,6 @@ begin
   begin
 
     --! @brief Actually setting the IP from successful DHCP interaction (or dropping it)
-    --! @todo We must also seize all network activity if #lease_expired = `1`!
     --! @details
     --! An acknowledge (#dhcp_acknowledge) sets the IP address (#my_ip_o) and net mask (#ip_netmask_o).
     --! Reset (#rst) or an expired lease timer (#lease_expired) reset them.
@@ -2025,8 +2024,7 @@ begin
       proc_timer_pos : process (clk)
       begin
         if rising_edge(clk) then
-          -- t2_expired_tick also can kick in during REBOOTING ... it's a minor thing we could fix
-          if dhcp_state = INIT or dhcp_state = BOUND or t2_expired_tick = '1' then
+          if dhcp_state = INIT or dhcp_state = BOUND or (dhcp_state /= REBOOTING and t2_expired_tick = '1') then
             timer_pos <= 1;
           elsif send_dhcp_request = '1' and timer_pos < 6 then
             timer_pos <= timer_pos + 1;
