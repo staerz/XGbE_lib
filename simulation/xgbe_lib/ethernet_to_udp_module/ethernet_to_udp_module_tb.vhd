@@ -171,6 +171,8 @@ architecture tb of ethernet_to_udp_module_tb is
   --! MAC address
   signal my_mac : std_logic_vector(47 downto 0) := x"00_22_8F_02_41_EE";
 
+  --! (Optional) IP address to try obtaining when configuring
+  signal try_ip_i : std_logic_vector(31 downto 0) := (others => '0');
   --! @}
 
   --! Status of the module
@@ -219,6 +221,7 @@ begin
     udp_tx_id_o     => udp_rx_id,
 
     my_mac_i  => my_mac,
+    try_ip_i  => try_ip_i,
     dhcp_en_i => dhcp_en,
 
     status_vector_o => status_vector

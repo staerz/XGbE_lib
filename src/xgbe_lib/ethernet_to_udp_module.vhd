@@ -76,6 +76,15 @@ entity ethernet_to_udp_module is
     clk             : in    std_logic;
     --! Reset, sync with #clk
     rst             : in    std_logic;
+    --! @brief DHCP Reboot, sync with #clk
+    --! @details
+    --! Reboot @ref #dhcp_module "the DHCP module" (re-obtain IP-address) without full reset.
+    --! The reboot described in @ref dhcp_module_reset_bahaviour "the DHCP module's reset behaviour" is done.
+    --! Setting #dhcp_reboot_i to '1' causes the INIT_REBOOT, internally forming the reset signals for
+    --! the #dhcp_module accordingly.
+    --! #rst doesn't need to be set when rebooting, but #rst without #dhcp_reboot_i causes
+    --! full reset of the DHCP module.
+    dhcp_reboot_i   : in    std_logic := '0';
 
     --! @name Avalon-ST from ETH outside world
     --! @{
@@ -124,6 +133,8 @@ entity ethernet_to_udp_module is
     my_mac_i        : in    std_logic_vector(47 downto 0);
     --! DHCP enable (enabled by default)
     dhcp_en_i       : in    std_logic                     := '1';
+    --! (Optional) IP address to try obtaining when using DHCP
+    try_ip_i        : in    std_logic_vector(31 downto 0) := (others => '0');
     --! IP address (when using static IP address configuration)
     my_ip_i         : in    std_logic_vector(31 downto 0) := x"c0_a8_00_02";
     --! Net mask (when using static IP address configuration)
@@ -458,7 +469,7 @@ begin
 
     reco_fail <= '1' when reco_mac = x"FF_FF_FF_FF_FF_FF" else '0';
 
-    dhcp_rst <= rst or not dhcp_en_i;
+    dhcp_rst <= rst or not dhcp_en_i or dhcp_reboot_i;
 
     --! Instantiate the dhcp_module
     inst_dhcp_module : entity xgbe_lib.dhcp_module
@@ -468,7 +479,7 @@ begin
     port map (
       clk    => clk,
       rst    => dhcp_rst,
-      boot_i => '0',
+      boot_i => dhcp_reboot_i,
 
       -- signals from dhcp requester
       dhcp_rx_ready_o  => udp_rx_ready_dhcp,
@@ -486,6 +497,7 @@ begin
       reco_fail_i => reco_fail,
 
       my_mac_i     => my_mac_i,
+      try_ip_i     => try_ip_i,
       my_ip_o      => dhcp_ip,
       ip_netmask_o => dhcp_mask,
 
