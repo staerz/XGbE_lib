@@ -55,6 +55,7 @@
 --! reset which will result in no DHCP traffic (from and to this module).
 --! An example instantiation can be found in the ethernet_to_udp_module.
 --!
+--! @anchor dhcp_module_reset_bahaviour
 --! # Reset behaviour
 --!
 --! RFC 2131 foresees a DHCP client to come up from INIT (no previous
