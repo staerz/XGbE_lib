@@ -23,7 +23,7 @@ as a comment
 % ....... protocol, IP header
 4567 89AB 0800 4500
 % IP header (continued)
-001D 093C 4000 8011
+0133 093C 4000 8011
 % ............ UDP header
 0000 C0A8 0101 FFFF
 % SRC DST length CRC
@@ -169,7 +169,7 @@ FFBA DBAD BADD BADD 111 0
 % ....... protocol, IP header
 4567 89AB 0800 4500
 % IP header (continued)
-001D 093C 4000 8011
+0133 093C 4000 8011
 % ............ UDP header
 0000 C0A8 0101 FFFF
 % SRC DST length CRC
