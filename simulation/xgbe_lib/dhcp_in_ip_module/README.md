@@ -12,7 +12,12 @@ In this simulation the initialisation procedure (Discover, Offer, Request, Ackno
 
 Once the `dhcp_module` runs into RENEWING, another Acknowledge is sent to rebind the `dhcp_module`.
 
-Finally, the `dhcp_module` is reset in REBOOTING mode to test the REBOOTING procedure: The Request is replied with an Acknowwldedge which brings the `dhcp_module` back into BOUND state again.
+Subsequently, the REBOOTING procedure is tested: The `dhcp_module` is reset (in reboot) and the request is replied with an Acknowledge which brings the `dhcp_module` back into BOUND state again.
+Shortly later, the `dhcp_module` is reset (in reboot) again, but this time, a NAcknowledge is replied such that the module immediately goes back into the INIT/SELECTING state.
+
+The final test can be altered to test the timeout procedure during REBOOTING:
+This is achieved by omitting the final NAcknowledge (i.e. simply by making it an erroneous reply) and postponing the final reset to about 7000.
+A transition to INIT would then be observed at `cnt = 6454`.
 
 # Requirements
 
