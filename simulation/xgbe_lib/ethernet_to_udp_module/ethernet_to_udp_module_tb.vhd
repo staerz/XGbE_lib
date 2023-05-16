@@ -175,6 +175,17 @@ architecture tb of ethernet_to_udp_module_tb is
   signal try_ip_i : std_logic_vector(31 downto 0) := (others => '0');
   --! @}
 
+  --! @name Actual IP configuration of the module
+  --! @{
+
+  --! IP address (obtained from DHCP or from static configuration)
+  signal my_ip         : std_logic_vector(31 downto 0);
+  --! IP subnet mask (obtained from DHCP or from static configuration)
+  signal my_ip_netmask : std_logic_vector(31 downto 0);
+  --! Indicator if IP configuration (my_ip and my_ip_netmask) is valid
+  signal my_ip_valid   : std_logic;
+  --! @}
+
   --! Status of the module
   signal status_vector : std_logic_vector(33 downto 0);
 
@@ -223,6 +234,10 @@ begin
     my_mac_i  => my_mac,
     try_ip_i  => try_ip_i,
     dhcp_en_i => dhcp_en,
+
+    my_ip_o         => my_ip,
+    my_ip_netmask_o => my_ip_netmask,
+    my_ip_valid_o   => my_ip_valid,
 
     status_vector_o => status_vector
   );

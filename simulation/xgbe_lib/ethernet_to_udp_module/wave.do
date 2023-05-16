@@ -11,9 +11,12 @@ add wave -noupdate -group {Constants and Config} -radix binary -radixshowbase 0 
 add wave -noupdate -group {Constants and Config} /ethernet_to_udp_module_tb/MAC_TIMEOUT
 add wave -noupdate -group {Constants and Config} /ethernet_to_udp_module_tb/PAUSE_LENGTH
 add wave -noupdate /ethernet_to_udp_module_tb/uut/my_mac_i
-add wave -noupdate /ethernet_to_udp_module_tb/uut/my_ip
-add wave -noupdate /ethernet_to_udp_module_tb/uut/my_ip_netmask
-add wave -noupdate /ethernet_to_udp_module_tb/uut/my_ip_valid
+add wave -noupdate /ethernet_to_udp_module_tb/uut/try_ip_i
+add wave -noupdate /ethernet_to_udp_module_tb/uut/my_ip_i
+add wave -noupdate /ethernet_to_udp_module_tb/uut/my_ip_netmask_i
+add wave -noupdate -color Salmon /ethernet_to_udp_module_tb/my_ip
+add wave -noupdate -color Salmon /ethernet_to_udp_module_tb/my_ip_netmask
+add wave -noupdate -color Salmon /ethernet_to_udp_module_tb/my_ip_valid
 add wave -noupdate /ethernet_to_udp_module_tb/uut/dhcp_en_i
 add wave -noupdate /ethernet_to_udp_module_tb/clk
 add wave -noupdate /ethernet_to_udp_module_tb/rst
