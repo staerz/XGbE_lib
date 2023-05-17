@@ -142,6 +142,21 @@ entity ethernet_to_udp_module is
 
     --! @}
 
+    --! @name Actual IP configuration of the module
+    --! @{
+
+    --! IP address (obtained from DHCP or from static configuration)
+    my_ip_o         : out   std_logic_vector(31 downto 0);
+    --! IP subnet mask (obtained from DHCP or from static configuration)
+    my_ip_netmask_o : out   std_logic_vector(31 downto 0);
+    --! @brief Indicator if IP configuration (my_ip_o and my_ip_netmask_o) is valid
+    --! @details Note the difference to #status_vector_o (0) which indicates the status of the DHCP module:
+    --! When DHCP is disabled, #status_vector_o (0) is '0' but #my_ip_valid_o is '1' (as #my_ip_i and #my_ip_netmask_i are used).
+    --! When DHCP is enabled, #status_vector_o (0) = #my_ip_valid_o, and both rise once DHCP negotiation is done.
+    my_ip_valid_o   : out   std_logic;
+
+    --! @}
+
     --! @brief Status of the module
     --! @details Status of the module
     --! - 33: ETH module: Interface merger: ARP is being forwarded
@@ -177,7 +192,7 @@ entity ethernet_to_udp_module is
     --! - 3: DHCP module: lease expired
     --! - 2: DHCP module: t2_expired
     --! - 1: DHCP module: t1_expired
-    --! - 0: DHCP module: IP address configured (DHCP module in BOUND or RENEWING state)
+    --! - 0: DHCP module: IP address configured (DHCP module in BOUND | RENEWING | REBINDING state)
     status_vector_o : out   std_logic_vector(33 downto 0)
   );
 end entity ethernet_to_udp_module;
@@ -289,13 +304,6 @@ architecture behavioral of ethernet_to_udp_module is
 
   --! Destination IP address of DHCP server (used when transmitting DHCP packets)
   signal dhcp_server_ip : std_logic_vector(31 downto 0);
-
-  --! IP address
-  signal my_ip         : std_logic_vector(31 downto 0);
-  --! IP subnet mask
-  signal my_ip_netmask : std_logic_vector(31 downto 0);
-  --! Indicator if IP configuration (my_ip and my_ip_netmask) is valid
-  signal my_ip_valid   : std_logic;
 
   --! Port list for interface_splitter to identify DHCP port
   constant PORT_LIST : t_slv_vector(1 downto 1) := (1 => x"0044");
@@ -413,7 +421,7 @@ begin
     reco_done_o => reco_done,
 
     my_mac_i      => my_mac_i,
-    my_ip_i       => my_ip,
+    my_ip_i       => my_ip_o,
     my_ip_valid_i => dhcp_status_vector(0),
 
     one_ms_tick_i => one_ms_tick,
@@ -448,8 +456,8 @@ begin
     udp_tx_packet_o => udp_tx_packet_ip,
     udp_tx_id_o     => udp_tx_id_o,
 
-    my_ip_i      => my_ip,
-    ip_netmask_i => my_ip_netmask,
+    my_ip_i      => my_ip_o,
+    ip_netmask_i => my_ip_netmask_o,
 
     dhcp_server_ip_i => dhcp_server_ip,
 
@@ -513,24 +521,24 @@ begin
     begin
       if rising_edge(clk) then
         if dhcp_en_i then
-          my_ip         <= dhcp_ip;
-          my_ip_netmask <= dhcp_mask;
-          my_ip_valid   <= dhcp_status_vector(0);
+          my_ip_o         <= dhcp_ip;
+          my_ip_netmask_o <= dhcp_mask;
+          my_ip_valid_o   <= dhcp_status_vector(0);
         else
-          my_ip         <= my_ip_i;
-          my_ip_netmask <= my_ip_netmask_i;
-          my_ip_valid   <= '1';
+          my_ip_o         <= my_ip_i;
+          my_ip_netmask_o <= my_ip_netmask_i;
+          my_ip_valid_o   <= '1';
         end if;
       end if;
     end process proc_select_ip;
 
     -- switch recovery interface to ethernet module when not needed by dhcp module
     -- i.e. it's needed while requesting (= not while (bound (= valid IP) or declining))
-    with my_ip_valid or dhcp_status_vector(6) select reco_en <=
+    with my_ip_valid_o or dhcp_status_vector(6) select reco_en <=
       reco_en_eth when '1',
       reco_en_dhcp when others;
 
-    with my_ip_valid or dhcp_status_vector(6) select reco_ip <=
+    with my_ip_valid_o or dhcp_status_vector(6) select reco_ip <=
       reco_ip_eth when '1',
       reco_ip_dhcp when others;
 
@@ -562,11 +570,11 @@ begin
 
     -- block UDP RX interface when IP address is not properly configured
     -- this allows exclusive access to the reco interface for the DHCP module during that time
-    with my_ip_valid select udp_rx_ready_o <=
+    with my_ip_valid_o select udp_rx_ready_o <=
       udp_rx_ready when '1',
       '0' when others;
 
-    with my_ip_valid select udp_rx_packet <=
+    with my_ip_valid_o select udp_rx_packet <=
       udp_rx_packet_i when '1',
       (valid => '0', sop => '0', eop => '0', others => (others => '-')) when others;
 
