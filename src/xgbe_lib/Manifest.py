@@ -10,9 +10,6 @@ library = "xgbe_lib"
 
 # List of source files for the module
 files = [
-  "av_st_receiver.vhd",
-  "avst_packet_receiver.vhd",
-  "avst_packet_sender.vhd",
   "reset_module.vhd",
   "port_io_table.vhd",
   "arp_module.vhd",
