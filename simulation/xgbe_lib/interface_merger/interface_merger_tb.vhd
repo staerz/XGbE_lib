@@ -189,7 +189,7 @@ begin
     rst <= sim_rst or mnl_rst;
 
     --! Instantiate avst_packet_sender to read avst1_tx from AVST1_RXD_FILE
-    inst_avst1_tx : entity xgbe_lib.avst_packet_sender
+    inst_avst1_tx : entity fpga.avst_packet_sender
     generic map (
       FILENAME     => AVST1_RXD_FILE,
       COMMENT_FLAG => COMMENT_FLAG,
@@ -207,7 +207,7 @@ begin
     );
 
     --! Instantiate avst_packet_sender to read avst2_tx from AVST2_RXD_FILE
-    inst_avst2_tx : entity xgbe_lib.avst_packet_sender
+    inst_avst2_tx : entity fpga.avst_packet_sender
     generic map (
       FILENAME     => AVST2_RXD_FILE,
       COMMENT_FLAG => COMMENT_FLAG,
@@ -225,7 +225,7 @@ begin
     );
 
     --! Instantiate avst_packet_receiver to write avst_rx to AVST_TXD_FILE
-    inst_rx : entity xgbe_lib.avst_packet_receiver
+    inst_rx : entity fpga.avst_packet_receiver
     generic map (
       READY_FILE   => AVST_RDY_FILE,
       DATA_FILE    => AVST_TXD_FILE,
@@ -252,7 +252,7 @@ begin
   begin
 
     --! Use the avst_packet_sender to read expected data from an independent file
-    inst_avst_tx_checker : entity xgbe_lib.avst_packet_sender
+    inst_avst_tx_checker : entity fpga.avst_packet_sender
     generic map (
       FILENAME     => AVST_CHK_FILE,
       COMMENT_FLAG => COMMENT_FLAG,

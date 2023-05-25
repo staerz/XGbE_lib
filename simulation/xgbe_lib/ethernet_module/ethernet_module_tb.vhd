@@ -278,7 +278,7 @@ begin
     reco_mac  <= x"AB_CD_EF_01_23_45";
 
     --! Instantiate avst_packet_sender to read eth_tx from ETH_RXD_FILE
-    inst_eth_tx : entity xgbe_lib.avst_packet_sender
+    inst_eth_tx : entity fpga.avst_packet_sender
     generic map (
       FILENAME     => ETH_RXD_FILE,
       COMMENT_FLAG => COMMENT_FLAG,
@@ -296,7 +296,7 @@ begin
     );
 
     --! Instantiate avst_packet_sender to read arp_tx from ARP_RXD_FILE
-    inst_arp_tx : entity xgbe_lib.avst_packet_sender
+    inst_arp_tx : entity fpga.avst_packet_sender
     generic map (
       FILENAME     => ARP_RXD_FILE,
       COMMENT_FLAG => COMMENT_FLAG,
@@ -314,7 +314,7 @@ begin
     );
 
     --! Instantiate avst_packet_sender to read ip_tx from IP_RXD_FILE
-    inst_ip_tx : entity xgbe_lib.avst_packet_sender
+    inst_ip_tx : entity fpga.avst_packet_sender
     generic map (
       FILENAME     => IP_RXD_FILE,
       COMMENT_FLAG => COMMENT_FLAG,
@@ -332,7 +332,7 @@ begin
     );
 
     --! Instantiate avst_packet_receiver to write eth_rx to ETH_TXD_FILE
-    inst_eth_rx : entity xgbe_lib.avst_packet_receiver
+    inst_eth_rx : entity fpga.avst_packet_receiver
     generic map (
       READY_FILE   => ETH_RDY_FILE,
       DATA_FILE    => ETH_TXD_FILE,
@@ -348,7 +348,7 @@ begin
     );
 
     --! Instantiate avst_packet_receiver to write arp_rx to ARP_TXD_FILE
-    inst_arp_rx : entity xgbe_lib.avst_packet_receiver
+    inst_arp_rx : entity fpga.avst_packet_receiver
     generic map (
       READY_FILE   => ARP_RDY_FILE,
       DATA_FILE    => ARP_TXD_FILE,
@@ -364,7 +364,7 @@ begin
     );
 
     --! Instantiate avst_packet_receiver to write ip_rx to IP_TXD_FILE
-    inst_ip_rx : entity xgbe_lib.avst_packet_receiver
+    inst_ip_rx : entity fpga.avst_packet_receiver
     generic map (
       READY_FILE   => IP_RDY_FILE,
       DATA_FILE    => IP_TXD_FILE,
@@ -401,7 +401,7 @@ begin
   begin
 
     --! Use the avst_packet_sender to read expected ETH data from an independent file
-    inst_eth_tx_checker : entity xgbe_lib.avst_packet_sender
+    inst_eth_tx_checker : entity fpga.avst_packet_sender
     generic map (
       FILENAME     => ETH_CHK_FILE,
       COMMENT_FLAG => COMMENT_FLAG,
@@ -419,7 +419,7 @@ begin
     );
 
     --! Use the avst_packet_sender to read expected ARP data from an independent file
-    inst_arp_tx_checker : entity xgbe_lib.avst_packet_sender
+    inst_arp_tx_checker : entity fpga.avst_packet_sender
     generic map (
       FILENAME     => ARP_CHK_FILE,
       COMMENT_FLAG => COMMENT_FLAG,
@@ -437,7 +437,7 @@ begin
     );
 
     --! Use the avst_packet_sender to read expected IP data from an independent file
-    inst_ip_tx_checker : entity xgbe_lib.avst_packet_sender
+    inst_ip_tx_checker : entity fpga.avst_packet_sender
     generic map (
       FILENAME     => IP_CHK_FILE,
       COMMENT_FLAG => COMMENT_FLAG,
