@@ -75,6 +75,7 @@ architecture tb of dhcp_in_ip_module_tb is
   --! Reset, sync with #clk
   signal rst  : std_logic;
   --! @details Rebooting with last assigned IP address (rather than resetting requesting new one)
+  --! @brief Boot, sync with #clk
   signal boot : std_logic;
   --! Counter for the simulation
   signal cnt  : integer;
@@ -84,7 +85,6 @@ architecture tb of dhcp_in_ip_module_tb is
   --! Reset of the simulation (only at start)
   signal sim_rst : std_logic;
 
-  --! @brief Boot, sync with #clk
   --! @name Avalon-ST (IP) to IP module (read from file)
   --! @{
 
@@ -160,6 +160,7 @@ architecture tb of dhcp_in_ip_module_tb is
 
   --! @name Configuration of the module
   --! @{
+
   --! Assigned (retrieved) IP address
   signal my_ip      : std_logic_vector(31 downto 0);
   --! IP subnet mask
@@ -405,6 +406,7 @@ begin
       -- Wait for another reset to rise
       await_value(rst, '1', 0 ns, 60 * CLK_PERIOD, ERROR, "Reset rise expected.");
 
+      --! @cond #(doxygen fails parsing the while loop)
       note("The following acknowledge check messages are all suppressed.");
       -- make sure to be slightly after the rising edge
       wait for 1 ns;
@@ -421,6 +423,7 @@ begin
         end if;
         wait for CLK_PERIOD;
       end loop;
+      --! @endcond
       note("If until here no errors showed up, a gazillion of checks on ip_rx_packet and udp_rx_packet went fine.");
 
       -- Grant an additional clock cycle in order for the avst_packet_receiver to finish writing

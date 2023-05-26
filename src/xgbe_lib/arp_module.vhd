@@ -189,13 +189,15 @@ begin
 
   -- Transmitter part
   blk_make_tx_interface : block
+    --! Counter for outgoing ARP response packet
+    signal tx_count : integer range 0 to 9;
+
     --! @brief State definition for the TX FSM
     --! @details
     --! State definition for the TX FSM
     --! - IDLE:          no transmission running
     --! - ARP_RESPONSE:  ARP response is being sent
     --! - ARP_REQUEST:   ARP request is being sent
-
     type t_tx_state is (IDLE, ARP_RESPONSE, ARP_REQUEST);
 
     --! State of the TX FSM
@@ -205,9 +207,6 @@ begin
     signal config_tg_mac : std_logic_vector(47 downto 0);
     --! Register to temporarily store target IP, used in TX path only and fed by FIFO
     signal config_tg_ip  : std_logic_vector(31 downto 0);
-
-    --! Counter for outgoing ARP response packet
-    signal tx_count : integer range 0 to 9;
 
     --! Indicator if pair of MAC and IP address have been received
     signal arp_data_loaded : std_logic;

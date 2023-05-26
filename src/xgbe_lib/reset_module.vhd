@@ -382,13 +382,17 @@ begin
     signal rx_valid_d : std_logic;
 
     --! Counter for incoming packet
-
     -- vsg_disable_next_line signal_007
-    signal rx_count     : unsigned(7 downto 0) := to_unsigned(0, 8);
-    --! @names Registers for receiving data
+    signal rx_count : unsigned(7 downto 0) := to_unsigned(0, 8);
+
+    --! @name Registers for receiving data
     --! @{
+
+    --! 0th-level register
     signal rx_data_reg  : std_logic_vector(63 downto 0);
+    --! 1st-level register
     signal rx_data_reg1 : std_logic_vector(63 downto 0);
+    --! 2nd-level register
     signal rx_data_reg2 : std_logic_vector(63 downto 0);
     --! @}
     --! RX control signals

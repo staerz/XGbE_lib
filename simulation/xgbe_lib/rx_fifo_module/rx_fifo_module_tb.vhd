@@ -244,6 +244,7 @@ begin
       -- Wait for the reset to drop
       await_value(rst, '0', 10 ns, 60 * CLK_PERIOD, ERROR, "Reset drop expected.");
 
+      --! @cond #(doxygen fails parsing the while loop)
       note("The following acknowledge check messages are all suppressed.");
       -- make sure to be slightly after the rising edge
       wait for 1 ns;
@@ -264,6 +265,7 @@ begin
         end if;
         wait for CLK_PERIOD;
       end loop;
+      --! @endcond
       note("If until here no errors showed up, a gazillion of checks on rx_packet went fine.");
 
       -- Grant an additional clock cycle in order for the avst_packet_receiver to finish writing
