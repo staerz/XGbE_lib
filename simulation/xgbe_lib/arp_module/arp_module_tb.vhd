@@ -206,7 +206,7 @@ begin
     rst <= sim_rst or mnl_rst;
 
     --! Instantiate avst_packet_sender to read arp_tx from ARP_RXD_FILE
-    inst_arp_tx : entity xgbe_lib.avst_packet_sender
+    inst_arp_tx : entity fpga.avst_packet_sender
     generic map (
       FILENAME     => ARP_RXD_FILE,
       COMMENT_FLAG => COMMENT_FLAG,
@@ -224,7 +224,7 @@ begin
     );
 
     --! Instantiate avst_packet_receiver to write arp_rx to ARP_TXD_FILE
-    inst_arp_rx : entity xgbe_lib.avst_packet_receiver
+    inst_arp_rx : entity fpga.avst_packet_receiver
     generic map (
       READY_FILE   => ARP_RDY_FILE,
       DATA_FILE    => ARP_TXD_FILE,
@@ -243,7 +243,7 @@ begin
       '1' when 0,
       '0' when others;
 
-    inst_reco : entity xgbe_lib.avst_packet_sender
+    inst_reco : entity fpga.avst_packet_sender
     generic map (
       FILENAME      => RECO_FILE,
       COMMENT_FLAG  => COMMENT_FLAG,
@@ -278,7 +278,7 @@ begin
   begin
 
     --! Use the avst_packet_sender to read expected data from an independent file
-    inst_arp_tx_checker : entity xgbe_lib.avst_packet_sender
+    inst_arp_tx_checker : entity fpga.avst_packet_sender
     generic map (
       FILENAME     => ARP_CHK_FILE,
       COMMENT_FLAG => COMMENT_FLAG,
@@ -303,6 +303,7 @@ begin
       -- Wait for the reset to drop
       await_value(rst, '0', 0 ns, 60 * CLK_PERIOD, ERROR, "Reset drop expected.");
 
+      --! @cond #(doxygen fails parsing the while loop)
       note("The following acknowledge check messages are all suppressed.");
       -- make sure to be slightly after the rising edge
       wait for 1 ns;
@@ -318,6 +319,7 @@ begin
         end if;
         wait for CLK_PERIOD;
       end loop;
+      --! @endcond
       note("If until here no errors showed up, a gazillion of checks on arp_rx_packet went fine.");
 
       -- Grant an additional clock cycle in order for the avst_packet_receiver to finish writing

@@ -8,7 +8,7 @@
 --------------------------------------------------------------------------------
 --! @details Generates the environment for the dhcp_module.vhd.
 --! Data packets are read from #DHCP_RXD_FILE and passed to the dhcp_module.
---! #MY_MAC and #MY_IP must be configured in accordance with data in that file.
+--! #MY_MAC must be configured in accordance with data in that file.
 --! The module's output is logged to #DHCP_TXD_FILE.
 --------------------------------------------------------------------------------
 
@@ -236,7 +236,7 @@ begin
     );
 
     --! Instantiate avst_packet_sender to read dhcp_tx from DHCP_RXD_FILE
-    inst_dhcp_tx : entity xgbe_lib.avst_packet_sender
+    inst_dhcp_tx : entity fpga.avst_packet_sender
     generic map (
       FILENAME     => DHCP_RXD_FILE,
       COMMENT_FLAG => COMMENT_FLAG,
@@ -254,7 +254,7 @@ begin
     );
 
     --! Instantiate avst_packet_receiver to write dhcp_rx to DHCP_TXD_FILE
-    inst_dhcp_rx : entity xgbe_lib.avst_packet_receiver
+    inst_dhcp_rx : entity fpga.avst_packet_receiver
     generic map (
       READY_FILE   => DHCP_RDY_FILE,
       DATA_FILE    => DHCP_TXD_FILE,
@@ -286,7 +286,7 @@ begin
 
     --! Use the avst_packet_sender to read expected data from an independent file
     -- TODO: have to check rst behaviour: possibly using sim_rst is key to success (seen in IP module)
-    inst_dhcp_tx_checker : entity xgbe_lib.avst_packet_sender
+    inst_dhcp_tx_checker : entity fpga.avst_packet_sender
     generic map (
       FILENAME     => DHCP_CHK_FILE,
       COMMENT_FLAG => COMMENT_FLAG,
@@ -315,7 +315,7 @@ begin
       -- Wait for the reset to drop
       await_value(rst, '0', 0 ns, 60 * CLK_PERIOD, ERROR, "Reset drop expected.");
 
-      --! @cond
+      --! @cond #(doxygen fails parsing the while loop)
       note("The following acknowledge check messages are all suppressed.");
       -- make sure to be slightly after the rising edge
       wait for 1 ns;
