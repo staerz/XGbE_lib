@@ -351,6 +351,7 @@ begin
 
     --! Generate DHCP enable switch
 
+    --! @cond #(doxygen fails parsing the case generate)
     gen_dhcp_en : case DHCP_SWITCH generate
 
       when "ON " =>
@@ -363,6 +364,7 @@ begin
 
       when "DYN" =>
 
+        --! @endcond
         --! Instantiate counter_matcher to read dhcp_en from DHCP_EN_FILE
         inst_dhcp_en : entity sim.counter_matcher
         generic map (
@@ -378,9 +380,11 @@ begin
           eof => eof(5)
         );
 
+      --! @cond #(doxygen fails parsing the case generate)
       when others =>
     end generate gen_dhcp_en;
 
+    --! @endcond
     --! Generate an ID for each new UDP packet
     proc_gen_id_counter : process (clk)
     begin
@@ -468,6 +472,7 @@ begin
       -- Wait for another reset to rise
       await_value(rst, '1', 0 ns, 60 * CLK_PERIOD, ERROR, "Reset rise expected.");
 
+      --! @cond #(doxygen fails parsing the while loop)
       note("The following acknowledge check messages are all suppressed.");
       -- make sure to be slightly after the rising edge
       wait for 1 ns;
@@ -490,6 +495,7 @@ begin
         end if;
         wait for CLK_PERIOD;
       end loop;
+      --! @endcond
       note("If until here no errors showed up, a gazillion of checks on eth_rx_packet and udp_rx_packet went fine.");
 
       -- Grant an additional clock cycle in order for the avst_packet_receiver to finish writing

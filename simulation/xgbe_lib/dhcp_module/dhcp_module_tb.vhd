@@ -8,7 +8,7 @@
 --------------------------------------------------------------------------------
 --! @details Generates the environment for the dhcp_module.vhd.
 --! Data packets are read from #DHCP_RXD_FILE and passed to the dhcp_module.
---! #MY_MAC and #MY_IP must be configured in accordance with data in that file.
+--! #MY_MAC must be configured in accordance with data in that file.
 --! The module's output is logged to #DHCP_TXD_FILE.
 --------------------------------------------------------------------------------
 
@@ -315,7 +315,7 @@ begin
       -- Wait for the reset to drop
       await_value(rst, '0', 0 ns, 60 * CLK_PERIOD, ERROR, "Reset drop expected.");
 
-      --! @cond
+      --! @cond #(doxygen fails parsing the while loop)
       note("The following acknowledge check messages are all suppressed.");
       -- make sure to be slightly after the rising edge
       wait for 1 ns;
