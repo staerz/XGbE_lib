@@ -235,7 +235,7 @@ begin
     rst <= sim_rst or mnl_rst;
 
     --! Instantiate avst_packet_sender to read ip_tx from IP_RXD_FILE
-    inst_ip_tx : entity xgbe_lib.avst_packet_sender
+    inst_ip_tx : entity fpga.avst_packet_sender
     generic map (
       FILENAME     => IP_RXD_FILE,
       COMMENT_FLAG => COMMENT_FLAG,
@@ -253,7 +253,7 @@ begin
     );
 
     --! Instantiate avst_packet_receiver to write ip_rx to IP_TXD_FILE
-    inst_ip_rx : entity xgbe_lib.avst_packet_receiver
+    inst_ip_rx : entity fpga.avst_packet_receiver
     generic map (
       READY_FILE   => IP_RDY_FILE,
       DATA_FILE    => IP_TXD_FILE,
@@ -269,7 +269,7 @@ begin
     );
 
     --! Instantiate avst_packet_sender to read udp_tx from UDP_RXD_FILE
-    inst_udp_tx : entity xgbe_lib.avst_packet_sender
+    inst_udp_tx : entity fpga.avst_packet_sender
     generic map (
       FILENAME     => UDP_RXD_FILE,
       COMMENT_FLAG => COMMENT_FLAG,
@@ -287,7 +287,7 @@ begin
     );
 
     --! Instantiate avst_packet_receiver to write udp_rx to UDP_TXD_FILE
-    inst_upd_rx : entity xgbe_lib.avst_packet_receiver
+    inst_upd_rx : entity fpga.avst_packet_receiver
     generic map (
       READY_FILE   => UDP_RDY_FILE,
       DATA_FILE    => UDP_TXD_FILE,
@@ -343,7 +343,7 @@ begin
   begin
 
     --! Use the avst_packet_sender to read expected IP data from an independent file
-    inst_ip_tx_checker : entity xgbe_lib.avst_packet_sender
+    inst_ip_tx_checker : entity fpga.avst_packet_sender
     generic map (
       FILENAME     => IP_CHK_FILE,
       COMMENT_FLAG => COMMENT_FLAG,
@@ -361,7 +361,7 @@ begin
     );
 
     --! Use the avst_packet_sender to read expected UDP data from an independent file
-    inst_udp_tx_checker : entity xgbe_lib.avst_packet_sender
+    inst_udp_tx_checker : entity fpga.avst_packet_sender
     generic map (
       FILENAME     => UDP_CHK_FILE,
       COMMENT_FLAG => COMMENT_FLAG,
@@ -388,6 +388,7 @@ begin
       -- Wait for another reset to rise
       await_value(rst, '1', 0 ns, 60 * CLK_PERIOD, ERROR, "Reset rise expected.");
 
+      --! @cond #(doxygen fails parsing the while loop)
       note("The following acknowledge check messages are all suppressed.");
       -- make sure to be slightly after the rising edge
       wait for 1 ns;
@@ -410,6 +411,7 @@ begin
         end if;
         wait for CLK_PERIOD;
       end loop;
+      --! @endcond
       note("If until here no errors showed up, a gazillion of checks on ip_rx_packet and udp_rx_packet went fine.");
 
       -- Grant an additional clock cycle in order for the avst_packet_receiver to finish writing
