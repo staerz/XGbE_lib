@@ -13,8 +13,7 @@ sim_do_cmd = 'wave.do'
 # List of modules
 modules = {
   "local": [
-    '$PROJECT_ROOT_PATH/fpga',  # load central BSP of LASP (loads common/misc and common/sim as well)
-    '$PROJECT_ROOT_PATH/fpga/src/public',  # load streams senders and receivers
+    '${FPGA_PATH}',  # load BSP, streams senders and receivers
     "../../../src/xgbe_lib",
     '${TESTBENCH_PATH}',
   ],
