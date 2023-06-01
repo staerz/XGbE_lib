@@ -1,0 +1,71 @@
+{
+  "rule":{
+    "global":{
+      "case_exceptions":[
+        "IEEE",
+        "IEEE_STD_CONTEXT",
+        "PoC",
+      ],
+    },
+    "architecture_013":{
+      "case": "lower"
+    },
+    "architecture_014":{
+      "case": "lower"
+    },
+    "constant_004":{
+      "case": "upper"
+    },
+    "entity_008":{
+      "case": "lower"
+    },
+    "entity_012":{
+      "case": "lower"
+    },
+    "function_017":{
+      "case": "lower"
+    },
+    "generic_007":{
+      "case": "upper"
+    },
+    "generate_005":{
+      "case": "lower"
+    },
+    "generate_012":{
+      "case": "lower"
+    },
+    "instantiation_008":{
+      "case": "lower"
+    },
+    "instantiation_009":{
+      "case": "lower"
+    },
+    "port_map_002":{
+      "case": "lower"
+    },
+    "generic_map_002":{
+      "case": "upper"
+    },
+    "instantiation_028":{
+      "case": "lower"
+    },
+    "package_008":{
+      "case": "lower"
+    },
+    "package_010":{
+      "case": "lower"
+    },
+    "port_010":{
+      "case": "lower"
+    },
+    "process_017":{
+      "case": "lower"
+    },
+    "process_019":{
+      "case": "lower"
+    },
+    "type_500":{
+      "case": "upper"
+    },
+  }
+}

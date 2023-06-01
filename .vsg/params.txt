@@ -1,0 +1,1 @@
+-c .vsg/rules/config.json .vsg/rules/disabled.json .vsg/rules/alignment.json .vsg/rules/casing.json .vsg/configuration.json -lr .vsg/rules
