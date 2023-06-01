@@ -1,9 +1,17 @@
+---
+name: Feature Request
+about: Suggest an idea for this project
+title: "Feature: [Description of the desired feature]"
+labels: Feature
+assignees: staerz
+---
+
 <!--
 Prerequisites
 
 ANSWER THE FOLLOWING QUESTIONS FOR YOURSELF BEFORE SUBMITTING A FEATURE REQUEST.
 
-- This is a feature request (and not a (CI) bug report or a clarification request).
+- This is a feature request (and not a (CI) bug report or a documentation request).
 - This feature is not included in the latest version.
 - I checked to make sure that this feature has not already been requested.
 - I'm requesting this feature to the correct repository.
@@ -26,12 +34,3 @@ In particular ...
 <!-- EXPLAIN WHY DO YOU THINK IT WILL BE HELPFUL AND IN WHICH CASES -->
 
 It would improve ...
-
-## Affected Hardware
-<!-- WHICH HARDWARE WOULD BE AFFECTED BY THIS -->
-
-The devkit.
-
-/label ~"New Feature"
-/weight 1
-/due in 2 weeks
