@@ -24,10 +24,6 @@ All variants work in the exact same way and the `DHCP_SWITCH` in the related `Ma
 * Modelsim or Questasim and appropriate license.
 * Quartus 20.4+ and appropriate license.
 
-## Other modules
-
-* LASP main repository with the default libraries for simulation (`PoC`, `common`, `testbench`)
-
 # Method
 
 To run this simulation, run `make simulation` or `make simulation BATCH_MODE=1` at the command line in this directory.
