@@ -1,0 +1,14 @@
+{ 
+  signal: [
+    {name: 'clk',     wave: 'p.........'},
+    {name: 'sig_in',  wave: '1...0.....'},
+    {name: 'sig_out', wave: '0...10....'},
+  ],
+
+  head: {text:
+    ['tspan', 
+      ['tspan', {'text-anchor': 'start',  x: '0', dy: '0', class:'h4'}, 'lohi = '],
+      ['tspan', {class:'success h4'}, 'false'],
+    ],
+  },
+}
