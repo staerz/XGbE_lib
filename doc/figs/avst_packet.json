@@ -1,0 +1,25 @@
+{ signal: [
+  {name: 'clk',   wave: 'p..........'},
+  ['',
+    ['sink',
+      {name: 'ready', wave: '0.1..0.1..0'},
+    ],
+  ],
+  ['AVST packet',
+    ['source',
+      {name: 'data',  wave: 'x5.5x.5.55x', data: ['D0', 'D1', 'D2', 'D3', 'D4']},
+      {name: 'valid', wave: '01..0.1...0'},
+      {name: 'sop',   wave: '01.0.......'},
+      {name: 'eop',   wave: '0........10'},
+      {name: 'empty', wave: 'x........5x', data: ['E0']},
+      {name: '(error)', wave: 'x4.4x.4.44x', data: ['X0', 'X1', 'X2', 'X3', 'X4']},
+    ],
+  ],
+],
+  head:{
+    tick:0,
+  },
+  foot:{
+    tock:0,
+  },
+}
