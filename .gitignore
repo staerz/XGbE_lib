@@ -1,1 +1,70 @@
-../../.gitignore
+# Specifies intentionally untracked files for this repository
+# Find documentation (syntax) here: https://git-scm.com/docs/gitignore
+#
+# White-listing approach: forbid everything, only allow explicitly
+#
+# We aim not to cover all cases, things can always be added by "-f" manually;
+# and files already tracked by Git are not affected anyway.
+################################################################################
+
+# First, ignore everything
+*
+# Now, white-list anything that's a directory
+!*/
+# and all the file types we're interested in:
+
+# git stuff
+!.gitignore
+!.gitlab/*
+!.gitmodules
+!.gitlab-ci.yml
+
+# files to have the framework working:
+!Makefile
+!Manifest.py
+!users/**/Makefile.env.user.mk
+
+# source files
+# VHDL source files
+!*.vhd
+# patch files
+!*.patch
+# TCL scripts
+!*.tcl
+# Waveform configuration files
+!*.do
+# Signal Tap
+!*.stp
+# Design constraints
+!*.sdc
+# Memory init files ... for now I prefer to have it via -f only ...
+#!*.mif
+# IP core files (in the foreseen directory)
+# (we explicitly don't allow qsys anymore as the new file format 'ip' should be used)
+!altera/**/*.ip
+
+# documentation files
+# Markdown files
+!*.md
+# accompanying pictures
+!/**/figs/**/*.png
+!/**/figs/**/*.eps
+!/**/figs/**/*.gif
+!/**/figs/**/*.jpg
+# wavedrom files
+!/**/figs/**/*.json
+
+# (bash) scripts
+!*.sh
+
+!.vsg_local/**
+
+# Re-exclude some directories that might contain files white-listed above
+# ignore anything created by the environment:
+env_gen_temp
+# any Doxygen temporary files (i.e. the Makefile there)
+doxytemp
+# any ip core directories
+ip
+# any files in the compilation qsys directory
+.qsys_edit
