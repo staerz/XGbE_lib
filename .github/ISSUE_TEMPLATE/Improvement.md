@@ -1,15 +1,22 @@
+---
+name: Improvement Request
+about: Create a report to help us improve the code
+title: "Improvement: [Description of the desired improvement]"
+labels: Improvement
+assignees: staerz
+---
+
 <!--
 Scope
 
 AN IMPROVEMENT REQUEST INTENDS TO IMPROVE A CERTAIN ALREADY IMPLEMENTED FEATURE E.G. BY RESTRUCTURING THE CODE, MAKING IT MORE READABLE OR USING DIFFERENT METHODS TO ACHIEVE THE VERY SAME BEHAVIOUR.
 THE DIFFERENCE TO A FEATURE REQUEST IS THAT AN IMPROVEMENT DOES NOT ALTER EXISTING BEHAVIOUR AND IN PARTICULAR DOES NOT IMPLEMENT A NEW FUNCTIONALITY.
-IMPROVEMENTS RELATED TO DOCUMENTATION SHOULD BE HANDLED BY DOCUMENTATION REQUESTS.
 
 Prerequisites
 
 ANSWER THE FOLLOWING QUESTIONS FOR YOURSELF BEFORE SUBMITTING AN IMPROVEMENT REQUEST.
 
-- This is an improvement request (and not a (CI) bug report nor a feature, clarification or documentation request).
+- This is an improvement request (and not a (CI) bug report nor a feature, or documentation request).
 - This improvement is not included in the latest version.
 - I checked to make sure that this improvement has not already been requested.
 - I'm requesting this improvement to the correct repository.
@@ -31,8 +38,4 @@ In particular ...
 ## Expected Benefit
 <!-- EXPLAIN WHY DO YOU THINK IT WILL BE HELPFUL AND IN WHICH CASES -->
 
-The benefit of this requested improvement is ...
-
-/label ~"Class::Improvement"
-/weight 1
-/due in 2 weeks
+The benefit of this requested improvement would be to ...
