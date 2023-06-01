@@ -76,5 +76,3 @@ If `path_to_json_files` is not specified, the current repository's root path is 
 ## Makefile
 
 These scripts can be incorporated into makefiles to automatically generate `pdf` files for inclusion in documentation.
-
-An example can be found in [the Makefile of the Firmware specification template](/../../LaTeXATLASPhaseII/blob/master/skeletons/firmware_specs/Makefile), see [further instructions](../../LaTeXATLASPhaseII/#set-up-a-makefile).
