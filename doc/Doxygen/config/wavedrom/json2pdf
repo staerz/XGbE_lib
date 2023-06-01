@@ -1,0 +1,96 @@
+#!/bin/bash
+# EMACS settings: -*- tab-width: 2; indent-tabs-mode: nil -*-
+# vim: tabstop=2:shiftwidth=2:expandtab
+# kate: tab-width 2; replace-tabs on; indent-width 2;
+################################################################################
+#
+# Convert json files to pdf
+#
+################################################################################
+# Author: Sam de Jong <srdejong@uvic.ca>
+################################################################################
+
+
+# Base path to directory containing json files provided via parameter
+if [ "$#" -eq 1 ]; then
+  JSONPATH=$(realpath $1)
+else
+  JSONPATH=$(git rev-parse --show-toplevel)
+  echo "Using repository base path ($JSONPATH) as starting directory"
+fi
+
+# Get this script's location (wavefrom.js is in the same place)
+MYDIR=$(dirname $(realpath $0))
+
+# convert json to svg
+# Get a list of all json files
+jsonList=$(find ${JSONPATH} -name "*.json" -not -path "*/node_modules*" -not -path "*package-lock.json*")
+
+nodeExists=$(which node)
+requiredver=v12.0.0
+CorrectNode=0
+wavedromPath=${MYDIR}/node_modules/wavedrom-cli/wavedrom-cli.js
+if [[ -n ${nodeExists} ]]; then
+  currentver=$(node -v)
+
+  # check if the node version is correct
+  nodeCheck=$(printf '%s\n' "${requiredver}" "${currentver}" | sort -V | head -n1)
+  if  [ "${nodeCheck}" = "${requiredver}" ]; then
+    CorrectNode=1
+    # check if wavefrom cli is installed, and install it if not
+    if [[ ! -f "$wavedromPath" ]]; then
+      echo "installing wavedrom cli"
+      npm i wavedrom-cli --prefix ${MYDIR}
+    else
+      echo "wavefrom cli already installed"
+    fi
+  fi
+fi
+
+# If node isn't installed or is an incorrect version, create a dummy svg
+[ ${CorrectNode} -eq 0 ] && cat ${MYDIR}/dummy.svg | sed "s/VERSION/${requiredver}/" > ${MYDIR}/dummyV.svg
+
+for file in ${jsonList}; do
+  # Create output filename
+  svgFile=${file/json/svg}
+
+  # Check if correct version of nodejs exists
+  if [[ ${CorrectNode} -eq 1 ]]; then
+    # Check if the svg file is older than the source json file
+      if [ "$svgFile" -ot "$file" ]; then
+      $wavedromPath -i ${file} -s ${svgFile};
+      #node ${MYDIR}/wavedrom.js -i ${file} > ${svgFile};
+      echo " Generating '${svgFile}'";
+    fi
+
+  else
+    cp ${MYDIR}/dummyV.svg ${svgFile}
+  fi
+done
+
+rm -f ${MYDIR}/dummyV.svg
+
+# Convert svg to pdf (Done separately from json to svg to convert standalone svg files)
+# Get a list of all svg files
+svgList=$(find ${JSONPATH} -not -path "${MYDIR}" -name "*.svg" -not -path "*/node_modules*")
+
+# Find location of rsvg
+rsvgExists=$(which rsvg-convert)
+
+# Loop over SVG files
+for file in ${svgList}; do
+  # Create output filename
+  pdfFile=${file/svg/pdf}
+
+  # Check if rsvg is installed
+  if [[ ${rsvgExists} != "" ]]; then
+    # Check if the pdf file is older than the source svg file
+    if [ "$pdfFile" -ot "$file" ]; then
+      rsvg-convert -f pdf -o ${pdfFile} ${file};
+      echo " Generating '${pdfFile}'";
+    fi
+  else
+    # Make dummy pdf files if rsvg is not installed
+    cp ${MYDIR}/dummy.pdf ${pdfFile}
+  fi
+done
