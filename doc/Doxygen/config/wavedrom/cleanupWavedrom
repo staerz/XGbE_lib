@@ -1,0 +1,53 @@
+#!/bin/bash
+# EMACS settings: -*- tab-width: 2; indent-tabs-mode: nil -*-
+# vim: tabstop=2:shiftwidth=2:expandtab
+# kate: tab-width 2; replace-tabs on; indent-width 2;
+################################################################################
+#
+# Cleanup pdfs generated from json files.
+# This version leaves .svg files which are used in *.md files.
+#
+################################################################################
+# Author: Sam de Jong <srdejong@uvic.ca>
+################################################################################
+
+# Get the base of the repository
+REPOROOT=$(git rev-parse --show-toplevel)
+
+# Base path to directory containing json files
+if [ "$#" -eq 1 ]; then
+  BASEPATH=$(realpath $1)
+  cd $BASEPATH
+  # Get the repository root path of the repo that BASEPATH is a part of
+  REPOROOT=$(git rev-parse --show-toplevel)
+  cd $OLDPWD
+else
+  BASEPATH=$REPOROOT
+  echo "Using repository base path ($REPOROOT) as starting directory"
+fi
+
+# Get a list of all the git submodules in this repository
+EXCLUDEDIRS=$(git config --file $REPOROOT/.gitmodules --get-regexp path | awk '{ print $2 }')
+
+# Create a line which will exclude the submodule paths from the find command
+EXCLUDELINE=""
+for dir in $EXCLUDEDIRS; do
+  EXCLUDELINE+=" -path $REPOROOT/$dir -prune -o"
+done
+
+# Get a list of all json files
+jsonList=$(find ${BASEPATH} -name "*.json" -not -path "*/node_modules*" -not -path "*package-lock.json*")
+
+# Delete svgs and pdfs associated with each json.
+for file in ${jsonList}; do
+  # Get pdf name
+  svgFile=${file/json/svg}
+  pdfFile=${file/json/pdf}
+
+  rm -f ${pdfFile}
+
+  # Remove path from svg file
+  # If the svg isn't used in a .md file, delete it
+  find $REPOROOT/ $EXCLUDELINE -name "*.md" -type f -exec egrep -l "$(basename ${svgFile})" {} + 1>/dev/null || rm -f ${svgFile}
+
+done

@@ -1,0 +1,16 @@
+{ signal: [
+  {},
+  {name: 'clk',        wave: 'p...................'},
+  {name: 'rst',        wave: '010......10.........'},
+  {name: 'en',         wave: '0.1.......010101010.'},
+  {name: 'cycle_done', wave: 'xx0...1...0.......1.'},
+],
+ head: {text:['tspan',
+   ['tspan', {'text-anchor': 'start', x: '0', dy: '0', class:'h4'}, 'counter_max_value = '], 
+   ['tspan', {class:'success h4'}, '4'],              
+   ['tspan', {'text-anchor': 'start', x: '0', dy: '30', class:'h4'}, 'cyclic = '],
+   ['tspan', {class:'success h4'}, 'false'],
+  ]
+},
+
+}

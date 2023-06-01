@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   version="1.1"
+   id="svg2"
+   xml:space="preserve"
+   width="666.66669"
+   height="181.33333"
+   viewBox="0 0 666.66669 181.33333"
+   sodipodi:docname="dummy.svg"
+   inkscape:version="0.92.3 (2405546, 2018-03-11)"><metadata
+     id="metadata8"><rdf:RDF><cc:Work
+         rdf:about=""><dc:format>image/svg+xml</dc:format><dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" /><dc:title /></cc:Work></rdf:RDF></metadata><defs
+     id="defs6" /><sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="1334"
+     inkscape:window-height="868"
+     id="namedview4"
+     showgrid="false"
+     inkscape:zoom="0.56099998"
+     inkscape:cx="27.629229"
+     inkscape:cy="90.666664"
+     inkscape:window-x="67"
+     inkscape:window-y="27"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="g12" /><g
+     id="g10"
+     inkscape:groupmode="layer"
+     inkscape:label="dummy"
+     transform="matrix(1.3333333,0,0,1.3333333,0,1.2e-6)"><g
+       id="g12"><text
+   xml:space="preserve"
+   style="font-style:normal;font-weight:normal;font-size:30px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.75px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+   x="58.728043"
+   y="38.776367"
+   id="text830"><tspan
+     sodipodi:role="line"
+     id="tspan828"
+     x="58.728043"
+     y="38.776367"
+     style="stroke-width:0.75px">Incorrect nodejs version</tspan><tspan
+     sodipodi:role="line"
+     x="58.728043"
+     y="76.276367"
+     style="stroke-width:0.75px"
+     id="tspan817">Requires VERSION</tspan><tspan
+     sodipodi:role="line"
+     x="58.728043"
+     y="113.77637"
+     style="stroke-width:0.75px"
+     id="tspan834">Dummy svg used instead</tspan><tspan
+     sodipodi:role="line"
+     x="58.728043"
+     y="151.27637"
+     style="stroke-width:0.75px"
+     id="tspan832" /></text>
+
+</g></g></svg>

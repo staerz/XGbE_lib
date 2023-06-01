@@ -20,19 +20,18 @@
 
 # doxygen defines a 'project' - which here corresponds to our component
 # doxygen uses this as the title for the manual
-PROJECT_NAME           = "Data Monitoring (damon)"
+PROJECT_NAME = "XGbE_lib: 10 Gigabit Ethernet VHDL library"
 
 # this path is relative to the original Doxyfile including this file
 # that's cumbersome, so we use the env variable (set in the Makefile)
-INPUT = $(COMPONENT_ROOT_PATH)/src/damon_top.vhd
+INPUT = $(COMPONENT_ROOT_PATH)/src/fpga
+INPUT += $(COMPONENT_ROOT_PATH)/src/sim
+INPUT += $(COMPONENT_ROOT_PATH)/src/misc
+INPUT += $(COMPONENT_ROOT_PATH)/src/memory
 INPUT += $(COMPONENT_ROOT_PATH)/src/xgbe_lib
 INPUT += $(COMPONENT_ROOT_PATH)/simulation/xgbe_lib
 
-# apparently package files need to be added explicitly
-# or it is due to an error with a previously processed file!?
-#INPUT += $(COMPONENT_ROOT_PATH)/src/damon_pkg.vhd
-
-# we exclude any third party source code, i.e. the lpGBT source code
+# we exclude any third party source code
 #EXCLUDE = $(COMPONENT_ROOT_PATH)/src/xgbe_lib/
 
 # exclude Readme files

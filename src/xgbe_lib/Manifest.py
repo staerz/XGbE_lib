@@ -1,12 +1,16 @@
-# List of modules
-modules = {
-  "local": [
-    '$PROJECT_ROOT_PATH/common/src/memory',
-  ],
-}
+# Additional module options: compile files locally
+# mod_opt = {'vcom_vlog_library_path': '.'}
 
 # Library
 library = "xgbe_lib"
+
+# modules that sources here depend on
+modules = {
+  'local': [
+    '../memory',
+    '../misc',
+  ],
+}
 
 # List of source files for the module
 files = [
