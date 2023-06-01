@@ -1,0 +1,394 @@
+{
+  "indent":{
+    "tokens":{
+      "component_instantiation_statement":{
+        "instantiation_label":{
+          "token" : "current",
+          "after" : "current",
+        },
+        "semicolon":{
+          "token" : "current",
+          "after" : "current",
+        },
+      },
+    },
+  },
+  "rule":{
+    "architecture_003": {
+      "style":"require_comment"
+    },
+    "architecture_010":{
+      "action":"add",
+    },
+    "architecture_015":{
+      "style":"require_blank_line"
+    },
+    "architecture_016":{
+      "style":"require_blank_line"
+    },
+    "architecture_017":{
+      "style":"require_blank_line"
+    },
+    "architecture_018":{
+      "style":"require_blank_line"
+    },
+    "architecture_025":{
+      "disable":false,
+      "names":[
+        "behavioral",
+        "emulational",
+        "ip_core_wrapper",
+        "empty",
+        "tb",
+      ],
+    },
+    # same as entity_017
+    "architecture_026":{
+      "comment_line_ends_group": false,
+    },
+    "assert_400":{
+      "alignment":"left",
+    },
+    "block_002":{
+      "action":"remove"
+    },
+    "block_007":{
+      "action":"add"
+    },
+    "block_200":{
+      "style":"allow_comment"
+    },
+    "block_201":{
+      "style":"no_blank_line"
+    },
+    "block_202":{
+      "style":"no_blank_line"
+    },
+    "block_203":{
+      "style":"require_blank_line"
+    },
+    "block_204":{
+      "style":"require_blank_line"
+    },
+    # same as entity_017
+    "block_400":{
+      "comment_line_ends_group": false,
+    },
+    # same as entity_017
+    "block_401":{
+      "comment_line_ends_group": false,
+    },
+    "block_601":{
+      "disable":false,
+    },
+    "block_comment_001":{
+      "disable": false,
+      "header_left_repeat": "-",
+      "header_string": "<-    80 chars    ->",
+      "header_right_repeat": "-",
+      "max_header_column": 80,
+      "allow_indenting": false,
+    },
+    "block_comment_002":{
+      "disable": false,
+      "allow_indenting": false,
+    },
+    "block_comment_003":{
+      "disable": false,
+      "max_footer_column": 80,
+      "allow_indenting": false,
+    },
+    "case_007":{
+      "style":"allow_comment"
+    },
+    "component_003":{
+      "style":"allow_comment"
+    },
+    "concurrent_003":{
+      "align_left": "yes",
+      "align_paren": "no",
+    },
+    # same as entity_017
+    "concurrent_006":{
+      "comment_line_ends_group": false,
+    },
+    "concurrent_007":{
+      "allow_single_line":true
+    },
+    "concurrent_009":{
+      "align_left": "yes",
+      "align_paren": "yes",
+      "align_when_keywords": "no",
+      "wrap_at_when": "no",
+      "align_else_keywords": "no",
+    },
+    "concurrent_011":{
+      "new_line_after_assign":"yes",
+      "ignore_single_line":"yes"
+    },
+    "concurrent_012":{
+      "first_paren_new_line":"no",
+      "last_paren_new_line":"yes",
+      "open_paren_new_line":"yes",
+      "close_paren_new_line":"yes",
+      "new_line_after_comma":"ignore_positional",
+      "assign_on_single_line":"ignore"
+    },
+    "concurrent_401":{
+      "align_left":"yes",
+      "align_paren":"no",
+    },
+    "constant_012":{
+      "align_left":"yes",
+      "align_paren":"no",
+    },
+    "constant_014":{
+      "align_left":"yes",
+      "align_paren":"no",
+    },
+    # same as concurrent_012
+    "constant_016":{
+      "first_paren_new_line":"no",
+      "last_paren_new_line":"yes",
+      "open_paren_new_line":"yes",
+      "close_paren_new_line":"yes",
+      "new_line_after_comma":"ignore_positional",
+      "assign_on_single_line":"ignore"
+    },
+    "constant_017":{
+      "record_constraint_open_paren":"remove_new_line",
+      "record_constraint_close_paren":"add_new_line",
+      "record_constraint_comma":"remove_new_line",
+      "record_constraint_element":"add_new_line",
+      "array_constraint":"all_in_one_line",
+      "exceptions": ["keep_record_constraint_with_single_element_on_one_line"],
+    },
+    "entity_003": {
+      "style":"allow_comment"
+    },
+    "entity_017":{
+      "compact_alignment": true,
+      "comment_line_ends_group": false,
+      "blank_line_ends_group": false,
+      "separate_generic_port_alignment": true,
+    },
+    # similar to entity_017
+    "entity_018":{
+      "comment_line_ends_group": false,
+    },
+    "function_006": {
+      "style":"allow_comment"
+    },
+    # same as entity_017
+    "function_012": {
+      "comment_line_ends_group": false,
+    },
+    "generate_004": {
+      "style":"allow_comment"
+    },
+    "generate_011":{
+      "action":"add"
+    },
+    "generate_017":{
+      "disable":false,
+    },
+    # same as entity_017
+    "generate_401":{
+      "comment_line_ends_group": false,
+    },
+    # same as entity_017
+    "generate_403":{
+      "comment_line_ends_group": false,
+    },
+    # same as entity_017
+    "generate_405":{
+      "comment_line_ends_group": false,
+    },
+    # same as entity_017
+    "instantiation_010": {
+      "comment_line_ends_group": false,
+    },
+    "instantiation_004":{
+      "style":"allow_comment"
+    },
+    "instantiation_033":{
+      "action":"remove"
+    },
+    "instantiation_034":{
+      "method":"entity",
+      "style":"entity",
+    },
+    "instantiation_601":{
+      "prefixes": ["uut", "inst_"],
+      "disable":false,
+    },
+    "library_003": {
+      "style":"allow_comment",
+      "allow_library_clause":true,
+    },
+    "package_003": {
+      "style":"allow_comment"
+    },
+    # same as entity_017
+    "package_400": {
+      "comment_line_ends_group": false,
+    },
+    "package_body_200": {
+      "style":"allow_comment"
+    },
+    "port_025":{
+      "suffixes": ["_i", "_ni", "_o", "_no", "_io", "_nio", "clk", "rst"],
+      "disable":false,
+    },
+    # same as function_006
+    "procedure_200": {
+      "style":"allow_comment"
+    },
+    # same as entity_017
+    "procedure_401": {
+      "comment_line_ends_group": false,
+    },
+    # same as entity_017
+    "procedure_410": {
+      "comment_line_ends_group": false,
+    },
+    # same as entity_017
+    "procedure_411": {
+      "comment_line_ends_group": false,
+    },
+    "procedure_call_400": {
+      "align_left": "yes",
+      "align_paren": "no",
+    },
+    "process_011":{
+      "style":"require_blank_line"
+    },
+    "process_012":{
+      "action":"remove"
+    },
+    "process_015":{
+      "style":"allow_comment"
+    },
+    "process_018":{
+      "action":"add"
+    },
+    "process_021":{
+      "style":"no_blank_line"
+    },
+    "process_026":{
+      "style":"no_blank_line"
+    },
+    "process_027":{
+      "style":"no_blank_line"
+    },
+    "process_029":{
+      "clock":"edge"
+    },
+    # same as entity_017
+    "process_033":{
+      "comment_line_ends_group": false,
+    },
+    # documentation mentions it to be default, but is doesn't seem to be the default as we have to configure it
+    "process_035":{
+      "compact_alignment": true,
+      "blank_line_ends_group": true,
+    },
+    "process_036":{
+      "disable":false,
+    },
+    # same as entity_017
+    "process_400":{
+      "comment_line_ends_group": false,
+    },
+    "sequential_004":{
+      "align_left": "yes",
+      "align_paren": "no",
+    },
+    # same as concurrent_011
+    "sequential_008":{
+      "new_line_after_assign":"yes",
+      "ignore_single_line":"yes",
+    },
+    # same as constant_017
+    "signal_017":{
+      "record_constraint_open_paren":"remove_new_line",
+      "record_constraint_close_paren":"add_new_line",
+      "record_constraint_comma":"remove_new_line",
+      "record_constraint_element":"add_new_line",
+      "array_constraint":"all_in_one_line",
+      "exceptions": ["keep_record_constraint_with_single_element_on_one_line"],
+    },
+    "signal_400":{
+      "align_left": "yes",
+      "align_paren": "no",
+    },
+    # same as block_201
+    "subprogram_body_201":{
+      "style":"no_blank_line"
+    },
+    # same as block_202
+    "subprogram_body_202":{
+      "style":"no_blank_line"
+    },
+    # same as block_203
+    "subprogram_body_203":{
+      "style":"require_blank_line"
+    },
+    # same as block_204
+    "subprogram_body_204":{
+      "style":"require_blank_line"
+    },
+    # same as entity_017
+    "subprogram_body_400": {
+      "comment_line_ends_group": false,
+    },
+    "subtype_004":{
+      "prefixes": ["t_"],
+      "disable":false,
+    },
+    "type_015":{
+      "disable":false,
+    },
+    # same as entity_017
+    "type_400": {
+      "comment_line_ends_group": false,
+    },
+    "variable_017":{
+      "record_constraint_open_paren":"remove_new_line",
+      "record_constraint_close_paren":"add_new_line",
+      "record_constraint_comma":"remove_new_line",
+      "record_constraint_element":"add_new_line",
+      "array_constraint":"all_in_one_line",
+      "exceptions": ["keep_record_constraint_with_single_element_on_one_line"],
+    },
+    # same as signal_400
+    "variable_400":{
+      "align_left": "yes",
+      "align_paren": "no",
+    },
+    # same as concurrent_003
+    "variable_assignment_004": {
+      "align_left": "yes",
+      "align_paren": "no",
+    },
+    # same as concurrent_011
+    "variable_assignment_007":{
+      "new_line_after_assign":"yes",
+      "ignore_single_line":"yes",
+    },
+    # same as concurrent_012
+    "variable_assignment_008":{
+      "first_paren_new_line":"no",
+      "last_paren_new_line":"yes",
+      "open_paren_new_line":"yes",
+      "close_paren_new_line":"yes",
+      "new_line_after_comma":"ignore_positional",
+      "assign_on_single_line":"ignore"
+    },
+    # same as concurrent_401
+    "variable_assignment_401":{
+      "align_left": "yes",
+      "align_paren": "no",
+    },
+  },
+}

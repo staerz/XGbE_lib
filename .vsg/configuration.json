@@ -1,8 +1,7 @@
 {
   "file_list":[
     # full list, need to exclude the altera (via [!a]) and Intel directory (via [!I])
-    "[!a]*/*.vhd",
-    "[!a]*/[!I]*/*.vhd",
-    "[!a]*/[!I]*/*/*.vhd",
+    "src/xgbe_lib/*.vhd",
+    "simulation/*/*/*.vhd",
   ],
 }

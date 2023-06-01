@@ -53,3 +53,12 @@ All source code is documented using Doxygen.
 To generate the documentation locally as `pdf` (using $`\LaTeX`$) or as HTML, see the [Doxygen](./doc/Doxygen) directory.
 
 It uses [wavedrom](https://wavedrom.com/) to generate timing diagrams.
+
+## Code style
+
+This repository uses [VSG](https://github.com/jeremiah-c-leary/vhdl-style-guide) to check code style.
+
+Currently the style check is limited to the source code of `XGbE_lib` (and its test benches) as the auxiliary libraries don't comply with the configured rules.
+
+To run VSG on this repository, simply `vsg $(cat .vsg/params.txt)`.
+Note that the configuration is compatible with VSG 3.13.1.

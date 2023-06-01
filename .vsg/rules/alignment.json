@@ -1,0 +1,9 @@
+{
+  "rule":{
+    "global":{
+      "indentSize":2,
+      "comment_line_ends_group":false,
+      "blank_line_ends_group":true
+    },
+  }
+}

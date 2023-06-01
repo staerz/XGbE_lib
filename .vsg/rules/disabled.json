@@ -1,0 +1,85 @@
+{
+  "rule":{
+    # This rule checks for a blank line below the => keyword.
+    # we would not want one, but that
+    # does conflict with case_007 (when `when` is followed by `case`)
+    "case_200":{
+      "disable":true
+    },
+    # This rule checks the bolean expression is enclosed in ().
+    "if_002":{
+      "disable":true
+    },
+    # at least a single blank line after the end if
+    "if_030":{
+      "disable":true
+    },
+    # blank line before the if
+    "if_031":{
+      "disable":true
+    },
+    # This rule checks the then keyword is not on a line by itself.
+    # There are cases when the condition is too complex where the `then` serves
+    # as visual separator between the condition and action
+    "if_036":{
+      "disable":true
+    },
+    # This rule checks for blank lines or comments above loop statements.
+    "loop_statement_200":{
+      "disable":true
+    },
+    # This rule checks for blank lines below the loop keyword.
+    "loop_statement_201":{
+      "disable":true
+    },
+    # This rule checks for blank lines or comments above the end keyword.
+    "loop_statement_202":{
+      "disable":true
+    },
+    # This rule checks for blank lines below the end loop keywords.
+    "loop_statement_203":{
+      "disable":true
+    },
+    # This rule checks for default assignments on port declarations.
+    # this is actually a fuctionality of VHDL, so we need it!
+    "port_012":{
+      "disable":true
+    },
+    # This rule checks for a blank line below the begin keyword.
+    # Decided to be disabled, see #162
+    "process_022":{
+      "disable":true
+    },
+    # This rule checks for a blank line above the end process keyword.
+    # Decided to be disabled, see #162
+    "process_023":{
+      "disable":true
+    },
+    # This rule checks for a single signal per line in a sensitivity list that is not the last one.
+    "process_030":{
+      "disable":true
+    },
+    # This rule checks for comments within multiline sequential statements.
+    "sequential_006":{
+      "disable":true
+    },
+    # This rule checks for blank lines or comments above the type declaration.
+    # it is incompatible with block_201
+    "type_010":{
+      "disable":true,
+    },
+    # This rule checks for a blank line below the type declaration.
+    # Checking below sth. makes few sense...
+    "type_011":{
+      "disable":true
+    },
+    # This rule checks for comments in multiline variable assignments.
+    "variable_assignment_006":{
+      "disable":true
+    },
+    # how does one dare to tag this as an error ...
+    "with_001":{
+      "disable":true
+    },
+  }
+}
